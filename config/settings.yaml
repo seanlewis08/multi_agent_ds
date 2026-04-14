@@ -1,1 +1,199 @@
 # Runtime settings placeholder.
+# ====================================================================================
+# Multi-Agent DS Pipeline Settings
+# ====================================================================================
+# This is the central configuation file. Change values here and the entire
+# pipeline adjusts.
+
+# --------------------------------------------------------------
+# Data Generation
+# --------------------------------------------------------------
+data:
+  # source: {synthetic, existing}
+  source: synthetic
+
+  # --- Use when source: existing ---
+  existing:
+    uri: s3://root-dw-data-transfer/multi-agent-ds/data/raw/real_dataset.parquet
+    format: parquet
+    target_column: binary_target
+
+  # --- Use when source: synthetic ---
+  synthetic:
+    scale: small
+
+    scales:
+        small:
+          n_rows: 5000
+        medium:
+            n_rows: 50000
+        large:
+            n_rows: 500000
+
+    target:
+      column_name: binary_target
+      positive_rate: 0.15
+
+    random_state: 42
+
+    features:
+      # --- Numeric Continuous ---
+      - name: driver_age
+        type: numerical
+        min: 16.0
+        max: 85.0
+
+      - name: annual_income
+        type: numerical
+        subtype: float
+        min: 15000.0
+        max: 250000.0
+
+      - name: credit_score
+        type: numerical
+        subtype: float
+        min: 300.0
+        max: 850.0
+
+      - name: vehicle_value
+        type: numerical
+        subtype: float
+        min: 2000.0
+        max: 80000.0
+
+      - name: annual_premium
+        type: numerical
+        subtype: float
+        min: 400.0
+        max: 8000.0
+
+      - name: claim_amount_avg
+        type: numerical
+        subtype: float
+        min: 0.0
+        max: 50000.0
+
+      - name: miles_driven_annual
+        type: numerical
+        subtype: float
+        min: 1000.0
+        max: 50000.0
+
+      - name: distance_to_work
+        type: numerical
+        subtype: float
+        min: 0.5
+        max: 80.0
+
+      # --- Numeric Discrete ---
+      - name: num_prior_claims
+        type: numerical
+        subtype: integer
+        min: 0
+        max: 12
+
+      - name: policy_tenure_months
+        type: numerical
+        subtype: integer
+        min: 1
+        max: 240
+
+      - name: num_vehicles
+        type: numerical
+        subtype: integer
+        min: 1
+        max: 6
+
+      - name: num_drivers_on_policy
+        type: numerical
+        subtype: integer
+        min: 1
+        max: 5
+
+      # --- Categorical ---
+      - name: state
+        type: categorical
+        values: [OH, CA, TX, FL, NY, IL, PA, GA, NC, MI]
+
+      - name: vehicle_type
+        type: categorical
+        values: [sedan, suv, truck, coupe, van, hatchback]
+
+      - name: coverage_tier
+        type: categorical
+        values: [liability_only, basic, standard, premium]
+
+      - name: marital_status
+        type: categorical
+        values: [single, married, divorced, widowed]
+
+      - name: education_level
+        type: categorical
+        values: [high_school, associates, bachelors, masters, doctorate]
+
+
+  test_size: 0.2
+
+# -----------------------------------------------------------------------------
+# S3 Configuration
+# -----------------------------------------------------------------------------
+s3:
+  bucket: root-dw-data-transfer
+  prefix: multi_agent_ds
+  profile: data-science         # AWS SSO profile name
+
+  # Sub-paths under s3://{bucket}/{prefix}/
+  paths:
+    raw: data/raw
+    processed: data/processed
+    models: models
+    artifacts: artifacts
+    reports: reports
+
+# -----------------------------------------------------------------------------
+# Model Configuration
+# -----------------------------------------------------------------------------
+model:
+  problem_type: classification  # classification or regression
+  cv_folds: 5
+  scoring_metric: roc_auc      # sklearn scoring string
+
+  baseline:
+    algorithm: GradientBoostingClassifier
+    params:
+      n_estimators: 100
+      max_depth: 5
+      learning_rate: 0.1
+      random_state: 42
+
+  # Max iterations for the agent improvement loop
+  max_iterations: 5
+
+# -----------------------------------------------------------------------------
+# MLflow Configuration
+# -----------------------------------------------------------------------------
+mlflow:
+  experiment_name: multi_agent_ds
+  tracking_uri: local           # "local" for file-based, or a server URI
+  artifact_location: mlruns     # relative path for local tracking
+
+# -----------------------------------------------------------------------------
+# LLM Configuration
+# -----------------------------------------------------------------------------
+llm:
+  default_provider: openai
+  providers:
+    openai:
+      model: gpt-4o
+      temperature: 0.2          # low temp for deterministic agent behavior
+      max_tokens: 4096
+
+    # Future providers — add key to .env, uncomment here
+    # anthropic:
+    #   model: claude-sonnet-4-20250514
+    #   temperature: 0.2
+    #   max_tokens: 4096
+    # google:
+    #   model: gemini-2.0-pro
+    #   temperature: 0.2
+    #   max_tokens: 4096
