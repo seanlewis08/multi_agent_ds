@@ -1,0 +1,19 @@
+project:
+  name: multi_agent_ds
+  repository: Root-App/multi_agent_ds
+  team: pricing/marketing
+workstation:
+  instance_type: t3.medium
+  vpc_id: vpc-0c5856b038f470260
+  subnet_id: subnet-0de9a463ec7aacb13
+  security_groups:
+  - accept-from-data-science-vpn
+  - default
+  ami_id: ami-0317068f1b31c89dc
+  iam_instance_profile: arn:aws:iam::545978490421:instance-profile/data-science-dev-instance-profile
+  storage:
+    size: 50
+    volume_type: gp3
+    encrypted: true
+    delete_on_termination: true
+lab_version: 0.1.11
