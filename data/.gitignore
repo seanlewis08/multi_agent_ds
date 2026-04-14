@@ -1,0 +1,10 @@
+*
+!.gitignore
+!raw/
+!raw/.gitkeep
+!interim/
+!interim/.gitkeep
+!processed/
+!processed/.gitkeep
+!external/
+!external/.gitkeep

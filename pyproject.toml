@@ -1,0 +1,34 @@
+[project]
+name = "multi-agent-ds"
+version = "0.1.0"
+authors = [
+    { name = "Sean Lewis", email = "sean.lewis@joinroot.com" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "crewai>=1.14.1",
+    "ipykernel>=7.2.0",
+    "jupyter>=1.1.1",
+    "langgraph>=1.1.6",
+    "matplotlib>=3.10.8",
+    "numpy>=2.4.4",
+    "pandas>=3.0.2",
+    "pydantic>=2.11.10",
+    "python-dotenv>=1.1.1",
+    "pyyaml>=6.0.3",
+    "scikit-learn>=1.8.0",
+    "scipy>=1.17.1",
+    "seaborn>=0.13.2",
+]
+
+[build-system]
+requires = ["uv_build>=0.11.0,<0.12.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "mypy>=1.20.1",
+    "pytest>=9.0.3",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.15.10",
+]
