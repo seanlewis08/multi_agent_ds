@@ -17,6 +17,21 @@ The modeling step is the divergence point — each person builds their own ML mo
 
 ---
 
+## Progress Tracker
+
+Use this section as the high-level status board for Sean-owned step work. Detailed step checklists and implementation plans live in `project_planning/sean_step_artifacts/`.
+
+| Step | Status | Tracking Docs |
+|------|--------|---------------|
+| Step 1: LLM Adapter | Complete | `sean_step_artifacts/LLM_Adapter_Implementation_Plan.md`, `sean_step_artifacts/LLM_Adapter_Checklist.md` |
+| Step 2: LangGraph Orchestration Skeleton | Planned | `sean_step_artifacts/LangGraph_Skeleton_Implementation_Plan.md`, `sean_step_artifacts/LangGraph_Skeleton_Checklist.md` |
+| Step 3: EDA Skills + Agent | Not started | None yet |
+| Step 4: Data Engineering Skills + Agent | Not started | None yet |
+| Step 5: ML Modeler Agent (Sean's Version) | Not started | None yet |
+| Step 6: Final Report Generation | Not started | None yet |
+
+---
+
 ## What's Already Built
 
 Before starting, confirm these are working:
@@ -543,4 +558,3 @@ def report_node(state: PipelineState) -> dict:
 | `agents/ml_modeler.py` | Implement — Sean's version (currently placeholder) | 5 |
 | `config/prompts.yaml` | Populate with prompt templates | 3, 4, 5, 6 |
 | `tools/reporting.py` | Extend with report generation helpers | 6 |
-
