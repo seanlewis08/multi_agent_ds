@@ -205,3 +205,13 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Data artifacts
+data/raw/*.parquet
+data/processed/*parquet
+
+# MLflow
+mlruns/
+mlruns.db
+mlruns.db-journal
+
