@@ -17,8 +17,11 @@ _LIVE_CHAT_PROMPT = os.getenv(
 _MAX_CHAT_WORDS = 20
 
 pytestmark = pytest.mark.skipif(
-    not os.getenv("OPENAI_API_KEY"),
-    reason="OPENAI_API_KEY is required for live OpenAI integration tests",
+    not os.getenv("OPENAI_API_KEY") or os.getenv("RUN_OPENAI_LIVE_TESTS") != "1",
+    reason=(
+        "OPENAI_API_KEY and RUN_OPENAI_LIVE_TESTS=1 are required "
+        "for live OpenAI integration tests"
+    ),
 )
 
 
