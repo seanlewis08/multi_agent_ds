@@ -526,6 +526,76 @@ def ground_truth_artifact(
     }
 
 
+def learning_curve_artifact(
+    training_history: dict[str, Any],
+    algo_name: str,
+) -> dict[str, Any]:
+    """Generate iterative training-history JSON and PNG."""
+    series = training_history.get("series", [])
+    if not series:
+        return {}
+
+    structured_series = []
+    fig, ax = plt.subplots(figsize=(8, 5))
+
+    for item in series:
+        values = [float(value) for value in item.get("values", [])]
+        if not values:
+            continue
+
+        dataset = item.get("dataset", "dataset")
+        metric = item.get("metric", "metric")
+        iterations = list(range(1, len(values) + 1))
+        label = f"{dataset}:{metric}"
+
+        ax.plot(iterations, values, lw=2, label=label)
+        structured_series.append(
+            {
+                "dataset": dataset,
+                "metric": metric,
+                "n_points": len(values),
+                "start_value": round(values[0], 6),
+                "end_value": round(values[-1], 6),
+                "best_value": round(min(values), 6),
+                "best_iteration": int(np.argmin(values) + 1),
+                "values": [round(value, 6) for value in values],
+            }
+        )
+
+    if not structured_series:
+        plt.close(fig)
+        return {}
+
+    best_iteration = training_history.get("best_iteration")
+    if isinstance(best_iteration, int) and best_iteration > 0:
+        ax.axvline(best_iteration, color="#dc2626", linestyle="--", lw=1.5, label=f"Best iteration={best_iteration}")
+
+    ax.set_xlabel("Iteration")
+    ax.set_ylabel("Metric Value")
+    ax.set_title(f"Learning Curve — {algo_name}")
+    ax.grid(True, alpha=0.3)
+    ax.legend()
+
+    summary_parts = [
+        f"{item['dataset']}:{item['metric']} {item['start_value']:.4f} -> {item['end_value']:.4f}"
+        for item in structured_series
+    ]
+    structured = {
+        "artifact_type": "learning_curve",
+        "algorithm": algo_name,
+        "history_source": training_history.get("history_source"),
+        "n_iterations": training_history.get("n_iterations"),
+        "best_iteration": best_iteration,
+        "series": structured_series,
+        "summary": "; ".join(summary_parts),
+    }
+
+    return {
+        "learning_curve.json": structured,
+        "learning_curve.png": _fig_to_png_bytes(fig),
+    }
+
+
 # ── Orchestrator ─────────────────────────────────────────────────────
 
 def generate_run_artifacts(
@@ -536,6 +606,7 @@ def generate_run_artifacts(
     feature_names: list[str],
     algo_name: str,
     true_prob_test: np.ndarray | None = None,
+    training_history: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Generate all applicable artifacts for a single model run.
 
@@ -594,5 +665,11 @@ def generate_run_artifacts(
         except Exception as e:
             logger.warning("Failed to generate ground truth artifact: %s", e)
 
-    return artifacts
+    # 8. Learning Curve (only when training history is available)
+    if training_history is not None:
+        try:
+            artifacts.update(learning_curve_artifact(training_history, algo_name))
+        except Exception as e:
+            logger.warning("Failed to generate learning curve artifact: %s", e)
 
+    return artifacts

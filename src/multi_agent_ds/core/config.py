@@ -62,6 +62,22 @@ def load_workflows_config() -> dict[str, Any]:
     """Load workflow definitions from a YAML file."""
     return load_config("workflows")
 
+
+def resolve_tracking_uri(tracking_uri: str) -> str:
+    """Resolve sqlite tracking URIs relative to the repository root."""
+    if not tracking_uri.startswith("sqlite:///"):
+        return tracking_uri
+
+    sqlite_path = tracking_uri[len("sqlite:///") :]
+    if not sqlite_path:
+        return tracking_uri
+
+    # Already absolute: sqlite:////Users/... or sqlite:///C:/...
+    if sqlite_path.startswith("/") or (len(sqlite_path) >= 2 and sqlite_path[1] == ":"):
+        return tracking_uri
+
+    return f"sqlite:///{(_PROJECT_ROOT / sqlite_path).resolve().as_posix()}"
+
 # ---- Settings helpers ---
 # These avoid repeating dict-key lookups across modules
 

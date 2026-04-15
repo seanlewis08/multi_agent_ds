@@ -7,6 +7,7 @@ from multi_agent_ds.core.config import (
     load_prompts_config,
     load_settings,
     load_workflows_config,
+    resolve_tracking_uri,
 )
 
 __all__ = [
@@ -17,4 +18,5 @@ __all__ = [
     "load_workflows_config",
     "get_active_scale",
     "build_s3_uri",
+    "resolve_tracking_uri",
 ]

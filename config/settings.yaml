@@ -161,10 +161,13 @@ s3:
 # -----------------------------------------------------------------------------
 model:
   problem_type: classification  # classification or regression
-  algorithm:
+  algorithms:
     - lightgbm
+    - logistic_regression
   cv_folds: 5
-  scoring_metric:
+  test_size: 0.2
+  primary_metric: ase
+  scoring_metrics:
     - ase
     - gini
     - roc_auc      # sklearn scoring string
@@ -172,6 +175,10 @@ model:
     - precision
     - recall
     - accuracy
+  tuning:
+    max_trials: 50
+    timeout: 36000
+    min_improvement: 0.01
 
   baseline:
     algorithm: GradientBoostingClassifier
@@ -189,8 +196,8 @@ model:
 # -----------------------------------------------------------------------------
 mlflow:
   experiment_name: multi_agent_ds
-  tracking_uri: local           # "local" for file-based, or a server URI
-  artifact_location: mlruns     # relative path for local tracking
+  tracking_uri: sqlite:///mlruns.db   # SQLite backend (single file, queryable)
+  artifact_location: mlruns           # artifacts (serialized models) still go to disk
 
 # -----------------------------------------------------------------------------
 # LLM Configuration
