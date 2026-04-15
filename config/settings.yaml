@@ -20,7 +20,7 @@ data:
 
   # --- Use when source: synthetic ---
   synthetic:
-    scale: small
+    scale: large
 
     scales:
         small:
@@ -30,104 +30,110 @@ data:
         large:
             n_rows: 500000
 
+    # target_mode: {learned, deterministic}
+    #   learned       — SDV generates the target column (default)
+    #   deterministic — SDV generates features; ground truth function creates target
+    target_mode: deterministic
+
     target:
       column_name: binary_target
-      positive_rate: 0.15
+      positive_rate: 0.27
 
     random_state: 42
 
     features:
       # --- Numeric Continuous ---
-      - name: driver_age
+      age:
         type: numerical
+        subtype: float
         min: 16.0
         max: 85.0
 
-      - name: annual_income
+      annual_income:
         type: numerical
         subtype: float
         min: 15000.0
         max: 250000.0
 
-      - name: credit_score
+      credit_score:
         type: numerical
         subtype: float
         min: 300.0
         max: 850.0
 
-      - name: vehicle_value
+      vehicle_value:
         type: numerical
         subtype: float
         min: 2000.0
         max: 80000.0
 
-      - name: annual_premium
+      annual_premium:
         type: numerical
         subtype: float
         min: 400.0
         max: 8000.0
 
-      - name: claim_amount_avg
+      claim_amount_avg:
         type: numerical
         subtype: float
         min: 0.0
         max: 50000.0
 
-      - name: miles_driven_annual
+      miles_driven_annual:
         type: numerical
         subtype: float
         min: 1000.0
         max: 50000.0
 
-      - name: distance_to_work
+      distance_to_work:
         type: numerical
         subtype: float
         min: 0.5
         max: 80.0
 
       # --- Numeric Discrete ---
-      - name: num_prior_claims
+      num_prior_claims:
         type: numerical
         subtype: integer
         min: 0
         max: 12
 
-      - name: policy_tenure_months
+      policy_tenure_months:
         type: numerical
         subtype: integer
         min: 1
         max: 240
 
-      - name: num_vehicles
+      num_vehicles:
         type: numerical
         subtype: integer
         min: 1
         max: 6
 
-      - name: num_drivers_on_policy
+      num_drivers_on_policy:
         type: numerical
         subtype: integer
         min: 1
         max: 5
 
       # --- Categorical ---
-      - name: state
+      state:
         type: categorical
         values: [OH, CA, TX, FL, NY, IL, PA, GA, NC, MI]
 
-      - name: vehicle_type
+      vehicle_type:
         type: categorical
         values: [sedan, suv, truck, coupe, van, hatchback]
 
-      - name: coverage_tier
+      coverage_tier:
         type: categorical
         values: [liability_only, basic, standard, premium]
 
-      - name: marital_status
+      marital_status:
         type: categorical
         values: [single, married, divorced, widowed]
 
-      - name: education_level
+      education_level:
         type: categorical
         values: [high_school, associates, bachelors, masters, doctorate]
 
@@ -155,8 +161,17 @@ s3:
 # -----------------------------------------------------------------------------
 model:
   problem_type: classification  # classification or regression
+  algorithm:
+    - lightgbm
   cv_folds: 5
-  scoring_metric: roc_auc      # sklearn scoring string
+  scoring_metric:
+    - ase
+    - gini
+    - roc_auc      # sklearn scoring string
+    - f1
+    - precision
+    - recall
+    - accuracy
 
   baseline:
     algorithm: GradientBoostingClassifier
