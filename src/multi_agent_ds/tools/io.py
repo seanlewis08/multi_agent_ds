@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from pathlib import Path
+from typing import Any
 
 import boto3
 from botocore.exceptions import ClientError, NoCredentialsError
@@ -11,6 +13,14 @@ from botocore.exceptions import ClientError, NoCredentialsError
 from multi_agent_ds.core import build_s3_uri, load_settings
 
 logger = logging.getLogger(__name__)
+
+
+def write_json(path: str | Path, payload: dict[str, Any]) -> Path:
+    """Write a JSON file with stable formatting and return the path."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+    return path
 
 
 def get_s3_client(settings: dict | None = None):
@@ -109,29 +119,3 @@ def download_from_s3(
     logger.info("Download complete")
 
     return local_path
-
-
-if __name__ == "__main__":
-    import sys
-
-    logging.basicConfig(level=logging.INFO)
-    settings = load_settings()
-
-    if len(sys.argv) < 2:
-        print("Usage:")
-        print("  uv run python -m multi_agent_ds.tools.io upload <local_path> <path_key> <filename>")
-        print("  uv run python -m multi_agent_ds.tools.io download <path_key> <filename> [local_dir]")
-        sys.exit(1)
-
-    action = sys.argv[1]
-
-    if action == "upload":
-        local_path, path_key, filename = sys.argv[2], sys.argv[3], sys.argv[4]
-        uri = upload_to_s3(local_path, path_key, filename, settings)
-        print(f"Uploaded → {uri}")
-
-    elif action == "download":
-        path_key, filename = sys.argv[2], sys.argv[3]
-        local_dir = sys.argv[4] if len(sys.argv) > 4 else "data/raw"
-        path = download_from_s3(path_key, filename, local_dir, settings)
-        print(f"Downloaded → {path}")

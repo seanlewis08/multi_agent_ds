@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import warnings
 from pathlib import Path
 
 import numpy as np
@@ -266,57 +265,3 @@ def save_local(df: pd.DataFrame, path: str | Path = "data/raw/synthetic_dataset.
     df.to_parquet(path, index=False)
     logger.info("Saved → %s (%d rows, %d cols)", path, len(df), len(df.columns))
     return path
-
-
-def _configure_logging() -> None:
-    """Set up readable logging and suppress noisy third-party loggers."""
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s  %(message)s",
-        datefmt="%H:%M:%S",
-    )
-    # Suppress verbose SDV / copulas / rdt internals
-    for noisy in (
-        "sdv",
-        "sdv.metadata",
-        "sdv.metadata.single_table",
-        "sdv.data_processing",
-        "sdv.data_processing.data_processor",
-        "SingleTableSynthesizer",
-        "copulas",
-        "copulas.multivariate",
-        "copulas.multivariate.gaussian",
-        "rdt",
-        "rdt.transformers",
-        "rdt.transformers.utils",
-    ):
-        logging.getLogger(noisy).setLevel(logging.WARNING)
-
-    # Suppress SDV "save_to_json" recommendation
-    warnings.filterwarnings("ignore", message=".*save_to_json.*", category=UserWarning)
-
-
-if __name__ == "__main__":
-    _configure_logging()
-    settings = load_settings()
-
-    if settings["data"]["source"] != "synthetic":
-        logger.info("Data source is '%s', skipping generation.", settings["data"]["source"])
-    else:
-        df = generate_synthetic_data(settings)
-        save_local(df)
-
-        target_col = settings["data"]["synthetic"]["target"].get("column_name", "target")
-        print("\n" + "=" * 60)
-        print("  Synthetic Dataset Summary")
-        print("=" * 60)
-        print(f"  Rows      : {df.shape[0]:,}")
-        print(f"  Columns   : {df.shape[1]:,}")
-        print(f"  Target col : {target_col}")
-        print(f"  Target rate: {df[target_col].mean():.3f}")
-        if "_true_probability" in df.columns:
-            print(
-                f"  True prob  : [{df['_true_probability'].min():.4f}, "
-                f"{df['_true_probability'].max():.4f}]"
-            )
-        print("=" * 60)
