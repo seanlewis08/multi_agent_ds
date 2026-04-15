@@ -3,7 +3,7 @@
 **Scope:** Sean Step 1 from `Sean_Plan.md`  
 **Primary target:** `src/multi_agent_ds/adapters/llm/openai.py`  
 **Secondary target:** `src/multi_agent_ds/adapters/llm/__init__.py` only if export cleanup is useful  
-**Status:** Planned, not yet implemented
+**Status:** Implemented
 
 ## Purpose
 
