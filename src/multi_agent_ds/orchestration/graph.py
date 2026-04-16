@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from langgraph.graph import END, StateGraph
+from langgraph.graph import END
+from langgraph.graph.state import StateGraph
 
 from multi_agent_ds.orchestration.router import route_after_eda, route_after_modeling
 from multi_agent_ds.orchestration.state import PipelineState
