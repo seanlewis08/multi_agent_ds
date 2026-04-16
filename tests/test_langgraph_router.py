@@ -1,47 +1,54 @@
 from __future__ import annotations
 
 from multi_agent_ds.orchestration.router import (
-    route_after_business_review,
-    route_after_eda,
-    route_after_ml_review,
-    route_after_modeling,
+    route_after_business_processed_review,
+    route_after_business_raw_review,
+    route_after_data_engineer_execute,
+    route_after_data_engineer_feedback,
+    route_after_ml_modeler_processed_review,
+    route_after_ml_modeler_raw_review,
+    route_after_ml_reviewer_processed_review,
+    route_after_ml_reviewer_raw_review,
+    route_after_modeling_handoff,
+    route_after_prep_plan,
+    route_after_processed_approval,
+    route_after_processed_eda,
+    route_after_raw_eda,
 )
 
 
-def test_route_after_eda_goes_to_data_engineer_when_cleaning_is_needed() -> None:
-    assert route_after_eda({"eda_insights": {"needs_cleaning": True}}) == "data_engineer"
+def test_raw_review_sequence_routes_in_expected_order() -> None:
+    assert route_after_raw_eda({}) == "ml_modeler_raw_review"
+    assert route_after_ml_modeler_raw_review({}) == "ml_reviewer_raw_review"
+    assert route_after_ml_reviewer_raw_review({}) == "business_stakeholder_raw_review"
+    assert route_after_business_raw_review({}) == "eda_prep_plan"
 
 
-def test_route_after_eda_goes_to_ml_modeler_when_cleaning_is_not_needed() -> None:
-    assert route_after_eda({"eda_insights": {"needs_cleaning": False}}) == "ml_modeler"
-    assert route_after_eda({}) == "ml_modeler"
+def test_prep_plan_routes_to_feedback_or_execution() -> None:
+    assert route_after_prep_plan({"prep_approved": False}) == "data_engineer_feedback"
+    assert route_after_prep_plan({"prep_approved": True}) == "data_engineer_execute"
 
 
-def test_route_after_modeling_loops_when_enabled_and_under_limit() -> None:
-    assert route_after_modeling({"should_loop": True, "iteration": 0}) == "ml_modeler"
-    assert route_after_modeling({"should_loop": True, "iteration": 4}) == "ml_modeler"
+def test_data_engineer_routes_return_to_prep_or_processed_eda() -> None:
+    assert route_after_data_engineer_feedback({}) == "eda_prep_plan"
+    assert route_after_data_engineer_execute({}) == "eda_processed"
 
 
-def test_route_after_modeling_goes_to_ml_review_when_not_looping_or_at_limit() -> None:
-    assert route_after_modeling({"should_loop": False, "iteration": 0}) == "ml_reviewer"
-    assert route_after_modeling({"should_loop": True, "iteration": 5}) == "ml_reviewer"
-    assert route_after_modeling({}) == "ml_reviewer"
+def test_processed_review_sequence_routes_in_expected_order() -> None:
+    assert route_after_processed_eda({}) == "ml_modeler_processed_review"
+    assert route_after_ml_modeler_processed_review({}) == "ml_reviewer_processed_review"
+    assert route_after_ml_reviewer_processed_review({}) == "business_stakeholder_processed_review"
+    assert route_after_business_processed_review({}) == "eda_processed_approval"
 
 
-def test_route_after_ml_review_routes_back_to_modeling_when_requested() -> None:
-    assert route_after_ml_review({"ml_review": {"next_action": "revise_modeling"}}) == "ml_modeler"
+def test_processed_approval_reopens_loop_or_hands_off_to_modeling() -> None:
+    assert route_after_processed_approval({"processed_eda_approved": True}) == "ml_modeler_handoff"
+    assert route_after_processed_approval({"processed_eda_approved": False, "prep_iteration": 1}) == "eda_prep_plan"
 
 
-def test_route_after_ml_review_routes_to_evaluation_by_default() -> None:
-    assert route_after_ml_review({"ml_review": {"next_action": "accept"}}) == "evaluation"
-    assert route_after_ml_review({}) == "evaluation"
+def test_processed_approval_ends_when_iteration_budget_is_exhausted() -> None:
+    assert route_after_processed_approval({"processed_eda_approved": False, "prep_iteration": 3}) == "end"
 
 
-def test_route_after_business_review_routes_to_requested_revision_path() -> None:
-    assert route_after_business_review({"business_review": {"next_action": "revise_report"}}) == "report"
-    assert route_after_business_review({"business_review": {"next_action": "revise_modeling"}}) == "ml_modeler"
-
-
-def test_route_after_business_review_routes_to_end_by_default() -> None:
-    assert route_after_business_review({"business_review": {"next_action": "accept"}}) == "end"
-    assert route_after_business_review({}) == "end"
+def test_modeling_handoff_routes_to_end() -> None:
+    assert route_after_modeling_handoff({}) == "end"

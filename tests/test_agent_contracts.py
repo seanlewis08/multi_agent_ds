@@ -1,52 +1,84 @@
 from __future__ import annotations
 
 from multi_agent_ds.agents.business_stakeholder import business_stakeholder_node
+from multi_agent_ds.agents.data_engineer import data_engineer_node
+from multi_agent_ds.agents.ml_modeler import ml_modeler_node
 from multi_agent_ds.agents.ml_reviewer import ml_reviewer_node
-from multi_agent_ds.core.contracts import BusinessReviewOutput, MLReviewOutput
+from multi_agent_ds.core.contracts import (
+    EDAReviewOutput,
+    PreparationFeedbackOutput,
+    PreparationPlanOutput,
+    ProcessedApprovalOutput,
+)
 
 
-def test_ml_reviewer_placeholder_imports() -> None:
+def test_agent_nodes_import() -> None:
+    assert callable(business_stakeholder_node)
+    assert callable(data_engineer_node)
+    assert callable(ml_modeler_node)
     assert callable(ml_reviewer_node)
 
 
-def test_business_stakeholder_placeholder_imports() -> None:
-    assert callable(business_stakeholder_node)
+def test_eda_review_output_accepts_structured_review() -> None:
+    review = EDAReviewOutput(
+        reviewer_role="ml_reviewer",
+        summary="The EDA identifies plausible leakage risk.",
+        concerns=[{"topic": "leakage", "issue": "Target proxy is present.", "severity": "high"}],
+        recommendations=["Drop the proxy column before modeling."],
+        modeling_implications=["Feature screening should happen before fitting."],
+        scientific_vs_art=[{"decision": "drop proxy column", "classification": "scientific"}],
+    )
+
+    assert review.reviewer_role == "ml_reviewer"
+    assert review.concerns[0].severity == "high"
 
 
-def test_ml_review_output_accepts_structured_review() -> None:
-    review = MLReviewOutput(
-        summary="Mathematical case is acceptable.",
+def test_preparation_plan_output_accepts_action_lists() -> None:
+    prep_plan = PreparationPlanOutput(
+        summary="Clip one outlier feature and impute numeric gaps.",
         approved=True,
-        next_action="accept",
-        decisions=[
+        cleaning_actions=[
             {
-                "decision": "Tune learning rate downward.",
-                "classification": "scientific",
-                "mathematical_basis": "Cross-validation improved after the adjustment.",
-                "reasoning_quality": "strong",
+                "area": "cleaning",
+                "action": "clip_outliers_iqr",
+                "rationale": "Reduce extreme leverage points.",
+                "params": {"columns": ["claim_amount_avg"]},
             }
         ],
+        feature_actions=[],
+        handoff_notes=["Keep the target column untouched."],
     )
 
-    assert review.approved is True
-    assert review.decisions[0].classification == "scientific"
+    assert prep_plan.approved is True
+    assert prep_plan.cleaning_actions[0].action == "clip_outliers_iqr"
 
 
-def test_business_review_output_accepts_revision_request() -> None:
-    review = BusinessReviewOutput(
-        summary="The report overstates business impact.",
+def test_preparation_feedback_output_accepts_feasibility_notes() -> None:
+    feedback = PreparationFeedbackOutput(
+        summary="The plan is feasible as written.",
+        ready_for_execution=True,
+        action_feedback=[
+            {
+                "action": "clip_outliers_iqr",
+                "feasible": True,
+                "reason": "The feature is numeric and bounded.",
+            }
+        ],
+        execution_notes=["Run the plan once and re-profile the processed data."],
+    )
+
+    assert feedback.ready_for_execution is True
+    assert feedback.action_feedback[0].feasible is True
+
+
+def test_processed_approval_output_accepts_revision_request() -> None:
+    approval = ProcessedApprovalOutput(
         approved=False,
-        next_action="revise_report",
-        readability_assessment="Mostly readable but too technical in the caveats.",
-        plausibility_assessment="The uplift claim needs better business framing.",
-        concerns=[
-            {
-                "topic": "impact",
-                "issue": "Business value is overstated.",
-                "severity": "high",
-            }
-        ],
+        summary="The processed data still needs another prep iteration.",
+        next_action="revise_preparation",
+        concerns=["Missing-value handling needs another pass."],
+        recommendations=["Impute the remaining gaps before modeling."],
     )
 
-    assert review.approved is False
-    assert review.next_action == "revise_report"
+    assert approval.approved is False
+    assert approval.next_action == "revise_preparation"

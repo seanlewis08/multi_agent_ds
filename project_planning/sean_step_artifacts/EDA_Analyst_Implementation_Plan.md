@@ -3,13 +3,30 @@
 **Scope:** Sean Step 3 from `Sean_Plan.md`  
 **Primary targets:** `src/multi_agent_ds/skills/profiling.py`, `workflows/discovery.py`, `agents/eda_analyst.py`  
 **Secondary targets:** `config/prompts.yaml`, `src/multi_agent_ds/core/contracts.py`  
-**Status:** Planned
+**Status:** Expanded implementation in progress
 
 ## Purpose
 
 Build the first real upstream runtime agent slice: pure profiling functions, a non-agentic discovery workflow, and an `eda_analyst` agent that turns a dataset profile into structured `eda_insights` for the rest of the graph.
 
-This step should give the graph a real first node without pulling cleaning, feature engineering, or downstream modeling logic into the same implementation unit.
+This step started as the first real upstream runtime agent slice, but it has now expanded into the full pre-modeling EDA and preparation workflow:
+
+- raw-data EDA
+- downstream EDA reviews from `ml_modeler`, `ml_reviewer`, and `business_stakeholder`
+- an `eda_analyst` ↔ `data_engineer` preparation loop
+- one approved preparation execution
+- processed-data EDA and re-review before modeling handoff
+
+## Prompt Architecture
+
+This step uses a hybrid prompt architecture:
+
+- `Sequential / Pipeline` for the overall stage progression
+- `Parallel / Fan-Out → Fan-In` conceptually for multi-agent EDA review
+- `Reflection / Self-Critique` for the `eda_analyst` ↔ `data_engineer` refinement loop
+- `Planning + Execution` because `eda_analyst` synthesizes a prep plan and `data_engineer` executes it once approved
+
+The current graph implementation preserves this behavior as a serial review stage plus an explicit refinement loop, which is the smallest workable fit for the existing LangGraph skeleton.
 
 ## Agent-Team Framing
 
@@ -43,6 +60,12 @@ This step should produce:
 
 The output should be good enough to drive `route_after_eda()` and later feed the data-engineering step.
 
+Special handling for this step:
+
+- treat internal metadata columns such as `_true_probability` as excluded from EDA-facing feature summaries
+- keep univariate AUC as a compact class-separation diagnostic for numeric features
+- treat empty `high_correlation_pairs` as a valid outcome when no feature-feature correlation crosses the warning threshold
+
 ## Implementation Steps
 
 ### Step 1: Profiling Skill Surface
@@ -70,6 +93,12 @@ Make `profile_dataset()` return one dict with clear sections such as:
 - outlier summary
 
 If needed, tighten `EDAOutput` in `core/contracts.py` so the agent can cleanly map profile interpretation into the contract.
+
+For Step 2, prefer a prompt-sized profile shape:
+
+- keep the individual profiling helpers detailed for testing and local inspection
+- make `profile_dataset()` expose compact summaries and top flagged items rather than every raw per-feature detail
+- exclude internal metadata such as `_true_probability` from EDA-facing signals
 
 ### Step 3: Discovery Workflow
 
