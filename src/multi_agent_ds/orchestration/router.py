@@ -1,39 +1,60 @@
-"""Minimal routing helpers for the orchestration graph skeleton."""
+"""Routing helpers for the expanded pre-modeling EDA workflow."""
 
 from __future__ import annotations
 
+from multi_agent_ds.core import load_workflows_config
 from multi_agent_ds.orchestration.state import PipelineState
 
 
-def route_after_eda(state: PipelineState) -> str:
-    """Route from EDA to data engineering or modeling."""
-    insights = state.get("eda_insights", {})
-    if insights.get("needs_cleaning", False):
-        return "data_engineer"
-    return "ml_modeler"
+def _prep_iteration_limit() -> int:
+    workflow_cfg = load_workflows_config()
+    return int(workflow_cfg.get("workflows", {}).get("eda_preparation", {}).get("max_iterations", 3))
 
 
-def route_after_modeling(state: PipelineState) -> str:
-    """Route from modeling back to modeling or forward to ML review."""
-    if state.get("should_loop", False) and state.get("iteration", 0) < 5:
-        return "ml_modeler"
-    return "ml_reviewer"
+def route_after_raw_eda(_state: PipelineState) -> tuple[str, str, str]:
+    """Fan raw EDA out to all three reviewers."""
+    return (
+        "ml_modeler_raw_review",
+        "ml_reviewer_raw_review",
+        "business_stakeholder_raw_review",
+    )
 
 
-def route_after_ml_review(state: PipelineState) -> str:
-    """Route from ML review to evaluation or back to modeling."""
-    review = state.get("ml_review", {})
-    if review.get("next_action") == "revise_modeling":
-        return "ml_modeler"
-    return "evaluation"
+def route_after_prep_plan(state: PipelineState) -> str:
+    """Either execute an approved plan or keep iterating with the data engineer."""
+    if state.get("prep_approved", False):
+        return "data_engineer_execute"
+    return "data_engineer_feedback"
 
 
-def route_after_business_review(state: PipelineState) -> str:
-    """Route from business review to end, report revision, or modeling revision."""
-    review = state.get("business_review", {})
-    next_action = review.get("next_action", "accept")
-    if next_action == "revise_report":
-        return "report"
-    if next_action == "revise_modeling":
-        return "ml_modeler"
+def route_after_data_engineer_feedback(_state: PipelineState) -> str:
+    """Return feasibility feedback to the EDA analyst for the next plan iteration."""
+    return "eda_prep_plan"
+
+
+def route_after_data_engineer_execute(_state: PipelineState) -> str:
+    """Profile the processed dataset after the approved prep plan runs."""
+    return "eda_processed"
+
+
+def route_after_processed_eda(_state: PipelineState) -> tuple[str, str, str]:
+    """Fan processed EDA out to all three reviewers."""
+    return (
+        "ml_modeler_processed_review",
+        "ml_reviewer_processed_review",
+        "business_stakeholder_processed_review",
+    )
+
+
+def route_after_processed_approval(state: PipelineState) -> str:
+    """Either hand the approved data to modeling or reopen the prep loop."""
+    if state.get("processed_eda_approved", False):
+        return "ml_modeler_handoff"
+    if state.get("prep_iteration", 0) < _prep_iteration_limit():
+        return "eda_prep_plan"
+    return "end"
+
+
+def route_after_modeling_handoff(_state: PipelineState) -> str:
+    """Stop after the final modeling handoff package is assembled."""
     return "end"

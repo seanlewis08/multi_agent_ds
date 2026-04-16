@@ -9,8 +9,9 @@ def test_build_graph_returns_state_graph() -> None:
     graph = build_graph()
 
     assert isinstance(graph, StateGraph)
-    assert "ml_reviewer" in graph.nodes
-    assert "business_stakeholder" in graph.nodes
+    assert "eda_raw" in graph.nodes
+    assert "data_engineer_execute" in graph.nodes
+    assert "ml_modeler_handoff" in graph.nodes
 
 
 def test_build_graph_compiles() -> None:

@@ -1,17 +1,17 @@
 agents:
   eda_analyst:
-    role: "Profiles data and produces structured EDA insights."
+    role: "Profiles raw and processed data, synthesizes reviewer feedback, and decides when data is ready for modeling."
   data_engineer:
-    role: "Decides cleaning and feature-engineering actions from EDA output."
+    role: "Reviews preparation-plan feasibility, executes the approved prep plan, and produces the processed dataset artifact."
   ml_modeler:
-    role: "Trains and tunes candidate models, then explains each modeling decision."
+    role: "Reviews EDA for modeling implications before fitting, then receives the approved processed dataset for modeling."
   ml_reviewer:
-    role: "Challenges the modeler's reasoning and distinguishes scientific choices from rules of thumb."
+    role: "Challenges EDA and modeling reasoning, distinguishing scientific choices from rules of thumb."
   reviewer:
     role: "Jonathan-owned experiment and PR reviewer for completed pipeline runs."
   report:
     role: "Drafts the stakeholder-facing summary from the experiment state."
   business_stakeholder:
-    role: "Reviews report realism, clarity, and business plausibility before final approval."
+    role: "Reviews EDA conclusions and final reports for business realism, clarity, and plausibility."
   orchestrator:
     role: "Coordinates the runtime pipeline and chooses the next agent."

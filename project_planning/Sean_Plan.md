@@ -25,8 +25,8 @@ Use this section as the high-level status board for Sean-owned step work. Detail
 |------|--------|---------------|
 | Step 1: LLM Adapter | Complete | `sean_step_artifacts/LLM_Adapter_Implementation_Plan.md`, `sean_step_artifacts/LLM_Adapter_Checklist.md` |
 | Step 2: LangGraph Orchestration Skeleton | Complete | `sean_step_artifacts/LangGraph_Skeleton_Implementation_Plan.md`, `sean_step_artifacts/LangGraph_Skeleton_Checklist.md` |
-| Step 3: EDA Skills + Agent | Not started | None yet |
-| Step 4: Data Engineering Skills + Agent | Not started | None yet |
+| Step 3: EDA Skills + Agent | Complete | `sean_step_artifacts/EDA_Analyst_Implementation_Plan.md`, `sean_step_artifacts/EDA_Analyst_Checklist.md` |
+| Step 4: Data Engineering Skills + Agent | Ready to start | `sean_step_artifacts/Data_Engineer_Implementation_Plan.md`, `sean_step_artifacts/Data_Engineer_Checklist.md` |
 | Step 5: ML Modeler + ML Reviewer | Not started | None yet |
 | Step 6: Report + Business Stakeholder Review | Not started | None yet |
 

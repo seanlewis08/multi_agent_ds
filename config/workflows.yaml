@@ -2,19 +2,30 @@ workflows:
   full_pipeline:
     description: "EDA to stakeholder-approved report pipeline."
     steps:
-      - eda
-      - data_engineer
+      - eda_raw
+      - ml_modeler_raw_review
+      - ml_reviewer_raw_review
+      - business_stakeholder_raw_review
+      - eda_prep_plan
+      - data_engineer_feedback
+      - data_engineer_execute
+      - eda_processed
+      - ml_modeler_processed_review
+      - ml_reviewer_processed_review
+      - business_stakeholder_processed_review
+      - eda_processed_approval
+      - ml_modeler_handoff
+    review_loops:
+      eda_preparation:
+        revise_preparation: eda_prep_plan
+        approve_processed_data: ml_modeler_handoff
+  eda_preparation:
+    description: "Pre-modeling EDA review, preparation loop, and processed-data approval."
+    max_iterations: 3
+    processed_artifacts:
+      path_key: processed
+      filename_pattern: "{source_stem}_processed_{timestamp}.parquet"
+    reviewers:
       - ml_modeler
       - ml_reviewer
-      - evaluation
-      - reviewer
-      - report
       - business_stakeholder
-    review_loops:
-      ml_reviewer:
-        accept: evaluation
-        revise_modeling: ml_modeler
-      business_stakeholder:
-        accept: end
-        revise_report: report
-        revise_modeling: ml_modeler

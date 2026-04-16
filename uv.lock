@@ -1565,6 +1565,18 @@ wheels = [
 ]
 
 [[package]]
+name = "grandalf"
+version = "0.8"
+source = { registry = "https://joinroot.jfrog.io/joinroot/api/pypi/pypi-mirror/simple" }
+dependencies = [
+    { name = "pyparsing" },
+]
+sdist = { url = "https://joinroot.jfrog.io/joinroot/api/pypi/pypi-mirror/packages/packages/95/0e/4ac934b416857969f9135dec17ac80660634327e003a870835dd1f382659/grandalf-0.8.tar.gz", hash = "sha256:2813f7aab87f0d20f334a3162ccfbcbf085977134a17a5b516940a93a77ea974" }
+wheels = [
+    { url = "https://joinroot.jfrog.io/joinroot/api/pypi/pypi-mirror/packages/packages/61/30/44c7eb0a952478dbb5f2f67df806686d6a7e4b19f6204e091c4f49dc7c69/grandalf-0.8-py3-none-any.whl", hash = "sha256:793ca254442f4a79252ea9ff1ab998e852c1e071b863593e5383afee906b4185" },
+]
+
+[[package]]
 name = "graphene"
 version = "3.4.3"
 source = { registry = "https://joinroot.jfrog.io/joinroot/api/pypi/pypi-mirror/simple" }
@@ -3340,6 +3352,7 @@ source = { editable = "." }
 dependencies = [
     { name = "boto3" },
     { name = "crewai" },
+    { name = "grandalf" },
     { name = "ipykernel" },
     { name = "jupyter" },
     { name = "langgraph" },
@@ -3375,6 +3388,7 @@ dev = [
 requires-dist = [
     { name = "boto3", specifier = ">=1.42.89" },
     { name = "crewai", specifier = ">=1.14.1" },
+    { name = "grandalf", specifier = ">=0.8" },
     { name = "ipykernel", specifier = ">=7.2.0" },
     { name = "jupyter", specifier = ">=1.1.1" },
     { name = "langgraph", specifier = ">=1.1.6" },
