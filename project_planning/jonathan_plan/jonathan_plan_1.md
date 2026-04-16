@@ -32,18 +32,18 @@ Source: [Jonathan_Plan.md](/Users/jonathan.chia/code/multi_agent_ds/project_plan
 
 ## 1b. `agents/reviewer.py`
 
-- [ ] Create `src/multi_agent_ds/agents/reviewer.py`
-- [ ] Define `reviewer_node(state: PipelineState) -> dict`
-- [ ] Gather experiment context from orchestration state
-- [ ] Generate PR description from experiment context
-- [ ] Derive experiment branch naming strategy
-- [ ] Create branch through `tools/git.py`
-- [ ] Stage experiment files for the PR
-- [ ] Commit with an experiment-focused message
-- [ ] Push branch and open PR
-- [ ] Return PR metadata in the node result
-- [ ] Keep git side effects delegated to `tools/git.py`
-- [ ] Add or update tests for `agents/reviewer.py`
+- [x] Create `src/multi_agent_ds/agents/reviewer.py`
+- [x] Define `reviewer_node(state: PipelineState) -> dict`
+- [x] Gather experiment context from orchestration state
+- [x] Generate PR description from experiment context
+- [x] Derive experiment branch naming strategy
+- [x] Create branch through `tools/git.py`
+- [x] Stage experiment files for the PR
+- [x] Commit with an experiment-focused message
+- [x] Push branch and open PR
+- [x] Return PR metadata in the node result
+- [x] Keep git side effects delegated to `tools/git.py`
+- [x] Add or update tests for `agents/reviewer.py`
 
 ## 1c. `config/settings.yaml`
 
