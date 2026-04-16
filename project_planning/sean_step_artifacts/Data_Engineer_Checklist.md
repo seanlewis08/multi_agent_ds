@@ -23,9 +23,9 @@ The current agent should:
 ## Current Status
 
 - Overall status: `planning complete`
-- Current checkpoint: `Step 2 - Feature engineering surface`
+- Current checkpoint: `Step 3 - Preparation workflow`
 - Human review completed through: `planning only`
-- Testing completed through: `Step 1 - Cleaning surface`
+- Testing completed through: `Step 2 - Feature engineering surface`
 
 ## Checkpoint Checklist
 
@@ -49,19 +49,19 @@ Testing checkpoint:
 
 ### Step 2: Feature Engineering Surface
 
-- [ ] Tighten `log1p`
-- [ ] Tighten `ratio`
-- [ ] Keep feature engineering logic pure and target-column safe
+- [x] Tighten `log1p`
+- [x] Tighten `ratio`
+- [x] Keep feature engineering logic pure and target-column safe
 
 Human review checkpoint:
 
-- [ ] Confirm the supported feature actions are still the intended initial scope
-- [ ] Confirm created-feature summaries are inspectable
+- [x] Confirm the supported feature actions are still the intended initial scope
+- [x] Confirm created-feature summaries are inspectable
 
 Testing checkpoint:
 
-- [ ] Focused feature-engineering tests pass
-- [ ] Feature summaries show created vs skipped actions clearly
+- [x] Focused feature-engineering tests pass
+- [x] Feature summaries show created vs skipped actions clearly
 
 ### Step 3: Preparation Workflow
 
@@ -169,4 +169,22 @@ Notes:
 - Cleaning logic remains pure; no workflow or file-I/O behavior was added to skills/cleaning.py.
 Next item:
 - Step 2 - Feature engineering surface
+```
+
+```text
+Date: 2026-04-16
+Checkpoint: Step 2 - Feature engineering surface
+Status: Complete
+Files touched:
+- /Users/sean.lewis/DataspellProjects/multi_agent_ds/src/multi_agent_ds/skills/feature_engineering.py
+- /Users/sean.lewis/DataspellProjects/multi_agent_ds/tests/test_feature_engineering.py
+- /Users/sean.lewis/DataspellProjects/multi_agent_ds/project_planning/sean_step_artifacts/Data_Engineer_Checklist.md
+Validation run:
+- uv run pytest tests/test_feature_engineering.py tests/test_preparation_workflow.py
+Notes:
+- Feature summaries now report created features, skipped actions, and explicit reasons for invalid inputs.
+- Target-column protection is explicit for both supported feature actions.
+- Feature engineering logic remains pure; no workflow or file-I/O behavior was added to skills/feature_engineering.py.
+Next item:
+- Step 3 - Preparation workflow
 ```
