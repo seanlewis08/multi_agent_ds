@@ -8,6 +8,7 @@ requires-python = ">=3.11"
 dependencies = [
     "boto3>=1.42.89",
     "crewai>=1.14.1",
+    "grandalf>=0.8",
     "ipykernel>=7.2.0",
     "jupyter>=1.1.1",
     "langgraph>=1.1.6",

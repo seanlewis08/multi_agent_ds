@@ -219,3 +219,16 @@ llm:
     #   model: gemini-2.0-pro
     #   temperature: 0.2
     #   max_tokens: 4096
+
+# -----------------------------------------------------------------------------
+# Debug / Observability
+# -----------------------------------------------------------------------------
+debug:
+  langgraph:
+    xray: true
+    event_stream:
+      version: v2
+      verbose: true
+  langsmith:
+    enabled: false
+    project: multi_agent_ds_graph_debug
