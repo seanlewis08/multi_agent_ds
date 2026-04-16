@@ -34,7 +34,9 @@ class PipelineState(TypedDict, total=False):
     processed_eda_approved: bool
     modeling_context: dict[str, Any]
     modeling_results: dict[str, Any]
+    modeling_verdict: dict[str, Any]
     ml_review: dict[str, Any]
+    should_revise_modeling: bool
     evaluation_result: dict[str, Any]
     report_draft: str
     experiment_report: str

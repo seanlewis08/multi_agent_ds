@@ -27,7 +27,7 @@ Use this section as the high-level status board for Sean-owned step work. Detail
 | Step 2: LangGraph Orchestration Skeleton | Complete | `sean_step_artifacts/LangGraph_Skeleton_Implementation_Plan.md`, `sean_step_artifacts/LangGraph_Skeleton_Checklist.md` |
 | Step 3: EDA Skills + Agent | Complete | `sean_step_artifacts/EDA_Analyst_Implementation_Plan.md`, `sean_step_artifacts/EDA_Analyst_Checklist.md` |
 | Step 4: Data Engineering Skills + Agent | Complete | `sean_step_artifacts/Data_Engineer_Implementation_Plan.md`, `sean_step_artifacts/Data_Engineer_Checklist.md` |
-| Step 5: ML Modeler + ML Reviewer | Not started | None yet |
+| Step 5: ML Modeler + ML Reviewer | In progress (planning only) | `sean_step_artifacts/ML_Modeler_Reviewer_Implementation_Plan.md`, `sean_step_artifacts/ML_Modeler_Reviewer_Checklist.md` |
 | Step 6: Report + Business Stakeholder Review | Not started | None yet |
 
 ---
