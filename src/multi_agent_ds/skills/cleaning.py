@@ -37,7 +37,9 @@ def apply_cleaning_actions(
             columns = [
                 column
                 for column in params.get("columns", [])
-                if column in cleaned.columns and pd.api.types.is_numeric_dtype(cleaned[column])
+                if column in cleaned.columns
+                and column != target_col
+                and pd.api.types.is_numeric_dtype(cleaned[column])
             ]
             for column in columns:
                 cleaned[column] = cleaned[column].fillna(cleaned[column].median())
