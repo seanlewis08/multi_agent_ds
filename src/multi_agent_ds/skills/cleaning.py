@@ -69,6 +69,9 @@ def apply_cleaning_actions(
                 if not pd.api.types.is_numeric_dtype(cleaned[column]):
                     _mark_skipped(summary, column, "non_numeric_column")
                     continue
+                if not cleaned[column].notna().any():
+                    _mark_skipped(summary, column, "median_unavailable")
+                    continue
                 median = cleaned[column].median()
                 if pd.isna(median):
                     _mark_skipped(summary, column, "median_unavailable")
