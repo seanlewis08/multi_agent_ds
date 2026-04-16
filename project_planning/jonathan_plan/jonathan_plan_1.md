@@ -4,28 +4,31 @@ Source: [Jonathan_Plan.md](/Users/jonathan.chia/code/multi_agent_ds/project_plan
 
 ## Step 1: Git Tool + Experiment PR Agent
 
-- [ ] Confirm Step 1 scope against `project_planning/Jonathan_Plan.md`
-- [ ] Confirm Sean-owned dependencies are not required for Step 1
-- [ ] Decide exact file targets for Step 1 changes
+- [x] Confirm Step 1 scope against `project_planning/Jonathan_Plan.md`
+  Scope confirmed: Step 1 covers the runtime experiment PR agent, development PR workflow guidance, and the supporting git/config changes.
+- [x] Confirm Sean-owned dependencies are not required for Step 1
+  Confirmed: `Jonathan_Plan.md` states Jonathan can start Steps 1–2 immediately; Sean's LLM adapter, LangGraph skeleton, and contracts are only needed before Jonathan Steps 3–5.
+- [x] Decide exact file targets for Step 1 changes
+  Target files: `src/multi_agent_ds/tools/git.py`, `src/multi_agent_ds/agents/reviewer.py`, `config/settings.yaml`, `development_agents/skills/pr-workflow.md`, and `development_agents/team.md`.
 
 ## 1a. `tools/git.py`
 
-- [ ] Create `src/multi_agent_ds/tools/git.py`
-- [ ] Add module docstring for git and GitHub utilities
-- [ ] Add logging setup
-- [ ] Implement `get_current_branch()`
-- [ ] Implement `create_branch(branch_name, from_branch="main")`
-- [ ] Implement `stage_files(paths)`
-- [ ] Implement `stage_all_changes()`
-- [ ] Implement `commit(message)`
-- [ ] Implement `push_branch(branch_name, force=False)`
-- [ ] Implement `get_diff_summary(base="main")`
-- [ ] Implement `get_changed_files(base="main")`
-- [ ] Implement `create_pull_request(...)`
-- [ ] Implement `get_open_prs(base="main")`
-- [ ] Keep the module stateless and subprocess-based
-- [ ] Avoid adding new Python dependencies
-- [ ] Add or update tests for `tools/git.py`
+- [x] Create `src/multi_agent_ds/tools/git.py`
+- [x] Add module docstring for git and GitHub utilities
+- [x] Add logging setup
+- [x] Implement `get_current_branch()`
+- [x] Implement `create_branch(branch_name, from_branch="main")`
+- [x] Implement `stage_files(paths)`
+- [x] Implement `stage_all_changes()`
+- [x] Implement `commit(message)`
+- [x] Implement `push_branch(branch_name, force=False)`
+- [x] Implement `get_diff_summary(base="main")`
+- [x] Implement `get_changed_files(base="main")`
+- [x] Implement `create_pull_request(...)`
+- [x] Implement `get_open_prs(base="main")`
+- [x] Keep the module stateless and subprocess-based
+- [x] Avoid adding new Python dependencies
+- [x] Add or update tests for `tools/git.py`
 
 ## 1b. `agents/reviewer.py`
 
