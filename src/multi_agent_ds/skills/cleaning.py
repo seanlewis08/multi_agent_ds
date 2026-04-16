@@ -40,15 +40,20 @@ def apply_cleaning_actions(
         summary = _new_summary(action_name, params)
 
         if action_name == "drop_columns":
+            columns_to_drop: list[str] = []
+            available_columns = set(cleaned.columns)
             for column in params.get("columns", []):
                 if column == target_col:
                     _mark_skipped(summary, column, "target_column_protected")
                     continue
-                if column not in cleaned.columns:
+                if column not in available_columns:
                     _mark_skipped(summary, column, "missing_column")
                     continue
-                cleaned = cleaned.drop(columns=[column])
+                columns_to_drop.append(column)
                 summary["applied_columns"].append(column)
+                available_columns.remove(column)
+            if columns_to_drop:
+                cleaned = cleaned.drop(columns=columns_to_drop)
             summary["status"] = "applied" if summary["applied_columns"] else "skipped"
             summaries.append(summary)
             continue
