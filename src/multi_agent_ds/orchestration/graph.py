@@ -11,14 +11,8 @@ from multi_agent_ds.agents.eda_analyst import eda_analyst_node
 from multi_agent_ds.agents.ml_modeler import ml_modeler_node
 from multi_agent_ds.agents.ml_reviewer import ml_reviewer_node
 from multi_agent_ds.orchestration.router import (
-    route_after_business_processed_review,
-    route_after_business_raw_review,
     route_after_data_engineer_execute,
     route_after_data_engineer_feedback,
-    route_after_ml_modeler_processed_review,
-    route_after_ml_modeler_raw_review,
-    route_after_ml_reviewer_processed_review,
-    route_after_ml_reviewer_raw_review,
     route_after_modeling_handoff,
     route_after_prep_plan,
     route_after_processed_approval,
@@ -80,22 +74,19 @@ def build_graph() -> StateGraph:
     graph.add_conditional_edges(
         "eda_raw",
         route_after_raw_eda,
-        {"ml_modeler_raw_review": "ml_modeler_raw_review"},
+        {
+            "ml_modeler_raw_review": "ml_modeler_raw_review",
+            "ml_reviewer_raw_review": "ml_reviewer_raw_review",
+            "business_stakeholder_raw_review": "business_stakeholder_raw_review",
+        },
     )
-    graph.add_conditional_edges(
-        "ml_modeler_raw_review",
-        route_after_ml_modeler_raw_review,
-        {"ml_reviewer_raw_review": "ml_reviewer_raw_review"},
-    )
-    graph.add_conditional_edges(
-        "ml_reviewer_raw_review",
-        route_after_ml_reviewer_raw_review,
-        {"business_stakeholder_raw_review": "business_stakeholder_raw_review"},
-    )
-    graph.add_conditional_edges(
-        "business_stakeholder_raw_review",
-        route_after_business_raw_review,
-        {"eda_prep_plan": "eda_prep_plan"},
+    graph.add_edge(
+        [
+            "ml_modeler_raw_review",
+            "ml_reviewer_raw_review",
+            "business_stakeholder_raw_review",
+        ],
+        "eda_prep_plan",
     )
     graph.add_conditional_edges(
         "eda_prep_plan",
@@ -118,22 +109,19 @@ def build_graph() -> StateGraph:
     graph.add_conditional_edges(
         "eda_processed",
         route_after_processed_eda,
-        {"ml_modeler_processed_review": "ml_modeler_processed_review"},
+        {
+            "ml_modeler_processed_review": "ml_modeler_processed_review",
+            "ml_reviewer_processed_review": "ml_reviewer_processed_review",
+            "business_stakeholder_processed_review": "business_stakeholder_processed_review",
+        },
     )
-    graph.add_conditional_edges(
-        "ml_modeler_processed_review",
-        route_after_ml_modeler_processed_review,
-        {"ml_reviewer_processed_review": "ml_reviewer_processed_review"},
-    )
-    graph.add_conditional_edges(
-        "ml_reviewer_processed_review",
-        route_after_ml_reviewer_processed_review,
-        {"business_stakeholder_processed_review": "business_stakeholder_processed_review"},
-    )
-    graph.add_conditional_edges(
-        "business_stakeholder_processed_review",
-        route_after_business_processed_review,
-        {"eda_processed_approval": "eda_processed_approval"},
+    graph.add_edge(
+        [
+            "ml_modeler_processed_review",
+            "ml_reviewer_processed_review",
+            "business_stakeholder_processed_review",
+        ],
+        "eda_processed_approval",
     )
     graph.add_conditional_edges(
         "eda_processed_approval",

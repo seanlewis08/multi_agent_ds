@@ -65,5 +65,4 @@ def business_stakeholder_node(state: PipelineState, mode: str = "eda_review") ->
             f"{review_stage}_eda_review",
             review_key=review_key,
         ),
-        "current_phase": f"{review_stage}_eda_business_review",
     }

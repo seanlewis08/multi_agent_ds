@@ -11,24 +11,13 @@ def _prep_iteration_limit() -> int:
     return int(workflow_cfg.get("workflows", {}).get("eda_preparation", {}).get("max_iterations", 3))
 
 
-def route_after_raw_eda(_state: PipelineState) -> str:
-    """Send freshly produced raw EDA to the first downstream reviewer."""
-    return "ml_modeler_raw_review"
-
-
-def route_after_ml_modeler_raw_review(_state: PipelineState) -> str:
-    """Continue the raw-review sequence after the modeler review."""
-    return "ml_reviewer_raw_review"
-
-
-def route_after_ml_reviewer_raw_review(_state: PipelineState) -> str:
-    """Continue the raw-review sequence after the ML reviewer."""
-    return "business_stakeholder_raw_review"
-
-
-def route_after_business_raw_review(_state: PipelineState) -> str:
-    """Fan reviews back in to the EDA analyst for prep planning."""
-    return "eda_prep_plan"
+def route_after_raw_eda(_state: PipelineState) -> tuple[str, str, str]:
+    """Fan raw EDA out to all three reviewers."""
+    return (
+        "ml_modeler_raw_review",
+        "ml_reviewer_raw_review",
+        "business_stakeholder_raw_review",
+    )
 
 
 def route_after_prep_plan(state: PipelineState) -> str:
@@ -48,24 +37,13 @@ def route_after_data_engineer_execute(_state: PipelineState) -> str:
     return "eda_processed"
 
 
-def route_after_processed_eda(_state: PipelineState) -> str:
-    """Send processed-data EDA through the same reviewer sequence."""
-    return "ml_modeler_processed_review"
-
-
-def route_after_ml_modeler_processed_review(_state: PipelineState) -> str:
-    """Continue the processed-review sequence after the modeler review."""
-    return "ml_reviewer_processed_review"
-
-
-def route_after_ml_reviewer_processed_review(_state: PipelineState) -> str:
-    """Continue the processed-review sequence after the ML reviewer review."""
-    return "business_stakeholder_processed_review"
-
-
-def route_after_business_processed_review(_state: PipelineState) -> str:
-    """Return processed reviews to the EDA analyst for final approval."""
-    return "eda_processed_approval"
+def route_after_processed_eda(_state: PipelineState) -> tuple[str, str, str]:
+    """Fan processed EDA out to all three reviewers."""
+    return (
+        "ml_modeler_processed_review",
+        "ml_reviewer_processed_review",
+        "business_stakeholder_processed_review",
+    )
 
 
 def route_after_processed_approval(state: PipelineState) -> str:

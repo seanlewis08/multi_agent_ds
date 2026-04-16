@@ -1,14 +1,8 @@
 from __future__ import annotations
 
 from multi_agent_ds.orchestration.router import (
-    route_after_business_processed_review,
-    route_after_business_raw_review,
     route_after_data_engineer_execute,
     route_after_data_engineer_feedback,
-    route_after_ml_modeler_processed_review,
-    route_after_ml_modeler_raw_review,
-    route_after_ml_reviewer_processed_review,
-    route_after_ml_reviewer_raw_review,
     route_after_modeling_handoff,
     route_after_prep_plan,
     route_after_processed_approval,
@@ -17,11 +11,12 @@ from multi_agent_ds.orchestration.router import (
 )
 
 
-def test_raw_review_sequence_routes_in_expected_order() -> None:
-    assert route_after_raw_eda({}) == "ml_modeler_raw_review"
-    assert route_after_ml_modeler_raw_review({}) == "ml_reviewer_raw_review"
-    assert route_after_ml_reviewer_raw_review({}) == "business_stakeholder_raw_review"
-    assert route_after_business_raw_review({}) == "eda_prep_plan"
+def test_raw_review_stage_fans_out_to_all_three_reviewers() -> None:
+    assert route_after_raw_eda({}) == (
+        "ml_modeler_raw_review",
+        "ml_reviewer_raw_review",
+        "business_stakeholder_raw_review",
+    )
 
 
 def test_prep_plan_routes_to_feedback_or_execution() -> None:
@@ -34,11 +29,12 @@ def test_data_engineer_routes_return_to_prep_or_processed_eda() -> None:
     assert route_after_data_engineer_execute({}) == "eda_processed"
 
 
-def test_processed_review_sequence_routes_in_expected_order() -> None:
-    assert route_after_processed_eda({}) == "ml_modeler_processed_review"
-    assert route_after_ml_modeler_processed_review({}) == "ml_reviewer_processed_review"
-    assert route_after_ml_reviewer_processed_review({}) == "business_stakeholder_processed_review"
-    assert route_after_business_processed_review({}) == "eda_processed_approval"
+def test_processed_review_stage_fans_out_to_all_three_reviewers() -> None:
+    assert route_after_processed_eda({}) == (
+        "ml_modeler_processed_review",
+        "ml_reviewer_processed_review",
+        "business_stakeholder_processed_review",
+    )
 
 
 def test_processed_approval_reopens_loop_or_hands_off_to_modeling() -> None:

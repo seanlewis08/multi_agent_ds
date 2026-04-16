@@ -61,5 +61,4 @@ def ml_reviewer_node(state: PipelineState, mode: str = "eda_review") -> dict[str
             f"{review_stage}_eda_review",
             review_key=review_key,
         ),
-        "current_phase": f"{review_stage}_eda_ml_review",
     }

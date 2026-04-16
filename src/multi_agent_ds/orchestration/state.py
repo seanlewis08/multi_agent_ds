@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, TypedDict
+import operator
+from typing import Annotated, Any, TypedDict
 
 
 class PipelineState(TypedDict, total=False):
@@ -40,7 +41,7 @@ class PipelineState(TypedDict, total=False):
     business_review: dict[str, Any]
 
     # Control flow
-    agent_decisions: list[dict[str, Any]]
+    agent_decisions: Annotated[list[dict[str, Any]], operator.add]
     current_phase: str
     should_loop: bool
     iteration: int
