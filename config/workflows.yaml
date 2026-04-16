@@ -1,1 +1,20 @@
-# Workflow policy placeholder.
+workflows:
+  full_pipeline:
+    description: "EDA to stakeholder-approved report pipeline."
+    steps:
+      - eda
+      - data_engineer
+      - ml_modeler
+      - ml_reviewer
+      - evaluation
+      - reviewer
+      - report
+      - business_stakeholder
+    review_loops:
+      ml_reviewer:
+        accept: evaluation
+        revise_modeling: ml_modeler
+      business_stakeholder:
+        accept: end
+        revise_report: report
+        revise_modeling: ml_modeler

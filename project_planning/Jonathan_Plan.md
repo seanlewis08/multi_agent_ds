@@ -11,7 +11,9 @@
 
 Jonathan owns the **git/PR infrastructure** (both runtime experiment PRs and development PRs), the **downstream pipeline** (evaluation + SHAP), his own **ML modeler agent** variant, and the **orchestrator agent** that ties the full pipeline together.
 
-Sean owns the **shared infrastructure** (LLM adapter, LangGraph skeleton) and the **upstream pipeline** (EDA → data engineering → ML modeler → report). See `Sean_Plan.md`.
+Sean owns the **shared infrastructure** (LLM adapter, LangGraph skeleton) and the **upstream pipeline** (EDA → data engineering → ML modeler → ML reviewer → report → business stakeholder review). See `Sean_Plan.md`.
+
+This plan's `reviewer` remains the experiment/PR reviewer. It is distinct from Sean's `ml_reviewer`, which evaluates mathematical modeling decisions.
 
 The modeling step is the divergence point — each person builds their own ML modeler agent with different strategies, both calling the same `skills/modeling.py` functions.
 
@@ -688,4 +690,3 @@ Human reviews PR → approves/requests changes
 1. **Jonathan starts Steps 1–2 immediately** (git tool + evaluation pipeline) — no LLM dependency.
 2. **Sean commits adapter + orchestration skeleton** — Jonathan picks these up for Steps 3–5.
 3. **Steps 3–5 proceed after shared infrastructure is ready.**
-

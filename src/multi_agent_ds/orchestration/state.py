@@ -17,8 +17,11 @@ class PipelineState(TypedDict, total=False):
     eda_insights: dict[str, Any]
     prep_result: dict[str, Any]
     modeling_results: dict[str, Any]
+    ml_review: dict[str, Any]
     evaluation_result: dict[str, Any]
+    report_draft: str
     experiment_report: str
+    business_review: dict[str, Any]
 
     # Control flow
     agent_decisions: list[dict[str, Any]]

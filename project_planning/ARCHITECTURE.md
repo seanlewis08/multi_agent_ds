@@ -104,6 +104,12 @@ Each agent has a role, receives context, reasons about what to do, then calls sk
 ### agents/ml_modeler.py
 Decides which algorithms to try, whether to tune hyperparameters, calls skills/modeling.py.
 
+### agents/ml_reviewer.py
+Reviews the ML modeler's decisions for mathematical rigor, distinguishes evidence-based choices from rules of thumb, and can request revisions.
+
+### agents/business_stakeholder.py
+Reviews the final report and modeling conclusions for business realism, readability, and stakeholder fit.
+
 ### agents/data_engineer.py
 Decides how to clean and prepare data, calls skills/cleaning.py and skills/feature_engineering.py.
 
@@ -112,6 +118,9 @@ Analyzes data characteristics, calls skills/profiling.py, generates insights for
 
 ### agents/orchestrator.py
 Top-level agent that decides which other agents to invoke and in what order.
+
+### agents/reviewer.py
+Jonathan-owned experiment/PR reviewer. Distinct from `ml_reviewer.py`.
 
 ---
 

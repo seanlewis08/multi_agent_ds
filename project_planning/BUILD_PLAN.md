@@ -12,7 +12,7 @@ This document is a comprehensive guide for building a multi-agent ML pipeline st
 
 ### What We're Building
 
-A multi-agent system for automated data science. LLM-powered agents (orchestrated by LangGraph + OpenAI) collaborate to generate synthetic data, prepare it, train and tune multiple ML models, select the best model, and produce a human-readable report. The human stays in the loop at every decision point.
+A multi-agent system for automated data science. LLM-powered agents (orchestrated by LangGraph + OpenAI) collaborate to generate synthetic data, prepare it, train and tune multiple ML models, review those modeling decisions for mathematical rigor, and produce a human-readable report that is then reviewed from a business stakeholder perspective. The human stays in the loop at every decision point.
 
 ### Why It Exists
 
@@ -73,6 +73,8 @@ src/multi_agent_ds/
 │   ├── data_engineer.py            # Step 8
 │   ├── eda_analyst.py              # Step 8
 │   ├── ml_modeler.py               # Step 8
+│   ├── ml_reviewer.py              # Step 8 review gate
+│   ├── business_stakeholder.py     # Step 10 review gate
 │   └── orchestrator.py             # Step 8
 ├── core/
 │   ├── __init__.py                 # re-exports load_settings etc.
