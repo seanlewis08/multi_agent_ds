@@ -69,8 +69,8 @@ def route_after_processed_approval(state: PipelineState) -> str:
 
 
 def route_after_modeling_handoff(_state: PipelineState) -> str:
-    """Stop after the final modeling handoff package is assembled."""
-    return "end"
+    """Advance from handoff into the first reviewed modeling phase."""
+    return "ml_modeler_baseline"
 
 
 def route_after_modeling_review(state: PipelineState) -> str:

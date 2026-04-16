@@ -49,8 +49,8 @@ def test_processed_approval_ends_when_iteration_budget_is_exhausted() -> None:
     assert route_after_processed_approval({"processed_eda_approved": False, "prep_iteration": 3}) == "end"
 
 
-def test_modeling_handoff_routes_to_end() -> None:
-    assert route_after_modeling_handoff({}) == "end"
+def test_modeling_handoff_routes_into_modeling_loop() -> None:
+    assert route_after_modeling_handoff({}) == "ml_modeler_baseline"
 
 
 @pytest.mark.parametrize(
