@@ -89,11 +89,13 @@ def run_discovery_workflow(
         )
 
     profile = profile_dataset(df, resolved_target_col)
+    dataset_summary = profile.get("dataset_summary", {})
+    n_features = int(dataset_summary.get("n_features", df.shape[1] - 1))
 
     return {
         "data_path": source_path,
         "target_column": resolved_target_col,
         "n_rows": int(len(df)),
-        "n_features": int(df.shape[1] - 1),
+        "n_features": n_features,
         "profile": profile,
     }
