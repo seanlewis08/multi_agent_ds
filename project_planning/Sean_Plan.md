@@ -9,11 +9,26 @@
 
 ## Overview
 
-Sean owns the **shared infrastructure** (LLM adapter, LangGraph orchestration skeleton) and the **upstream pipeline** (EDA → data engineering → ML modeler agent). He also owns the final report generation step.
+Sean owns the **shared infrastructure** (LLM adapter, LangGraph orchestration skeleton) and the **upstream pipeline** (EDA → data engineering → ML modeler → ML reviewer). He also owns the final report generation and business stakeholder review step.
 
 Jonathan owns the **downstream pipeline** (evaluation, orchestrator, experiment PR agent) and the **git/PR tooling** both layers share. See `Jonathan_Plan.md`.
 
 The modeling step is the divergence point — each person builds their own ML modeler agent with different strategies, both calling the same `skills/modeling.py` functions.
+
+---
+
+## Progress Tracker
+
+Use this section as the high-level status board for Sean-owned step work. Detailed step checklists and implementation plans live in `project_planning/sean_step_artifacts/`.
+
+| Step | Status | Tracking Docs |
+|------|--------|---------------|
+| Step 1: LLM Adapter | Complete | `sean_step_artifacts/LLM_Adapter_Implementation_Plan.md`, `sean_step_artifacts/LLM_Adapter_Checklist.md` |
+| Step 2: LangGraph Orchestration Skeleton | Complete | `sean_step_artifacts/LangGraph_Skeleton_Implementation_Plan.md`, `sean_step_artifacts/LangGraph_Skeleton_Checklist.md` |
+| Step 3: EDA Skills + Agent | Not started | None yet |
+| Step 4: Data Engineering Skills + Agent | Not started | None yet |
+| Step 5: ML Modeler + ML Reviewer | Not started | None yet |
+| Step 6: Report + Business Stakeholder Review | Not started | None yet |
 
 ---
 
@@ -146,18 +161,22 @@ def build_graph() -> StateGraph:
     graph.add_node("eda", eda_node)
     graph.add_node("data_engineer", data_engineer_node)
     graph.add_node("ml_modeler", ml_modeler_node)
+    graph.add_node("ml_reviewer", ml_reviewer_node)
     graph.add_node("evaluation", evaluation_node)
     graph.add_node("reviewer", reviewer_node)       # Jonathan's PR agent
     graph.add_node("report", report_node)
+    graph.add_node("business_stakeholder", business_stakeholder_node)
 
     # Edges (sequential for now, conditional routing added later)
     graph.set_entry_point("eda")
     graph.add_conditional_edges("eda", route_after_eda)
     graph.add_edge("data_engineer", "ml_modeler")
-    graph.add_edge("ml_modeler", "evaluation")
+    graph.add_conditional_edges("ml_modeler", route_after_modeling)
+    graph.add_conditional_edges("ml_reviewer", route_after_ml_review)
     graph.add_edge("evaluation", "reviewer")
     graph.add_edge("reviewer", "report")
-    graph.add_edge("report", END)
+    graph.add_edge("report", "business_stakeholder")
+    graph.add_conditional_edges("business_stakeholder", route_after_business_review)
 
     return graph
 ```
@@ -357,7 +376,7 @@ def data_engineer_node(state: PipelineState) -> dict:
 
 ---
 
-## Step 5: ML Modeler Agent (Sean's Version)
+## Step 5: ML Modeler + ML Reviewer
 
 **BUILD_PLAN reference:** Step 8 (ML modeler)  
 **Files to edit:** `agents/ml_modeler.py` (currently placeholder)  
@@ -365,7 +384,7 @@ def data_engineer_node(state: PipelineState) -> dict:
 
 ### What to Build
 
-Sean's ML modeler agent implements the full 9-step phased tuning workflow from `skills/modeling.py`. The LLM reasons after each phase about whether to continue.
+Sean's ML modeler agent implements the full 9-step phased tuning workflow from `skills/modeling.py`. A separate `ml_reviewer` agent then challenges those choices, checks the mathematical reasoning, and decides whether the modeling output is ready for downstream evaluation.
 
 ### Agent Flow
 
@@ -461,12 +480,14 @@ sean_ml_modeler:
 ### Done When
 
 - ML modeler agent runs the full phased workflow with LLM reasoning
+- ML reviewer agent distinguishes scientific reasoning from rule-of-thumb judgment
+- ML reviewer can route weak modeling decisions back for revision
 - Each decision is logged to `agent_decisions` in the state
 - Wired as a node in the LangGraph graph
 
 ---
 
-## Step 6: Final Report Generation
+## Step 6: Report + Business Stakeholder Review
 
 **BUILD_PLAN reference:** Step 10  
 **Files to edit:** Extend `tools/reporting.py` or create logic in the report graph node  
@@ -474,7 +495,7 @@ sean_ml_modeler:
 
 ### What to Build
 
-An LLM-powered report generator that produces a non-technical experiment summary after the full pipeline completes.
+An LLM-powered report generator that produces a non-technical experiment summary after the full pipeline completes, followed by a `business_stakeholder` agent that checks business realism and report readability before final approval.
 
 ### Output
 
@@ -500,6 +521,7 @@ def report_node(state: PipelineState) -> dict:
 ### Done When
 
 - Report node produces a readable markdown summary
+- Business stakeholder agent can reject unclear or unrealistic summaries
 - Summary is saved to `reports/` alongside the existing experiment logs
 
 ---
@@ -543,4 +565,3 @@ def report_node(state: PipelineState) -> dict:
 | `agents/ml_modeler.py` | Implement — Sean's version (currently placeholder) | 5 |
 | `config/prompts.yaml` | Populate with prompt templates | 3, 4, 5, 6 |
 | `tools/reporting.py` | Extend with report generation helpers | 6 |
-

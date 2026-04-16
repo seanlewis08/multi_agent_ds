@@ -139,10 +139,10 @@ This step is complete when:
 
 If work pauses, resume from the checklist file:
 
-- `project_planning/LLM_Adapter_Checklist.md`
+- `project_planning/sean_step_artifacts/LLM_Adapter_Checklist.md`
 
 Recommended resume prompt:
 
 ```text
-Use agent teams for this task. Pick back up where I left off in project_planning/LLM_Adapter_Checklist.md and continue from the next unchecked item.
+Use agent teams for this task. Pick back up where I left off in project_planning/sean_step_artifacts/LLM_Adapter_Checklist.md and continue from the next unchecked item.
 ```

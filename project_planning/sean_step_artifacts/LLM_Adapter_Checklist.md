@@ -1,6 +1,6 @@
 # LLM Adapter Checklist
 
-**Plan file:** `project_planning/LLM_Adapter_Implementation_Plan.md`  
+**Plan file:** `project_planning/sean_step_artifacts/LLM_Adapter_Implementation_Plan.md`  
 **Primary implementation file:** `src/multi_agent_ds/adapters/llm/openai.py`  
 **Resume phrase:** `Pick back up where I left off`
 
@@ -9,13 +9,13 @@
 When returning to this work, use a prompt like:
 
 ```text
-Use agent teams for this task. Pick back up where I left off in project_planning/LLM_Adapter_Checklist.md and continue from the next unchecked item. Update the checklist and progress log as you go.
+Use agent teams for this task. Pick back up where I left off in project_planning/sean_step_artifacts/LLM_Adapter_Checklist.md and continue from the next unchecked item. Update the checklist and progress log as you go.
 ```
 
 The current agent should:
 
 1. read this checklist
-2. read `project_planning/LLM_Adapter_Implementation_Plan.md`
+2. read `project_planning/sean_step_artifacts/LLM_Adapter_Implementation_Plan.md`
 3. inspect the current state of `src/multi_agent_ds/adapters/llm/openai.py`
 4. continue from the next unchecked task
 
@@ -170,8 +170,8 @@ Date: 2026-04-15
 Checkpoint: Planning only
 Status: Checklist and implementation plan created
 Files touched:
-- project_planning/LLM_Adapter_Implementation_Plan.md
-- project_planning/LLM_Adapter_Checklist.md
+- project_planning/sean_step_artifacts/LLM_Adapter_Implementation_Plan.md
+- project_planning/sean_step_artifacts/LLM_Adapter_Checklist.md
 Validation run:
 - documentation-only; no tests run
 Notes:
@@ -190,7 +190,7 @@ Checkpoint: Step 1 - Constructor and config wiring
 Status: Completed
 Files touched:
 - src/multi_agent_ds/adapters/llm/openai.py
-- project_planning/LLM_Adapter_Checklist.md
+- project_planning/sean_step_artifacts/LLM_Adapter_Checklist.md
 Validation run:
 - uv run python - <<'PY' from multi_agent_ds.adapters.llm.openai import OpenAIAdapter; print(OpenAIAdapter.__name__) PY
 - OPENAI_API_KEY=sk-test uv run python - <<'PY' from multi_agent_ds.adapters.llm.openai import OpenAIAdapter; from multi_agent_ds.core.config import load_settings; adapter = OpenAIAdapter(load_settings()); print(adapter.model); print(adapter.temperature); print(adapter.max_tokens); print(type(adapter.client).__name__) PY
@@ -210,7 +210,7 @@ Status: Completed
 Files touched:
 - src/multi_agent_ds/adapters/llm/openai.py
 - tests/test_openai_adapter.py
-- project_planning/LLM_Adapter_Checklist.md
+- project_planning/sean_step_artifacts/LLM_Adapter_Checklist.md
 Validation run:
 - uv run pytest tests/test_openai_adapter.py
 Notes:
@@ -230,7 +230,7 @@ Status: Completed
 Files touched:
 - src/multi_agent_ds/adapters/llm/openai.py
 - tests/test_openai_adapter.py
-- project_planning/LLM_Adapter_Checklist.md
+- project_planning/sean_step_artifacts/LLM_Adapter_Checklist.md
 Validation run:
 - uv run pytest tests/test_openai_adapter.py
 Notes:
@@ -250,7 +250,7 @@ Status: Completed
 Files touched:
 - src/multi_agent_ds/adapters/llm/openai.py
 - tests/test_openai_adapter.py
-- project_planning/LLM_Adapter_Checklist.md
+- project_planning/sean_step_artifacts/LLM_Adapter_Checklist.md
 Validation run:
 - uv run pytest tests/test_openai_adapter.py
 Notes:
@@ -270,7 +270,7 @@ Status: Completed
 Files touched:
 - src/multi_agent_ds/adapters/llm/openai.py
 - tests/test_openai_adapter.py
-- project_planning/LLM_Adapter_Checklist.md
+- project_planning/sean_step_artifacts/LLM_Adapter_Checklist.md
 Validation run:
 - uv run pytest tests/test_openai_adapter.py
 Notes:
@@ -290,7 +290,7 @@ Status: Completed
 Files touched:
 - src/multi_agent_ds/adapters/llm/__init__.py
 - tests/test_openai_adapter.py
-- project_planning/LLM_Adapter_Checklist.md
+- project_planning/sean_step_artifacts/LLM_Adapter_Checklist.md
 Validation run:
 - uv run pytest tests/test_openai_adapter.py
 Notes:
@@ -310,7 +310,7 @@ Files touched:
 - src/multi_agent_ds/adapters/llm/openai.py
 - src/multi_agent_ds/adapters/llm/__init__.py
 - tests/test_openai_adapter.py
-- project_planning/LLM_Adapter_Checklist.md
+- project_planning/sean_step_artifacts/LLM_Adapter_Checklist.md
 Validation run:
 - uv run pytest tests/test_openai_adapter.py
 - OPENAI_API_KEY=test-key uv run python - <<'PY' ... from multi_agent_ds.adapters.llm import OpenAIAdapter ... PY

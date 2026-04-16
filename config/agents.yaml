@@ -1,1 +1,17 @@
-# Agent role registry placeholder.
+agents:
+  eda_analyst:
+    role: "Profiles data and produces structured EDA insights."
+  data_engineer:
+    role: "Decides cleaning and feature-engineering actions from EDA output."
+  ml_modeler:
+    role: "Trains and tunes candidate models, then explains each modeling decision."
+  ml_reviewer:
+    role: "Challenges the modeler's reasoning and distinguishes scientific choices from rules of thumb."
+  reviewer:
+    role: "Jonathan-owned experiment and PR reviewer for completed pipeline runs."
+  report:
+    role: "Drafts the stakeholder-facing summary from the experiment state."
+  business_stakeholder:
+    role: "Reviews report realism, clarity, and business plausibility before final approval."
+  orchestrator:
+    role: "Coordinates the runtime pipeline and chooses the next agent."
