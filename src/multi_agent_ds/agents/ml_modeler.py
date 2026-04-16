@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from multi_agent_ds.adapters.llm import OpenAIAdapter
+from multi_agent_ds.adapters.llm import build_adapter
 from multi_agent_ds.core import load_prompts_config, load_settings
 from multi_agent_ds.core.contracts import (
     BaselineDecision,
@@ -31,6 +31,18 @@ from multi_agent_ds.skills.modeling import (
 _BASELINE_PROMPT_DROP_KEYS = ("model", "y_pred", "y_prob")
 _TUNING_PROMPT_DROP_KEYS = ("trial_history",)
 _PHASE_PREFERENCE = ("feature_selection", "adjust_lr", "train_tuned", "baseline")
+
+# Map the agent-local mode string to the routing-table task name. Modes that
+# don't resolve here fall back through routes['ml_modeler']['default'].
+_ROUTING_TASK_BY_MODE: dict[str, str] = {
+    "raw_review": "eda_review",
+    "processed_review": "eda_review",
+    "baseline": "baseline_decision",
+    "tune": "tuning_decision",
+    "adjust_lr": "learning_rate_decision",
+    "feature_selection": "feature_selection_decision",
+    "final_recommendation": "modeling_verdict",
+}
 
 
 def _schema_for(model_cls: type[Any]) -> dict[str, Any]:
@@ -165,7 +177,7 @@ def ml_modeler_node(state: PipelineState, mode: str = "eda_review") -> dict[str,
     if mode in {"raw_review", "processed_review"}:
         prompts = load_prompts_config()["sean_ml_modeler"]
         review_stage = "raw" if mode == "raw_review" else "processed"
-        adapter = OpenAIAdapter(settings)
+        adapter = build_adapter(settings, agent="ml_modeler", task=_ROUTING_TASK_BY_MODE[mode])
         response = adapter.structured_output(
             messages=[
                 {"role": "system", "content": prompts["system"]},
@@ -198,7 +210,7 @@ def ml_modeler_node(state: PipelineState, mode: str = "eda_review") -> dict[str,
         baseline_results = train_with_defaults(data, settings)
         prompt_payload = _serialize_baseline_for_prompt(baseline_results)
 
-        adapter = OpenAIAdapter(settings)
+        adapter = build_adapter(settings, agent="ml_modeler", task=_ROUTING_TASK_BY_MODE[mode])
         response = adapter.structured_output(
             messages=[
                 {"role": "system", "content": prompts["system"]},
@@ -235,7 +247,7 @@ def ml_modeler_node(state: PipelineState, mode: str = "eda_review") -> dict[str,
         primary_metric = model_cfg["primary_metric"]
         algos_to_tune = state["modeling_results"]["baseline_decision"]["algorithms_to_tune"]
 
-        adapter = OpenAIAdapter(settings)
+        adapter = build_adapter(settings, agent="ml_modeler", task=_ROUTING_TASK_BY_MODE[mode])
         tuning_skill_results: dict[str, Any] = {}
         tuning_decisions: dict[str, Any] = {}
         new_agent_entries: list[dict[str, Any]] = []
@@ -385,7 +397,7 @@ def ml_modeler_node(state: PipelineState, mode: str = "eda_review") -> dict[str,
         primary_metric = settings["model"]["primary_metric"]
         tuning_decisions = state["modeling_results"]["tuning_decisions"]
 
-        adapter = OpenAIAdapter(settings)
+        adapter = build_adapter(settings, agent="ml_modeler", task=_ROUTING_TASK_BY_MODE[mode])
         adjusted: dict[str, Any] = {}
         adjust_decisions: dict[str, Any] = {}
         skipped: list[str] = []
@@ -513,7 +525,7 @@ def ml_modeler_node(state: PipelineState, mode: str = "eda_review") -> dict[str,
         primary_metric = settings["model"]["primary_metric"]
         importances = state["modeling_results"]["importances"]
 
-        adapter = OpenAIAdapter(settings)
+        adapter = build_adapter(settings, agent="ml_modeler", task=_ROUTING_TASK_BY_MODE[mode])
         subset_results: dict[str, Any] = {}
         subset_decisions: dict[str, Any] = {}
         skipped: list[str] = []
@@ -611,7 +623,7 @@ def ml_modeler_node(state: PipelineState, mode: str = "eda_review") -> dict[str,
                 "test_scores": fitted.get("test_scores"),
             }
 
-        adapter = OpenAIAdapter(settings)
+        adapter = build_adapter(settings, agent="ml_modeler", task=_ROUTING_TASK_BY_MODE[mode])
         response = adapter.structured_output(
             messages=[
                 {"role": "system", "content": prompts["system"]},

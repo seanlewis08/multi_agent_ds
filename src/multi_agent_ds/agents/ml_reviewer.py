@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from multi_agent_ds.adapters.llm import OpenAIAdapter
+from multi_agent_ds.adapters.llm import build_adapter
 from multi_agent_ds.core import load_prompts_config, load_settings
 from multi_agent_ds.core.contracts import EDAReviewOutput, MLReviewOutput
 from multi_agent_ds.orchestration.state import PipelineState
@@ -89,7 +89,7 @@ def ml_reviewer_node(state: PipelineState, mode: str = "raw_review") -> dict[str
 
     settings = state.get("settings") or load_settings()
     prompts = load_prompts_config()["ml_reviewer"]
-    adapter = OpenAIAdapter(settings)
+    adapter = build_adapter(settings, agent="ml_reviewer", task=mode)
 
     if mode in _EDA_MODES:
         review_stage = "raw" if mode == "raw_review" else "processed"

@@ -111,7 +111,49 @@ class FakeReviewAdapter:
 
 
 def _settings() -> dict[str, Any]:
-    return {"llm": {"providers": {"openai": {"model": "gpt-4o", "temperature": 0.2, "max_tokens": 1000}}}}
+    """Minimal routing-shaped settings dict.
+
+    The tests patch ``build_adapter`` to return a ``FakeReviewAdapter`` directly,
+    so the resolver is never exercised at runtime — but a well-formed block
+    here makes the harness robust if a patch ever regresses and the real
+    resolver runs.
+    """
+    return {
+        "llm": {
+            "default_provider": "openai",
+            "model_matrix": {
+                "balanced": {"cheap": "gpt-4.1-mini", "moderate": "gpt-4.1", "expensive": "gpt-4.1"},
+                "coding": {"cheap": "gpt-4.1-mini", "moderate": "gpt-4.1", "expensive": "gpt-4.1"},
+                "reasoning": {"cheap": "o4-mini", "moderate": "o3", "expensive": "o3"},
+            },
+            "capability_settings": {
+                "balanced": {"temperature": 0.2, "max_tokens": 1000},
+                "coding": {"temperature": 0.1, "max_tokens": 1000},
+                "reasoning": {"temperature": None, "max_tokens": 2000},
+            },
+            "routes": {
+                "default": {"capability": "balanced", "cost": "cheap"},
+                "eda_analyst": {"capability": "balanced", "cost": "cheap"},
+                "ml_reviewer": {"capability": "balanced", "cost": "cheap"},
+                "business_stakeholder": {"capability": "balanced", "cost": "cheap"},
+                "data_engineer": {
+                    "default": {"capability": "balanced", "cost": "cheap"},
+                },
+                "ml_modeler": {
+                    "default": {"capability": "balanced", "cost": "cheap"},
+                },
+            },
+        }
+    }
+
+
+def _fake_build_adapter_factory(cls: type) -> Any:
+    """Return a build_adapter stand-in that instantiates ``cls(settings)``."""
+
+    def _build(settings: dict[str, Any], *, agent: str, task: str | None) -> Any:
+        return cls(settings)
+
+    return _build
 
 
 def _prompts() -> dict[str, Any]:
@@ -146,7 +188,10 @@ def _prompts() -> dict[str, Any]:
 
 
 def test_data_engineer_feedback_returns_structured_output(monkeypatch) -> None:
-    monkeypatch.setattr("multi_agent_ds.agents.data_engineer.OpenAIAdapter", FakeReviewAdapter)
+    monkeypatch.setattr(
+        "multi_agent_ds.agents.data_engineer.build_adapter",
+        _fake_build_adapter_factory(FakeReviewAdapter),
+    )
     monkeypatch.setattr("multi_agent_ds.agents.data_engineer.load_prompts_config", _prompts)
 
     result = data_engineer_node(
@@ -205,7 +250,10 @@ def test_data_engineer_execute_returns_preparation_result(monkeypatch) -> None:
 
 
 def test_ml_modeler_raw_review_returns_review_payload(monkeypatch) -> None:
-    monkeypatch.setattr("multi_agent_ds.agents.ml_modeler.OpenAIAdapter", FakeReviewAdapter)
+    monkeypatch.setattr(
+        "multi_agent_ds.agents.ml_modeler.build_adapter",
+        _fake_build_adapter_factory(FakeReviewAdapter),
+    )
     monkeypatch.setattr("multi_agent_ds.agents.ml_modeler.load_prompts_config", _prompts)
 
     result = ml_modeler_node(
@@ -245,7 +293,10 @@ def test_ml_modeler_baseline_runs_skill_and_records_decision(monkeypatch) -> Non
             },
         }
 
-    monkeypatch.setattr("multi_agent_ds.agents.ml_modeler.OpenAIAdapter", FakeReviewAdapter)
+    monkeypatch.setattr(
+        "multi_agent_ds.agents.ml_modeler.build_adapter",
+        _fake_build_adapter_factory(FakeReviewAdapter),
+    )
     monkeypatch.setattr("multi_agent_ds.agents.ml_modeler.load_prompts_config", _prompts)
     monkeypatch.setattr("multi_agent_ds.agents.ml_modeler.train_with_defaults", fake_train_with_defaults)
 
@@ -287,7 +338,10 @@ def test_ml_modeler_baseline_injects_reviewer_critique_on_loopback(monkeypatch) 
                               "params_used": {}, "model": object(), "y_pred": "x", "y_prob": "x",
                               "elapsed_seconds": 0.1, "phase": "baseline"}}
 
-    monkeypatch.setattr("multi_agent_ds.agents.ml_modeler.OpenAIAdapter", CapturingAdapter)
+    monkeypatch.setattr(
+        "multi_agent_ds.agents.ml_modeler.build_adapter",
+        _fake_build_adapter_factory(CapturingAdapter),
+    )
     monkeypatch.setattr("multi_agent_ds.agents.ml_modeler.load_prompts_config", _prompts)
     monkeypatch.setattr("multi_agent_ds.agents.ml_modeler.train_with_defaults", fake_train_with_defaults)
 
@@ -354,7 +408,10 @@ def test_ml_modeler_baseline_omits_critique_on_fresh_entry(monkeypatch) -> None:
     prompts_with_critique["sean_ml_modeler"]["baseline_review"] = (
         "{critique_section}results={results_json}"
     )
-    monkeypatch.setattr("multi_agent_ds.agents.ml_modeler.OpenAIAdapter", CapturingAdapter)
+    monkeypatch.setattr(
+        "multi_agent_ds.agents.ml_modeler.build_adapter",
+        _fake_build_adapter_factory(CapturingAdapter),
+    )
     monkeypatch.setattr(
         "multi_agent_ds.agents.ml_modeler.load_prompts_config", lambda: prompts_with_critique
     )
@@ -385,7 +442,10 @@ def test_ml_modeler_tune_iterates_algorithms_and_records_decisions(monkeypatch) 
             "trial_history": [{"number": i, "score": 0.5 + i * 0.001} for i in range(50)],
         }
 
-    monkeypatch.setattr("multi_agent_ds.agents.ml_modeler.OpenAIAdapter", FakeReviewAdapter)
+    monkeypatch.setattr(
+        "multi_agent_ds.agents.ml_modeler.build_adapter",
+        _fake_build_adapter_factory(FakeReviewAdapter),
+    )
     monkeypatch.setattr("multi_agent_ds.agents.ml_modeler.load_prompts_config", _prompts)
     monkeypatch.setattr("multi_agent_ds.agents.ml_modeler.tune_algorithm", fake_tune_algorithm)
 
@@ -546,7 +606,10 @@ def test_ml_modeler_adjust_lr_skips_non_boosting_and_runs_boosting(monkeypatch) 
             },
         }
 
-    monkeypatch.setattr("multi_agent_ds.agents.ml_modeler.OpenAIAdapter", FakeReviewAdapter)
+    monkeypatch.setattr(
+        "multi_agent_ds.agents.ml_modeler.build_adapter",
+        _fake_build_adapter_factory(FakeReviewAdapter),
+    )
     monkeypatch.setattr("multi_agent_ds.agents.ml_modeler.load_prompts_config", _prompts)
     monkeypatch.setattr(
         "multi_agent_ds.agents.ml_modeler.adjust_learning_rate", fake_adjust_learning_rate
@@ -654,7 +717,10 @@ def test_ml_modeler_feature_selection_uses_safe_to_remove_flags(monkeypatch) -> 
             "params_used": kwargs["params"],
         }
 
-    monkeypatch.setattr("multi_agent_ds.agents.ml_modeler.OpenAIAdapter", FakeReviewAdapter)
+    monkeypatch.setattr(
+        "multi_agent_ds.agents.ml_modeler.build_adapter",
+        _fake_build_adapter_factory(FakeReviewAdapter),
+    )
     monkeypatch.setattr("multi_agent_ds.agents.ml_modeler.load_prompts_config", _prompts)
     monkeypatch.setattr(
         "multi_agent_ds.agents.ml_modeler.train_with_feature_subset", fake_train_with_feature_subset
@@ -710,7 +776,10 @@ def test_ml_modeler_feature_selection_uses_safe_to_remove_flags(monkeypatch) -> 
 
 
 def test_ml_modeler_final_recommendation_picks_best_with_latest_phase(monkeypatch) -> None:
-    monkeypatch.setattr("multi_agent_ds.agents.ml_modeler.OpenAIAdapter", FakeReviewAdapter)
+    monkeypatch.setattr(
+        "multi_agent_ds.agents.ml_modeler.build_adapter",
+        _fake_build_adapter_factory(FakeReviewAdapter),
+    )
     monkeypatch.setattr("multi_agent_ds.agents.ml_modeler.load_prompts_config", _prompts)
 
     result = ml_modeler_node(
@@ -747,8 +816,14 @@ def test_ml_modeler_final_recommendation_picks_best_with_latest_phase(monkeypatc
 
 
 def test_ml_reviewer_and_business_stakeholder_processed_reviews_return_payloads(monkeypatch) -> None:
-    monkeypatch.setattr("multi_agent_ds.agents.ml_reviewer.OpenAIAdapter", FakeReviewAdapter)
-    monkeypatch.setattr("multi_agent_ds.agents.business_stakeholder.OpenAIAdapter", FakeReviewAdapter)
+    monkeypatch.setattr(
+        "multi_agent_ds.agents.ml_reviewer.build_adapter",
+        _fake_build_adapter_factory(FakeReviewAdapter),
+    )
+    monkeypatch.setattr(
+        "multi_agent_ds.agents.business_stakeholder.build_adapter",
+        _fake_build_adapter_factory(FakeReviewAdapter),
+    )
     monkeypatch.setattr("multi_agent_ds.agents.ml_reviewer.load_prompts_config", _prompts)
     monkeypatch.setattr("multi_agent_ds.agents.business_stakeholder.load_prompts_config", _prompts)
 
@@ -809,7 +884,10 @@ def test_ml_reviewer_rejects_unknown_mode() -> None:
 
 
 def test_ml_reviewer_baseline_review_approves_sound_decision(monkeypatch) -> None:
-    monkeypatch.setattr("multi_agent_ds.agents.ml_reviewer.OpenAIAdapter", FakeReviewAdapter)
+    monkeypatch.setattr(
+        "multi_agent_ds.agents.ml_reviewer.build_adapter",
+        _fake_build_adapter_factory(FakeReviewAdapter),
+    )
     monkeypatch.setattr("multi_agent_ds.agents.ml_reviewer.load_prompts_config", _prompts)
 
     result = ml_reviewer_node(
@@ -855,7 +933,8 @@ def test_ml_reviewer_baseline_review_approves_sound_decision(monkeypatch) -> Non
 
 def test_ml_reviewer_tuning_review_revises_weak_decision(monkeypatch) -> None:
     monkeypatch.setattr(
-        "multi_agent_ds.agents.ml_reviewer.OpenAIAdapter", RevisingReviewerAdapter
+        "multi_agent_ds.agents.ml_reviewer.build_adapter",
+        _fake_build_adapter_factory(RevisingReviewerAdapter),
     )
     monkeypatch.setattr("multi_agent_ds.agents.ml_reviewer.load_prompts_config", _prompts)
 
@@ -893,7 +972,10 @@ def test_ml_reviewer_tuning_review_revises_weak_decision(monkeypatch) -> None:
 
 
 def test_ml_reviewer_lr_adjustment_review_returns_phase_verdict(monkeypatch) -> None:
-    monkeypatch.setattr("multi_agent_ds.agents.ml_reviewer.OpenAIAdapter", FakeReviewAdapter)
+    monkeypatch.setattr(
+        "multi_agent_ds.agents.ml_reviewer.build_adapter",
+        _fake_build_adapter_factory(FakeReviewAdapter),
+    )
     monkeypatch.setattr("multi_agent_ds.agents.ml_reviewer.load_prompts_config", _prompts)
 
     result = ml_reviewer_node(
@@ -937,7 +1019,10 @@ def test_ml_reviewer_feature_selection_review_receives_importances(monkeypatch) 
             captured["user_content"] = messages[1]["content"]
             return super().structured_output(messages, schema)
 
-    monkeypatch.setattr("multi_agent_ds.agents.ml_reviewer.OpenAIAdapter", CapturingAdapter)
+    monkeypatch.setattr(
+        "multi_agent_ds.agents.ml_reviewer.build_adapter",
+        _fake_build_adapter_factory(CapturingAdapter),
+    )
     monkeypatch.setattr("multi_agent_ds.agents.ml_reviewer.load_prompts_config", _prompts)
 
     ml_reviewer_node(
@@ -976,7 +1061,10 @@ def test_ml_reviewer_feature_selection_review_receives_importances(monkeypatch) 
 
 
 def test_ml_reviewer_final_recommendation_review_reads_verdict(monkeypatch) -> None:
-    monkeypatch.setattr("multi_agent_ds.agents.ml_reviewer.OpenAIAdapter", FakeReviewAdapter)
+    monkeypatch.setattr(
+        "multi_agent_ds.agents.ml_reviewer.build_adapter",
+        _fake_build_adapter_factory(FakeReviewAdapter),
+    )
     monkeypatch.setattr("multi_agent_ds.agents.ml_reviewer.load_prompts_config", _prompts)
 
     state = _reviewer_state(

@@ -11,38 +11,28 @@ from typing import Any
 from dotenv import load_dotenv
 from openai import APIConnectionError, OpenAI, RateLimitError
 
+from multi_agent_ds.adapters.llm.routing import ModelConfig
+
 
 class OpenAIAdapter:
-    """Thin OpenAI provider wrapper for agent-facing LLM calls."""
+    """Thin OpenAI provider wrapper for agent-facing LLM calls.
+
+    The adapter is provider-dumb: it accepts a fully-resolved ``ModelConfig``
+    (see ``multi_agent_ds.adapters.llm.routing``) and issues API calls. All
+    model / capability / cost routing lives upstream in
+    ``resolve_model_config`` and ``build_adapter``.
+    """
 
     _MAX_RETRY_ATTEMPTS = 3
     _BACKOFF_BASE_SECONDS = 1.0
 
-    def __init__(self, settings: dict[str, Any]):
+    def __init__(self, config: ModelConfig):
         load_dotenv()
-
-        try:
-            provider_cfg = settings["llm"]["providers"]["openai"]
-        except KeyError as exc:
-            raise ValueError(
-                "Missing OpenAI settings at settings['llm']['providers']['openai']"
-            ) from exc
-
-        missing_fields = [
-            field for field in ("model", "temperature", "max_tokens") if field not in provider_cfg
-        ]
-        if missing_fields:
-            raise ValueError(
-                "Missing OpenAI config field(s): " + ", ".join(sorted(missing_fields))
-            )
-
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
             raise ValueError("OPENAI_API_KEY is not set in the environment or .env file")
-
-        self.model = str(provider_cfg["model"])
-        self.temperature = float(provider_cfg["temperature"])
-        self.max_tokens = int(provider_cfg["max_tokens"])
+        self.config = config
+        self.model = config.model
         self.client = OpenAI(api_key=api_key)
 
     def _with_retries(self, func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
@@ -58,6 +48,35 @@ class OpenAIAdapter:
                 time.sleep(delay_seconds)
                 delay_seconds *= 2
 
+    def _build_request_kwargs(
+        self,
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]] | None = None,
+        response_format: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Assemble the SDK request kwargs, honoring reasoning-model quirks.
+
+        Reasoning models (capability == 'reasoning', e.g. o3, o4-mini) require
+        ``max_completion_tokens`` instead of ``max_tokens`` and reject any
+        explicit ``temperature`` other than 1.0 — so we omit the field entirely
+        when ``config.temperature is None``.
+        """
+        request_kwargs: dict[str, Any] = {
+            "model": self.model,
+            "messages": messages,
+        }
+        if self.config.capability == "reasoning":
+            request_kwargs["max_completion_tokens"] = self.config.max_tokens
+            # Intentionally omit `temperature` — do NOT pass temperature=None.
+        else:
+            request_kwargs["max_tokens"] = self.config.max_tokens
+            request_kwargs["temperature"] = self.config.temperature
+        if tools is not None:
+            request_kwargs["tools"] = tools
+        if response_format is not None:
+            request_kwargs["response_format"] = response_format
+        return request_kwargs
+
     def _create_chat_completion(
         self,
         messages: list[dict[str, Any]],
@@ -65,16 +84,11 @@ class OpenAIAdapter:
         response_format: dict[str, Any] | None = None,
     ) -> Any:
         """Create a chat completion request through one shared SDK path."""
-        request_kwargs: dict[str, Any] = {
-            "model": self.model,
-            "messages": messages,
-            "temperature": self.temperature,
-            "max_tokens": self.max_tokens,
-        }
-        if tools is not None:
-            request_kwargs["tools"] = tools
-        if response_format is not None:
-            request_kwargs["response_format"] = response_format
+        request_kwargs = self._build_request_kwargs(
+            messages=messages,
+            tools=tools,
+            response_format=response_format,
+        )
         return self._with_retries(self.client.chat.completions.create, **request_kwargs)
 
     def chat(self, messages: list[dict[str, Any]], tools: list[dict[str, Any]] | None = None) -> dict[str, Any]:

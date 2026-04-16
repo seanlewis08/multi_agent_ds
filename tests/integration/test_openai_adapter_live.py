@@ -5,7 +5,7 @@ import os
 import pytest
 from dotenv import load_dotenv
 
-from multi_agent_ds.adapters.llm import OpenAIAdapter
+from multi_agent_ds.adapters.llm import OpenAIAdapter, build_adapter
 from multi_agent_ds.core import load_settings
 
 load_dotenv()
@@ -27,7 +27,7 @@ pytestmark = pytest.mark.skipif(
 
 @pytest.fixture
 def adapter() -> OpenAIAdapter:
-    return OpenAIAdapter(load_settings())
+    return build_adapter(load_settings(), agent="eda_analyst", task=None)
 
 
 def test_live_chat_round_trip(adapter: OpenAIAdapter) -> None:
