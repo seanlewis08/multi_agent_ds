@@ -24,6 +24,11 @@ def _modeling_iteration_limit() -> int:
     return int(workflow_cfg.get("workflows", {}).get("modeling", {}).get("max_iterations", 3))
 
 
+def _report_iteration_limit() -> int:
+    workflow_cfg = load_workflows_config()
+    return int(workflow_cfg.get("workflows", {}).get("report", {}).get("max_iterations", 3))
+
+
 def route_after_raw_eda(_state: PipelineState) -> tuple[str, str, str]:
     """Fan raw EDA out to all three reviewers."""
     return (
@@ -91,3 +96,33 @@ def route_after_modeling_review(state: PipelineState) -> str:
     if revise and iteration < _modeling_iteration_limit():
         return f"ml_modeler_{current}"
     return _MODELING_REVIEW_NEXT_NODE[current]
+
+
+def route_after_business_review(state: PipelineState) -> str:
+    """Route after the business stakeholder verdict on the experiment report.
+
+    Reads `business_review.next_action` and routes to one of three sinks:
+
+    - "accept" → "end" (terminal).
+    - "revise_report" → "report_writer" (rewrite the narrative), capped by
+      `report_iteration` against the configured report-loop limit.
+    - "revise_modeling" → "ml_modeler_baseline" (reopen the modeling loop),
+      bounded by the existing modeling-loop iteration cap.
+
+    When either cap is exceeded, the router force-accepts (returns "end") so
+    the pipeline cannot loop forever on a stuck verdict.
+    """
+    review = state.get("business_review") or {}
+    next_action = review.get("next_action", "accept")
+
+    if next_action == "revise_report":
+        if state.get("report_iteration", 0) < _report_iteration_limit():
+            return "report_writer"
+        return "end"
+
+    if next_action == "revise_modeling":
+        if state.get("modeling_iteration", 0) < _modeling_iteration_limit():
+            return "ml_modeler_baseline"
+        return "end"
+
+    return "end"

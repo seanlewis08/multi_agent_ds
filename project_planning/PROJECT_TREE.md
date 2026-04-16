@@ -41,7 +41,8 @@ Captured: 2026-04-16
 │       │   ├── eda_analyst.py
 │       │   ├── ml_modeler.py
 │       │   ├── ml_reviewer.py
-│       │   └── orchestrator.py
+│       │   ├── orchestrator.py
+│       │   └── report_writer.py
 │       ├── app.py
 │       ├── core
 │       │   ├── __init__.py
@@ -63,7 +64,8 @@ Captured: 2026-04-16
 │       │   ├── __init__.py
 │       │   ├── dataframes.py
 │       │   ├── evaluation.py
-│       │   └── io.py
+│       │   ├── io.py
+│       │   └── reporting.py
 │       └── workflows
 │           ├── __init__.py
 │           ├── discovery.py

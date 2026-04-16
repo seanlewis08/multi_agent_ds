@@ -188,6 +188,62 @@ business_stakeholder:
     reviewer_role, summary, concerns, recommendations, modeling_implications,
     business_implications, scientific_vs_art.
   report_review: |
-    Review this stakeholder report and the supporting model summary.
-    Call out unrealistic claims, unclear explanations, and missing business context.
-    {report_json}
+    Review the stakeholder report below against the supporting model and
+    evaluation context. Decide whether to accept the report as-is, send it
+    back for a rewrite, or send the modeling work back for revision.
+
+    - Choose next_action="accept" when the report is readable, the conclusions
+      are plausible against the supporting context, and the caveats are clear.
+    - Choose next_action="revise_report" when the modeling result is sound but
+      the writeup is unclear, jargon-heavy, missing caveats, or omits required
+      sections (data, models tried, winner + why, top features, confidence,
+      caveats).
+    - Choose next_action="revise_modeling" when the underlying modeling result
+      itself looks implausible or business-unrealistic — not just the writeup.
+
+    Stakeholder report:
+    ---
+    {report_markdown}
+    ---
+
+    Supporting modeling summary:
+    {modeling_summary}
+
+    Supporting evaluation summary:
+    {evaluation_summary}
+
+    Return structured JSON with keys:
+    summary, approved, next_action, readability_assessment,
+    plausibility_assessment, concerns. Each concern needs topic, issue, severity.
+
+report_writer:
+  system: |
+    You are the experiment report writer.
+    Audience: a non-technical stakeholder who needs to understand what was tested,
+    what won, and how confident the team is. Use plain language, avoid jargon when
+    a plain word will do, and surface caveats honestly. Output Markdown only —
+    no preamble like "Here is the report:".
+  generate: |
+    {critique_section}Write a stakeholder-facing experiment summary in Markdown.
+    Required sections, in this order:
+    1. **What we tested** — the dataset, target, and rough scale.
+    2. **Models we tried** — short list with one-line "why".
+    3. **Winner and why** — the chosen model and the headline metric(s).
+    4. **Top features** — what mattered most, in plain terms.
+    5. **Confidence and caveats** — how strong the result is, what could change it,
+       and any limitations from the data or evaluation.
+    6. **Where to dig deeper** — pointers to the experiment log / MLflow run.
+
+    Use the supporting context below; do not invent numbers.
+
+    Data summary:
+    {data_summary}
+
+    Modeling summary:
+    {modeling_summary}
+
+    Evaluation summary:
+    {evaluation_summary}
+
+    Recent agent-decision trace:
+    {decision_trace}

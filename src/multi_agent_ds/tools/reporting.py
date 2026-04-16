@@ -2,6 +2,9 @@
 
 Produces a human-readable experiment log at reports/experiment_log_<timestamp>.md
 that grows as each phase completes. Also prints phase transitions to the terminal.
+Also exposes pure state-to-markdown formatters used by the report_writer agent
+to assemble prompt context. Formatters take plain mappings (not PipelineState)
+and perform no I/O.
 
 This is a tool (stateless utility). The workflow/agent layer calls it alongside
 MLflow logging. Skills never import this directly.
@@ -11,6 +14,7 @@ from __future__ import annotations
 
 import logging
 import os
+from collections.abc import Mapping, Sequence
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -294,3 +298,155 @@ class ExperimentLogger:
             self._write(f"**Total experiment time:** {elapsed:.1f}s")
             self._terminal(f"═══ Experiment complete ({elapsed:.1f}s) ═══")
             self._terminal(f"Report: {self.filepath}")
+
+
+# ── Pure prompt-context formatters ────────────────────────────────────
+#
+# Used by the report_writer agent to slice pipeline state into compact markdown
+# blocks for prompt assembly. Pure: take plain mappings, return strings, no I/O,
+# no imports from agents/orchestration/workflows.
+
+_DECISION_TRACE_DEFAULT_LIMIT = 25
+
+
+def format_data_summary(data_summary: Mapping[str, Any] | None) -> str:
+    """Format a data_summary dict (from prepare_data) as a markdown bullet list."""
+    if not data_summary:
+        return "_Data summary unavailable._"
+
+    lines: list[str] = []
+    n_train = data_summary.get("n_train")
+    n_validation = data_summary.get("n_validation")
+    n_test = data_summary.get("n_test")
+    if n_train is not None:
+        lines.append(f"- **Train rows:** {n_train}")
+    if n_validation is not None:
+        lines.append(f"- **Validation rows:** {n_validation}")
+    if n_test is not None:
+        lines.append(f"- **Test rows:** {n_test}")
+    n_features = data_summary.get("n_features")
+    n_numerical = data_summary.get("n_numerical")
+    n_categorical = data_summary.get("n_categorical")
+    if n_features is not None:
+        feature_detail = f"{n_features}"
+        if n_numerical is not None or n_categorical is not None:
+            feature_detail += (
+                f" ({n_numerical or 0} numerical, {n_categorical or 0} categorical)"
+            )
+        lines.append(f"- **Features:** {feature_detail}")
+    target_train = data_summary.get("target_rate_train")
+    target_test = data_summary.get("target_rate_test")
+    if target_train is not None or target_test is not None:
+        train_str = f"{target_train:.4f}" if target_train is not None else "?"
+        test_str = f"{target_test:.4f}" if target_test is not None else "?"
+        lines.append(f"- **Target rate:** train={train_str}, test={test_str}")
+    if data_summary.get("has_ground_truth"):
+        lines.append("- **Ground truth:** available (deterministic DGP)")
+    return "\n".join(lines) if lines else "_Data summary unavailable._"
+
+
+def format_modeling_summary(
+    modeling_verdict: Mapping[str, Any] | None,
+    modeling_results: Mapping[str, Any] | None = None,
+) -> str:
+    """Format the final modeling verdict + supporting per-algorithm scores."""
+    if not modeling_verdict:
+        return "_Modeling verdict unavailable._"
+
+    lines = [
+        f"- **Best algorithm:** {modeling_verdict.get('best_algorithm', '?')}",
+        f"- **Summary:** {modeling_verdict.get('summary', '')}".rstrip(),
+    ]
+    ranked = modeling_verdict.get("ranked_algorithms") or []
+    if ranked:
+        lines.append(f"- **Ranking:** {', '.join(ranked)}")
+    final_metrics = modeling_verdict.get("final_metrics") or {}
+    if final_metrics:
+        lines.append("- **Final per-algorithm metrics:**")
+        for algo in ranked or list(final_metrics.keys()):
+            algo_metrics = final_metrics.get(algo) or {}
+            metric_pairs = ", ".join(
+                f"{name}={value:.4f}" for name, value in algo_metrics.items()
+                if isinstance(value, (int, float))
+            )
+            lines.append(f"  - {algo}: {metric_pairs}")
+    justification = modeling_verdict.get("justification")
+    if justification:
+        lines.append(f"- **Justification:** {justification}")
+    next_action = modeling_verdict.get("next_action")
+    if next_action:
+        lines.append(f"- **Modeler next action:** {next_action}")
+
+    if modeling_results:
+        candidates = modeling_results.get("final_candidates") or {}
+        if candidates:
+            lines.append("- **Final phase per algorithm:**")
+            for algo, payload in candidates.items():
+                phase = payload.get("final_phase", "?")
+                lines.append(f"  - {algo}: {phase}")
+
+    return "\n".join(lines)
+
+
+def format_evaluation_summary(evaluation_result: Mapping[str, Any] | None) -> str:
+    """Format Jonathan's evaluation_result. Returns a caveat block when missing."""
+    if not evaluation_result:
+        return (
+            "_Evaluation pipeline output not available — the report relies solely "
+            "on modeler-stage scores. Re-run after Jonathan's evaluation step "
+            "completes for a fuller picture._"
+        )
+
+    lines: list[str] = []
+    winner = evaluation_result.get("winner") or evaluation_result.get("best_algorithm")
+    if winner:
+        lines.append(f"- **Evaluation winner:** {winner}")
+    primary_metric = evaluation_result.get("primary_metric")
+    if primary_metric:
+        lines.append(f"- **Primary metric:** {primary_metric}")
+    rankings = evaluation_result.get("rankings") or {}
+    if rankings:
+        lines.append("- **Rankings:**")
+        for metric, ranked in rankings.items():
+            if isinstance(ranked, list):
+                lines.append(f"  - {metric}: {', '.join(str(item) for item in ranked)}")
+    ground_truth = evaluation_result.get("ground_truth_comparison") or {}
+    if ground_truth:
+        lines.append("- **Ground-truth comparison:**")
+        for algo, payload in ground_truth.items():
+            mse = payload.get("mse_vs_true_prob") if isinstance(payload, Mapping) else None
+            if isinstance(mse, (int, float)):
+                lines.append(f"  - {algo}: MSE vs true probability = {mse:.6f}")
+    shap = evaluation_result.get("shap") or {}
+    if shap:
+        top = shap.get("top_features") or shap.get("global_ranking")
+        if isinstance(top, list) and top:
+            lines.append(f"- **Top features (SHAP):** {', '.join(str(t) for t in top[:10])}")
+    notes = evaluation_result.get("notes")
+    if notes:
+        lines.append(f"- **Evaluation notes:** {notes}")
+
+    return "\n".join(lines) if lines else "_Evaluation result present but empty._"
+
+
+def format_decision_trace(
+    agent_decisions: Sequence[Mapping[str, Any]] | None,
+    max_entries: int = _DECISION_TRACE_DEFAULT_LIMIT,
+) -> str:
+    """Format the recent agent_decisions trace as a compact bullet list."""
+    if not agent_decisions:
+        return "_No agent decisions recorded._"
+
+    recent = list(agent_decisions)[-max_entries:]
+    lines: list[str] = []
+    for entry in recent:
+        agent = entry.get("agent", "?")
+        phase = entry.get("phase", "?")
+        detail_keys = ("summary", "best_algorithm", "next_action", "approved", "algorithm")
+        details = []
+        for key in detail_keys:
+            if key in entry and entry[key] not in (None, ""):
+                details.append(f"{key}={entry[key]}")
+        suffix = f" — {'; '.join(details)}" if details else ""
+        lines.append(f"- **{agent} / {phase}**{suffix}")
+    return "\n".join(lines)
