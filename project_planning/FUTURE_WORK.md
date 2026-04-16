@@ -71,6 +71,23 @@ Items to circle back to when time allows.
 
 ---
 
+## 2.5. Multi-Provider LLM Adapters (Anthropic, Google)
+
+**Context:** Sean's Step 7 (LLM Model Routing — see `LLM_MODEL_ROUTING.md`) lands the routing infrastructure including a `provider` field on `ModelConfig`. The resolver and the route table are already provider-agnostic. What's still missing are the actual `AnthropicAdapter` / `GoogleAdapter` implementations and the `LLMAdapter` protocol that `build_adapter` would dispatch through.
+
+**What to change:**
+- Define an `LLMAdapter` protocol in `adapters/llm/__init__.py` covering `chat()` and `structured_output()`
+- Add `adapters/llm/anthropic.py` and/or `adapters/llm/google.py` implementing the protocol
+- Update `build_adapter` to dispatch on `config.provider` instead of always returning `OpenAIAdapter`
+- Uncomment the relevant `providers:` blocks in `config/settings.yaml`
+- Add the corresponding API-key env var(s) to `.env`
+
+**When to implement:** When a Claude or Gemini model is genuinely preferred for a specific route in `model_matrix`. Until then, OpenAI-only keeps the surface area smaller and the smoke tests cheaper.
+
+**Why not now:** Step 7 already loads enough breaking change (constructor signature swap across ten call sites). Multi-provider can ship later as a pure addition without touching any agent code.
+
+---
+
 ## 3. SHAP Integration for Model Explainability
 
 **Context:** The article "You Are Probably Reading XGBoost Feature Importance Wrong" (Iakubovskyi, 2026) recommends SHAP as the most theoretically sound method for feature importance — satisfies efficiency, symmetry, dummy, and additivity axioms. Provides per-sample decomposition and directional impact.
