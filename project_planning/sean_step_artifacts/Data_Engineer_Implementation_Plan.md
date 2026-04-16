@@ -3,7 +3,7 @@
 **Scope:** Sean Step 4 from `Sean_Plan.md`  
 **Primary targets:** `src/multi_agent_ds/skills/cleaning.py`, `skills/feature_engineering.py`, `workflows/preparation.py`, `agents/data_engineer.py`  
 **Secondary targets:** `config/prompts.yaml`, `src/multi_agent_ds/core/contracts.py`  
-**Status:** Planned
+**Status:** Implemented
 
 ## Purpose
 
@@ -125,6 +125,25 @@ This step is complete when:
 - `workflows/preparation.py` returns stable structured results
 - `agents/data_engineer.py` has a reliable feedback/execution split
 - the processed-data artifact path and summaries are trustworthy for downstream modeling
+
+## Closeout
+
+Implemented in completed slices:
+
+- Step 1 tightened the cleaning surface and added focused cleaning tests.
+- Step 2 tightened the feature-engineering surface and added focused feature tests.
+- Step 3 strengthened the preparation workflow result contract and target-column validation.
+- Step 4 tightened `data_engineer` feedback/execute outputs and added mocked agent coverage plus a human-run testing notebook.
+
+Focused validation completed:
+
+- `uv run pytest tests/test_cleaning.py tests/test_feature_engineering.py tests/test_preparation_workflow.py tests/test_pre_modeling_review_agents.py`
+
+Remaining limitations:
+
+- the supported prep actions are intentionally narrow for now
+- the notebook is a manual validation aid rather than CI coverage
+- the next planned build step is Sean Step 5: `ML Modeler + ML Reviewer`
 
 ## Resume Instructions
 
