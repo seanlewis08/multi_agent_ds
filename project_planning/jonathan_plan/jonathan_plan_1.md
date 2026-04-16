@@ -47,14 +47,14 @@ Source: [Jonathan_Plan.md](/Users/jonathan.chia/code/multi_agent_ds/project_plan
 
 ## 1c. `config/settings.yaml`
 
-- [ ] Add a `git` section
-- [ ] Add `default_base_branch`
-- [ ] Add `experiment_branch_prefix`
-- [ ] Add `development_branch_prefix`
-- [ ] Add `auto_push`
-- [ ] Add `auto_pr`
-- [ ] Add a `github.repo` setting
-- [ ] Keep config changes consistent with existing settings structure
+- [x] Add a `git` section
+- [x] Add `default_base_branch`
+- [x] Add `experiment_branch_prefix`
+- [x] Add `development_branch_prefix`
+- [x] Add `auto_push`
+- [x] Add `auto_pr`
+- [x] Add a `github.repo` setting
+- [x] Keep config changes consistent with existing settings structure
 
 ## 1d. `development_agents/skills/pr-workflow.md`
 

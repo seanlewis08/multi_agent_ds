@@ -219,3 +219,16 @@ llm:
     #   model: gemini-2.0-pro
     #   temperature: 0.2
     #   max_tokens: 4096
+
+# -----------------------------------------------------------------------------
+# Git & GitHub Configuration
+# -----------------------------------------------------------------------------
+git:
+  default_base_branch: main
+  experiment_branch_prefix: experiment/
+  development_branch_prefix: build/
+  auto_push: true
+  auto_pr: true
+
+github:
+  repo: ""                      # e.g., "owner/multi_agent_ds"
