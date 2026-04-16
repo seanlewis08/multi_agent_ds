@@ -141,14 +141,13 @@ def apply_cleaning_actions(
             summaries.append(summary)
             continue
 
-        summaries.append(
-            {
-                "action": action_name,
-                "status": "skipped",
-                "requested_columns": list(params.get("columns", [])),
-                "applied_columns": [],
-                "skipped_columns": [{"reason": "unsupported_action"}],
-            }
-        )
+        requested_columns = list(params.get("columns", []))
+        if requested_columns:
+            for column in requested_columns:
+                _mark_skipped(summary, column, "unsupported_action")
+        else:
+            _mark_skipped(summary, "", "unsupported_action")
+        summary["status"] = "skipped"
+        summaries.append(summary)
 
     return cleaned, summaries
