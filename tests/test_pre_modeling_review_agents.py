@@ -90,7 +90,48 @@ def test_data_engineer_feedback_returns_structured_output(monkeypatch) -> None:
     )
 
     assert result["prep_feedback"]["ready_for_execution"] is True
+    assert result["agent_decisions"][0]["summary"] == "The plan is feasible."
+    assert result["agent_decisions"][0]["action_feedback_count"] == 1
     assert result["current_phase"] == "prep_feedback"
+
+
+def test_data_engineer_execute_returns_preparation_result(monkeypatch) -> None:
+    def fake_run_preparation_workflow(data_path: str, prep_plan: dict[str, Any], settings: dict[str, Any]) -> dict[str, Any]:
+        assert data_path == "data/raw/example.parquet"
+        assert prep_plan["cleaning_actions"][0]["action"] == "clip_outliers_iqr"
+        return {
+            "source_data_path": data_path,
+            "target_column": "binary_target",
+            "artifact_filename": "example_processed_20260416T010203Z.parquet",
+            "processed_data_path": "s3://bucket/prefix/data/processed/example_processed_20260416T010203Z.parquet",
+            "source_n_rows": 10,
+            "source_n_features": 3,
+            "n_rows": 10,
+            "n_features": 4,
+            "processed_n_rows": 10,
+            "processed_n_features": 4,
+            "cleaning_summary": [{"action": "clip_outliers_iqr"}],
+            "feature_summary": [{"action": "ratio"}],
+        }
+
+    monkeypatch.setattr("multi_agent_ds.agents.data_engineer.run_preparation_workflow", fake_run_preparation_workflow)
+
+    result = data_engineer_node(
+        {
+            "settings": _settings(),
+            "data_path": "data/raw/example.parquet",
+            "prep_plan": {"cleaning_actions": [{"action": "clip_outliers_iqr"}], "feature_actions": []},
+            "agent_decisions": [],
+        },
+        mode="execute",
+    )
+
+    assert result["processed_data_path"].endswith(".parquet")
+    assert result["prep_result"]["target_column"] == "binary_target"
+    assert result["prep_result"]["processed_n_features"] == 4
+    assert result["agent_decisions"][0]["artifact_filename"] == "example_processed_20260416T010203Z.parquet"
+    assert result["agent_decisions"][0]["processed_n_rows"] == 10
+    assert result["current_phase"] == "prep_execute"
 
 
 def test_ml_modeler_raw_review_returns_review_payload(monkeypatch) -> None:
