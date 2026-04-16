@@ -3,7 +3,7 @@
 **Scope:** Sean Step 3 from `Sean_Plan.md`  
 **Primary targets:** `src/multi_agent_ds/skills/profiling.py`, `workflows/discovery.py`, `agents/eda_analyst.py`  
 **Secondary targets:** `config/prompts.yaml`, `src/multi_agent_ds/core/contracts.py`  
-**Status:** Expanded implementation in progress
+**Status:** Implemented
 
 ## Purpose
 
@@ -26,7 +26,7 @@ This step uses a hybrid prompt architecture:
 - `Reflection / Self-Critique` for the `eda_analyst` ↔ `data_engineer` refinement loop
 - `Planning + Execution` because `eda_analyst` synthesizes a prep plan and `data_engineer` executes it once approved
 
-The current graph implementation preserves this behavior as a serial review stage plus an explicit refinement loop, which is the smallest workable fit for the existing LangGraph skeleton.
+The current graph implementation now uses true fan-out/fan-in joins for the raw and processed EDA review stages, followed by the explicit preparation refinement loop.
 
 ## Agent-Team Framing
 
@@ -173,6 +173,24 @@ This step is complete when:
 - `agents/eda_analyst.py` produces graph-ready `eda_insights`
 - `route_after_eda()` can consume those insights without shape ambiguity
 - the graph has a real first runtime node instead of only a placeholder
+
+## Closeout
+
+Completed in this step:
+
+- pure profiling helpers with prompt-sized `profile_dataset()` output
+- discovery workflow for local parquet, explicit S3 URIs, and generated synthetic data
+- `eda_analyst` runtime node with structured EDA output
+- expanded pre-modeling workflow with:
+  - raw EDA review by `ml_modeler`, `ml_reviewer`, and `business_stakeholder`
+  - `eda_analyst` ↔ `data_engineer` preparation loop
+  - processed-data EDA review and final approval before modeling handoff
+- true parallel fan-out/fan-in for both review stages
+- graph-debugging helpers, planning doc, and notebook for the EDA graph
+
+Remaining limitation:
+
+- the final `ml_modeler` handoff node assembles modeling context, but the full modeling loop itself belongs to the next step.
 
 ## Resume Instructions
 
