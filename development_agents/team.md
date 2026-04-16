@@ -14,8 +14,9 @@ Before any edit begins, the active development agent must complete `development_
 2. `architecture_guard` chooses the layer and target file, and blocks changes that do not fit the current architecture.
 3. `implementation_engineer` makes the smallest coherent change inside the approved layer and existing modules.
 4. `efficiency_reviewer` checks for unnecessary complexity, wasteful data operations, and avoidable new abstractions.
-5. `commit_chronicler` creates regular commits for completed units of work with detailed explanations.
-6. `plan_guardian` confirms the final change still matches the build plan and did not slip into deferred work.
+5. `pr_manager` prepares the reviewable branch and PR flow for completed BUILD_PLAN work using `development_agents/skills/pr-workflow.md`.
+6. `commit_chronicler` creates regular commits for completed units of work with detailed explanations.
+7. `plan_guardian` confirms the final change still matches the build plan and did not slip into deferred work.
 
 ## Agents
 
@@ -49,6 +50,14 @@ Before any edit begins, the active development agent must complete `development_
 - Blocks changes that add extra abstraction, repeated scans, row-wise dataframe work, unnecessary copies, or a new dependency without clear payoff.
 - Prefers vectorized, library-native, and config-driven solutions over handwritten loops or one-off helpers.
 - Can require a simpler implementation before work is considered complete.
+
+### `pr_manager`
+
+- Runs after `efficiency_reviewer` confirms the change is complete.
+- Follows `development_agents/skills/pr-workflow.md` for branch naming, commit formatting, PR content, and review handoff.
+- Creates a branch following the BUILD_PLAN step naming convention from the PR workflow skill.
+- Prepares the commit message and PR description so they reference the relevant BUILD_PLAN step and planning doc section.
+- Opens the PR and waits for human review. Does not merge automatically.
 
 ### `commit_chronicler`
 

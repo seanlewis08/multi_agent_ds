@@ -66,10 +66,10 @@ Source: [Jonathan_Plan.md](/Users/jonathan.chia/code/multi_agent_ds/project_plan
 
 ## 1e. `development_agents/team.md`
 
-- [ ] Add `pr_manager` role definition
-- [ ] Describe when `pr_manager` runs
-- [ ] Link `pr_manager` behavior to `skills/pr-workflow.md`
-- [ ] Keep the role aligned with the existing team workflow
+- [x] Add `pr_manager` role definition
+- [x] Describe when `pr_manager` runs
+- [x] Link `pr_manager` behavior to `skills/pr-workflow.md`
+- [x] Keep the role aligned with the existing team workflow
 
 ## Validation
 
