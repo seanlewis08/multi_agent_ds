@@ -23,9 +23,9 @@ The current agent should:
 ## Current Status
 
 - Overall status: `in progress`
-- Current checkpoint: `Step 1 - Contracts and state (awaiting human review)`
-- Human review completed through: `none`
-- Testing completed through: `Step 1 - Contracts and state`
+- Current checkpoint: `Step 2 - ML Modeler agent modeling modes (all 8 new modes done, awaiting human review)`
+- Human review completed through: `Step 1 - Contracts and state`
+- Testing completed through: `Step 2 - all modeling modes`
 
 ## Checkpoint Checklist
 
@@ -51,15 +51,15 @@ Testing checkpoint:
 
 ### Step 2: ML Modeler Agent — Modeling Modes
 
-- [ ] Add `baseline` mode
-- [ ] Add `n_estimator_search` mode with boosting guard
-- [ ] Add `tune` mode
-- [ ] Add `train_tuned` mode
-- [ ] Add `adjust_lr` mode with boosting guard
-- [ ] Add `importance_review` mode
-- [ ] Add `feature_selection` mode
-- [ ] Add `final_recommendation` mode
-- [ ] Preserve existing `raw_review`, `processed_review`, `modeling_handoff` modes
+- [x] Add `baseline` mode
+- [x] Add `n_estimator_search` mode with boosting guard
+- [x] Add `tune` mode
+- [x] Add `train_tuned` mode
+- [x] Add `adjust_lr` mode with boosting guard
+- [x] Add `importance_review` mode
+- [x] Add `feature_selection` mode
+- [x] Add `final_recommendation` mode
+- [x] Preserve existing `raw_review`, `processed_review`, `modeling_handoff` modes
 
 Human review checkpoint:
 
@@ -68,8 +68,8 @@ Human review checkpoint:
 
 Testing checkpoint:
 
-- [ ] Mocked-LLM agent tests cover each new mode
-- [ ] Boosting-guard modes return an informative skip on non-boosting algorithms
+- [x] Mocked-LLM agent tests cover each new mode
+- [x] Boosting-guard modes return an informative skip on non-boosting algorithms
 
 ### Step 3: ML Reviewer Agent — Modeling Review Modes
 
@@ -176,4 +176,67 @@ Notes:
 - PipelineState already had modeling_results, ml_review, and modeling_context. Only added modeling_verdict (final cross-algorithm recommendation) and should_revise_modeling (router flag).
 Next item:
 - Step 2 - ML Modeler agent modeling modes
+```
+
+```text
+Date: 2026-04-16
+Checkpoint: Step 2 - baseline mode
+Status: Implementation complete, awaiting human review
+Files touched:
+- src/multi_agent_ds/agents/ml_modeler.py
+- config/prompts.yaml (sean_ml_modeler.baseline_review)
+- tests/test_pre_modeling_review_agents.py
+- project_planning/sean_step_artifacts/ML_Modeler_Reviewer_Checklist.md
+Validation run:
+- uv run pytest tests/test_pre_modeling_review_agents.py tests/test_cleaning.py tests/test_feature_engineering.py tests/test_preparation_workflow.py (15 passed; +1 new)
+Notes:
+- baseline mode delegates compute to skills.modeling.train_with_defaults and only wraps the LLM call around the result; no math inside the agent.
+- _serialize_baseline_for_prompt strips model, y_pred, y_prob before prompt serialization — those aren't JSON-serializable and aren't useful to the LLM.
+- The decision is stored at modeling_results["baseline_decision"] and a summary is appended to agent_decisions, matching the existing pattern of "rich payload in a typed state key + brief metadata in agent_decisions".
+- Remaining Step 2 modes (n_estimator_search, tune, train_tuned, adjust_lr, importance_review, feature_selection, final_recommendation) will follow the same shape.
+Next item:
+- Step 2 - tune + train_tuned modes (or n_estimator_search with boosting guard — order open)
+```
+
+```text
+Date: 2026-04-16
+Checkpoint: Step 2 - tune + train_tuned modes
+Status: Implementation complete, awaiting human review
+Files touched:
+- src/multi_agent_ds/agents/ml_modeler.py
+- config/prompts.yaml (sean_ml_modeler.tuning_review)
+- tests/test_pre_modeling_review_agents.py
+- project_planning/sean_step_artifacts/ML_Modeler_Reviewer_Checklist.md
+Validation run:
+- uv run pytest tests/test_pre_modeling_review_agents.py tests/test_cleaning.py tests/test_feature_engineering.py tests/test_preparation_workflow.py (17 passed; +2 new)
+Notes:
+- tune mode iterates over baseline_decision.algorithms_to_tune and calls tune_algorithm per algo. Boosting-only inputs (learning_rate, n_estimators) come from a prior n_estimator_search if present, otherwise from ALGORITHM_REGISTRY defaults via _boosting_inputs_for. Non-boosting models get None/None as intended by the skill signature.
+- Each tuning result is serialized for the LLM by dropping trial_history (keeps param importances, convergence, rolling_best, best_params).
+- train_tuned mode has no LLM call — it just executes the tune-phase decision. It re-fits only the algorithms flagged accept_tuned_params=True, stores the result, and records the primary-metric test-score delta vs. baseline.
+- Per-algo decisions go into modeling_results["tuning_decisions"][algo] and brief entries accumulate in agent_decisions. This mirrors the baseline-mode storage pattern.
+Next item:
+- Step 2 - n_estimator_search mode with boosting guard
+```
+
+```text
+Date: 2026-04-16
+Checkpoint: Step 2 - n_estimator_search + adjust_lr + importance_review + feature_selection + final_recommendation
+Status: Implementation complete, awaiting human review
+Files touched:
+- src/multi_agent_ds/agents/ml_modeler.py
+- config/prompts.yaml (sean_ml_modeler.lr_adjustment_review, feature_selection_review, final_recommendation)
+- tests/test_pre_modeling_review_agents.py
+- project_planning/sean_step_artifacts/ML_Modeler_Reviewer_Checklist.md
+Validation run:
+- uv run pytest tests/test_pre_modeling_review_agents.py tests/test_cleaning.py tests/test_feature_engineering.py tests/test_preparation_workflow.py (22 passed; +5 new)
+Notes:
+- Fixed two bugs from the prior tune slice: _boosting_inputs_for now reads the skill's optimal_n_estimators key (was incorrectly reading best_n_estimators), and train_tuned now merges the fixed boosting inputs (learning_rate, n_estimators) from the tuning skill result into chosen_params so the retrained model uses the same rate/n_est pair tuning was evaluated against.
+- n_estimator_search is a pure skill wrapper with no LLM call. Non-boosting algos are pre-filtered out (recorded in state["n_estimator_search_skipped"]); the skill's own boosting guard is belt-and-suspenders. Plan called for an LLM review here but no contract fits — the lr decision happens later in adjust_lr.
+- adjust_lr applies a deterministic lr/2 rule, calls adjust_learning_rate, and asks the LLM to keep or revert via LearningRateDecision. Skips non-boosting and also skips boosting algos whose tune decision was accept_tuned_params=False (nothing to adjust from).
+- importance_review is pure (no LLM). It picks the most recent fitted result per algo via _latest_result_for (phase preference: feature_selection -> adjust_lr -> train_tuned -> baseline) and collects native + permutation importance.
+- feature_selection uses the permutation importance safe_to_remove list directly as the drop candidate set, refits with train_with_feature_subset, and asks the LLM to accept/reject. Skipped algos (no safe_to_remove) are recorded in state["feature_selection_skipped"].
+- final_recommendation assembles a per-algo final-phase summary and asks the LLM for a ModelingVerdict. Verdict is stored at state["modeling_verdict"].
+- All five new modes are covered by dedicated mocked-LLM tests; prior baseline/tune/train_tuned tests still pass unchanged.
+Next item:
+- Step 3 - ML Reviewer agent modeling review modes
 ```

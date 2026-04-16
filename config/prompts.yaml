@@ -59,8 +59,53 @@ sean_ml_modeler:
     business_implications, scientific_vs_art.
   baseline_review: |
     Review the baseline model results below.
-    Explain which algorithms deserve more work and why.
+    Decide which algorithms deserve further tuning and which should be dropped.
+    Be conservative: keep an algorithm in the tuning set unless its CV or test
+    scores are clearly far behind the leader, or its CV/test gap suggests it is
+    unlikely to close the gap with tuning.
     {results_json}
+    Return structured JSON with keys:
+    summary, algorithms_to_tune, algorithms_to_drop, reasoning.
+  tuning_review: |
+    Review the Optuna tuning results below for {algorithm}.
+    Decide whether the tuned parameters are worth adopting.
+    Only accept the tuned params when the CV score improvement is meaningful
+    AND the convergence/param-importance evidence supports the choice.
+    Reject tuning (keep defaults) when the improvement is within noise
+    (e.g. less than one CV-std) or when the param importances are flat.
+    {tuning_json}
+    Return structured JSON with keys:
+    algorithm, accept_tuned_params, chosen_params, reasoning.
+    When accept_tuned_params is true, chosen_params must be the tuned
+    best_params. When false, chosen_params must be the baseline defaults.
+  lr_adjustment_review: |
+    Review the learning-rate adjustment result for {algorithm}.
+    Decide whether to keep the reduced learning rate or revert.
+    Keep the adjustment only when the primary-metric test score improved
+    by a margin meaningfully larger than the prior CV std. Revert when the
+    new score is flat or worse. The scaled n_estimators is what the skill
+    actually trained with.
+    {adjustment_json}
+    Return structured JSON with keys:
+    algorithm, keep_adjustment, chosen_learning_rate, chosen_n_estimators, reasoning.
+  feature_selection_review: |
+    Review the feature-selection training for {algorithm}.
+    The dropped features come from permutation importance "safe to remove" flags.
+    Decide whether the reduced-feature model is acceptable.
+    Accept the subset only when the primary-metric test score held or improved.
+    Reject when the drop hurts the score beyond the prior CV std.
+    {selection_json}
+    Return structured JSON with keys:
+    algorithm, accept_subset, kept_features, dropped_features, reasoning.
+  final_recommendation: |
+    Produce the final modeling recommendation.
+    Compare the candidate algorithms below on the primary metric ({primary_metric})
+    and supporting scores. Rank them, pick a best model, and justify the choice.
+    If no candidate is strong enough, return next_action="revise_modeling" with a
+    concrete revision instruction in the justification.
+    {candidates_json}
+    Return structured JSON with keys:
+    summary, best_algorithm, ranked_algorithms, final_metrics, justification, next_action.
   decision_explanation: |
     Explain this modeling choice mathematically.
     Separate evidence-based reasoning from rule-of-thumb judgment.
