@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '[multi_agent_ds DEV PROTOCOL REMINDER] Before any Edit/Write/commit in this repo: (1) read development_agents/checklist.md; (2) name the active role (plan_guardian | architecture_guard | implementation_engineer | efficiency_reviewer | commit_chronicler); (3) spawn the matching subagent via the Agent tool for load-bearing decisions (.claude/agents/ has plan-guardian, architecture-guard, implementation-engineer, efficiency-reviewer, commit-chronicler); (4) finish the whole checklist step before pausing for review; (5) ask \"Should I commit and push these changes?\" before git commit; (6) end the slice with a structured summary — files changed + why, functions added + why, validation. See CLAUDE.md at the repo root for the full protocol.'"
+          }
+        ]
+      }
+    ]
+  }
+}
