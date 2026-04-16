@@ -23,9 +23,9 @@ The current agent should:
 ## Current Status
 
 - Overall status: `in progress`
-- Current checkpoint: `Step 3 - ML Reviewer agent modeling review modes (all 5 new review modes done, awaiting human review)`
-- Human review completed through: `Step 2 - ML Modeler agent modeling modes`
-- Testing completed through: `Step 3 - all modeling review modes`
+- Current checkpoint: `Step 5 - Final validation and closeout`
+- Human review completed through: `Step 3 - ML Reviewer agent modeling review modes`
+- Testing completed through: `Step 5 - Final focused validation (47 passed)`
 
 ## Checkpoint Checklist
 
@@ -92,10 +92,10 @@ Testing checkpoint:
 
 ### Step 4: Prompts + Router
 
-- [ ] Add `sean_ml_modeler` prompts for each new mode
-- [ ] Add `ml_reviewer` prompts for each new review mode
-- [ ] Add a modeling revise/advance router function
-- [ ] Cap the revision loop with `iteration`
+- [x] Add `sean_ml_modeler` prompts for each new mode
+- [x] Add `ml_reviewer` prompts for each new review mode
+- [x] Add a modeling revise/advance router function
+- [x] Cap the revision loop with `iteration`
 
 Human review checkpoint:
 
@@ -104,14 +104,14 @@ Human review checkpoint:
 
 Testing checkpoint:
 
-- [ ] Router tests cover approve, revise, and iteration-cap paths
+- [x] Router tests cover approve, revise, and iteration-cap paths
 
 ### Step 5: Final Validation and Commit Readiness
 
-- [ ] Run the focused Step 5 tests
-- [ ] Re-check the final ML Modeler + Reviewer slice against `Sean_Plan.md`
-- [ ] Re-check the final slice against architecture boundaries
-- [ ] Summarize remaining limitations, if any
+- [x] Run the focused Step 5 tests
+- [x] Re-check the final ML Modeler + Reviewer slice against `Sean_Plan.md`
+- [x] Re-check the final slice against architecture boundaries
+- [x] Summarize remaining limitations, if any
 - [ ] Ask: `Should I commit and push these changes?`
 
 Human review checkpoint:
@@ -121,7 +121,7 @@ Human review checkpoint:
 
 Testing checkpoint:
 
-- [ ] Final focused validation is complete and recorded below
+- [x] Final focused validation is complete and recorded below
 
 ## Progress Log
 
@@ -262,4 +262,49 @@ Notes:
 - The agent_decisions entry uses review_phase instead of phase for the reviewed phase name, because _append_decision already takes phase as its positional argument for the current-mode label.
 Next item:
 - Step 4 - Prompts + router (router in orchestration/router.py)
+```
+
+```text
+Date: 2026-04-16
+Checkpoint: Step 4 - Prompts + router
+Status: Implementation complete, awaiting human review
+Files touched:
+- src/multi_agent_ds/orchestration/router.py
+- src/multi_agent_ds/orchestration/state.py
+- src/multi_agent_ds/agents/ml_modeler.py
+- config/workflows.yaml
+- tests/test_langgraph_router.py
+- tests/test_pre_modeling_review_agents.py
+- notebooks/ML_Modeler_Reviewer_Step4_Review.ipynb
+- project_planning/sean_step_artifacts/ML_Modeler_Reviewer_Checklist.md
+Validation run:
+- uv run pytest tests/test_langgraph_router.py tests/test_pre_modeling_review_agents.py tests/test_cleaning.py tests/test_feature_engineering.py tests/test_preparation_workflow.py (47 passed; +12 new router-plus-iteration tests, +5 assertions on modeling_iteration in existing modeler tests)
+Notes:
+- architecture-guard ruled option (a): modeler increments modeling_iteration per reviewed phase run, matching the existing eda_analyst.prep_plan precedent.
+- Added modeling_iteration: int to PipelineState under Control flow (alongside iteration, should_loop, should_revise_modeling).
+- Added config/workflows.yaml workflows.modeling.max_iterations: 3, read by a new _modeling_iteration_limit() helper in router.py paralleling _prep_iteration_limit().
+- route_after_modeling_review reads current_phase + should_revise_modeling + modeling_iteration: revise + under cap -> f"ml_modeler_{current_phase}"; else advance to _MODELING_REVIEW_NEXT_NODE[current_phase]; unknown phase raises.
+- The 5 reviewed modeler modes (baseline, tune, adjust_lr, feature_selection, final_recommendation) all return "modeling_iteration": state.get("modeling_iteration", 0) + 1. The 3 non-reviewed modes (n_estimator_search, train_tuned, importance_review) do not increment.
+- Human-review notebook ML_Modeler_Reviewer_Step4_Review.ipynb walks accept / revise-under-cap / revise-at-cap / unknown-phase branches plus the pytest run.
+Next item:
+- Step 5 - Final validation and closeout
+```
+
+```text
+Date: 2026-04-16
+Checkpoint: Step 5 - Final validation and closeout
+Status: Implementation complete, awaiting commit
+Files touched:
+- project_planning/sean_step_artifacts/ML_Modeler_Reviewer_Checklist.md
+Validation run:
+- uv run pytest tests/test_langgraph_router.py tests/test_pre_modeling_review_agents.py tests/test_cleaning.py tests/test_feature_engineering.py tests/test_preparation_workflow.py (47 passed)
+Notes:
+- Final ML Modeler + Reviewer slice is consistent with Sean_Plan.md (Step 5) and ML_Modeler_Reviewer_Implementation_Plan.md, with three documented deviations recorded in the plan's Accepted Plan Deviations section (notebooks allowed, n_estimator_search and importance_review run LLM-free by design, adjust_lr factor is config-driven).
+- Architecture boundaries hold: skill math stays in skills/modeling.py, LLM calls stay in agents/, routing stays read-only in orchestration/router.py, no new files introduced in this final slice.
+- Remaining limitations (follow-up slices, not Step 5 scope):
+  * graph.py wiring (add_conditional_edges for the 5 review checkpoints against route_after_modeling_review) is deferred.
+  * The modeler does not yet incorporate the reviewer's revision_questions into its next-turn prompt on loop-back; revision loops currently re-execute the same prompt.
+  * An end-to-end graph integration test cannot be added until graph.py lands.
+Next item:
+- Commit-chronicler commit + push of Step 4 + Step 5 closeout.
 ```

@@ -99,6 +99,20 @@ def _latest_result_for(state: PipelineState, algo_name: str) -> tuple[str, dict[
     raise KeyError(f"No fitted result found for algorithm '{algo_name}'")
 
 
+def _next_modeling_iteration(state: PipelineState, phase_name: str) -> int:
+    """Return the next modeling_iteration value for a reviewed phase.
+
+    Resets to 1 on fresh entry (first run or advance from a different phase)
+    and increments on loop-back (reviewer set should_revise_modeling=True and
+    the router sent us back to the same phase). The router's iteration cap is
+    therefore evaluated per-phase, so burning the budget on `baseline` does
+    not starve `tune` of its own revision budget.
+    """
+    if state.get("current_phase") == phase_name:
+        return state.get("modeling_iteration", 0) + 1
+    return 1
+
+
 def _tuned_params_for(state: PipelineState, algo_name: str) -> dict[str, Any]:
     """Resolve the full parameter dict to use for post-tune retraining of this algo.
 
@@ -184,6 +198,7 @@ def ml_modeler_node(state: PipelineState, mode: str = "eda_review") -> dict[str,
                 algorithms_to_drop=decision["algorithms_to_drop"],
             ),
             "current_phase": "baseline",
+            "modeling_iteration": _next_modeling_iteration(state, "baseline"),
         }
 
     if mode == "tune":
@@ -248,6 +263,7 @@ def ml_modeler_node(state: PipelineState, mode: str = "eda_review") -> dict[str,
             | {"tuning": tuning_skill_results, "tuning_decisions": tuning_decisions},
             "agent_decisions": state.get("agent_decisions", []) + new_agent_entries,
             "current_phase": "tune",
+            "modeling_iteration": _next_modeling_iteration(state, "tune"),
         }
 
     if mode == "train_tuned":
@@ -408,6 +424,7 @@ def ml_modeler_node(state: PipelineState, mode: str = "eda_review") -> dict[str,
             "agent_decisions": state.get("agent_decisions", []) + new_agent_entries,
             "current_phase": "adjust_lr",
             "adjust_lr_skipped": skipped,
+            "modeling_iteration": _next_modeling_iteration(state, "adjust_lr"),
         }
 
     if mode == "importance_review":
@@ -543,6 +560,7 @@ def ml_modeler_node(state: PipelineState, mode: str = "eda_review") -> dict[str,
             "agent_decisions": state.get("agent_decisions", []) + new_agent_entries,
             "current_phase": "feature_selection",
             "feature_selection_skipped": skipped,
+            "modeling_iteration": _next_modeling_iteration(state, "feature_selection"),
         }
 
     if mode == "final_recommendation":
@@ -590,6 +608,7 @@ def ml_modeler_node(state: PipelineState, mode: str = "eda_review") -> dict[str,
                 next_action=verdict["next_action"],
             ),
             "current_phase": "final_recommendation",
+            "modeling_iteration": _next_modeling_iteration(state, "final_recommendation"),
         }
 
     if mode == "modeling_handoff":

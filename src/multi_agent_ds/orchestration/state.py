@@ -47,3 +47,4 @@ class PipelineState(TypedDict, total=False):
     should_loop: bool
     should_revise_modeling: bool
     iteration: int
+    modeling_iteration: int

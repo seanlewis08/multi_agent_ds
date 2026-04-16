@@ -261,6 +261,7 @@ def test_ml_modeler_baseline_runs_skill_and_records_decision(monkeypatch) -> Non
 
     assert captured["data"] == {"X_train": "fake"}
     assert result["current_phase"] == "baseline"
+    assert result["modeling_iteration"] == 1
     assert result["modeling_results"]["prior"] == "kept"
     assert "lightgbm" in result["modeling_results"]["baseline"]
     assert result["modeling_results"]["baseline_decision"]["algorithms_to_tune"] == [
@@ -331,6 +332,7 @@ def test_ml_modeler_tune_iterates_algorithms_and_records_decisions(monkeypatch) 
     assert set(tuning.keys()) == {"lightgbm", "logistic_regression"}
     assert decisions["lightgbm"]["accept_tuned_params"] is True
     assert result["current_phase"] == "tune"
+    assert result["modeling_iteration"] == 1
     assert len(result["agent_decisions"]) == 2
     assert result["agent_decisions"][0]["phase"] == "tune"
     assert result["agent_decisions"][0]["algorithm"] == "lightgbm"
@@ -497,6 +499,7 @@ def test_ml_modeler_adjust_lr_skips_non_boosting_and_runs_boosting(monkeypatch) 
     assert result["adjust_lr_skipped"] == ["logistic_regression"]
     assert result["modeling_results"]["adjust_lr_decisions"]["lightgbm"]["keep_adjustment"] is True
     assert result["current_phase"] == "adjust_lr"
+    assert result["modeling_iteration"] == 1
 
 
 def test_ml_modeler_importance_review_collects_native_and_permutation(monkeypatch) -> None:
@@ -608,6 +611,7 @@ def test_ml_modeler_feature_selection_uses_safe_to_remove_flags(monkeypatch) -> 
     decision = result["modeling_results"]["feature_selection_decisions"]["lightgbm"]
     assert decision["accept_subset"] is True
     assert result["current_phase"] == "feature_selection"
+    assert result["modeling_iteration"] == 1
 
 
 def test_ml_modeler_final_recommendation_picks_best_with_latest_phase(monkeypatch) -> None:
@@ -644,6 +648,7 @@ def test_ml_modeler_final_recommendation_picks_best_with_latest_phase(monkeypatc
     assert verdict["best_algorithm"] == "lightgbm"
     assert verdict["next_action"] == "proceed_to_evaluation"
     assert result["current_phase"] == "final_recommendation"
+    assert result["modeling_iteration"] == 1
 
 
 def test_ml_reviewer_and_business_stakeholder_processed_reviews_return_payloads(monkeypatch) -> None:
