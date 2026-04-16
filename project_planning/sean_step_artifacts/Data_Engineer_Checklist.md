@@ -158,9 +158,9 @@ Date: 2026-04-16
 Checkpoint: Step 1 - Cleaning surface
 Status: Complete
 Files touched:
-- /Users/sean.lewis/DataspellProjects/multi_agent_ds/src/multi_agent_ds/skills/cleaning.py
-- /Users/sean.lewis/DataspellProjects/multi_agent_ds/tests/test_cleaning.py
-- /Users/sean.lewis/DataspellProjects/multi_agent_ds/project_planning/sean_step_artifacts/Data_Engineer_Checklist.md
+- src/multi_agent_ds/skills/cleaning.py
+- tests/test_cleaning.py
+- project_planning/sean_step_artifacts/Data_Engineer_Checklist.md
 Validation run:
 - uv run pytest tests/test_cleaning.py tests/test_preparation_workflow.py
 Notes:
