@@ -58,11 +58,11 @@ Source: [Jonathan_Plan.md](/Users/jonathan.chia/code/multi_agent_ds/project_plan
 
 ## 1d. `development_agents/skills/pr-workflow.md`
 
-- [ ] Create `development_agents/skills/pr-workflow.md`
-- [ ] Document branch naming convention
-- [ ] Document commit message format
-- [ ] Document PR description requirements
-- [ ] Document the step-by-step development PR workflow
+- [x] Create `development_agents/skills/pr-workflow.md`
+- [x] Document branch naming convention
+- [x] Document commit message format
+- [x] Document PR description requirements
+- [x] Document the step-by-step development PR workflow
 
 ## 1e. `development_agents/team.md`
 
