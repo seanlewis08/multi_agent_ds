@@ -30,6 +30,20 @@ def build_processed_filename(source_path: str, timestamp: datetime | None = None
     return f"{_source_stem(source_path)}_processed_{stamp}.parquet"
 
 
+def _resolve_target_column(settings: dict[str, Any]) -> str:
+    """Resolve the configured target column for preparation."""
+    data_cfg = settings.get("data", {})
+    if data_cfg.get("source") == "existing":
+        target_col = data_cfg.get("existing", {}).get("target_column")
+        if not target_col:
+            raise ValueError(
+                "Existing-data preparation requires data.existing.target_column to be set in settings."
+            )
+        return target_col
+
+    return data_cfg.get("synthetic", {}).get("target", {}).get("column_name", "target")
+
+
 def run_preparation_workflow(
     data_path: str,
     prep_plan: dict[str, Any],
@@ -38,9 +52,16 @@ def run_preparation_workflow(
     """Execute an approved preparation plan and persist the processed parquet artifact."""
     settings = settings or load_settings()
     df, source_path = load_dataframe(data_path, settings)
-    target_col = settings.get("data", {}).get("existing", {}).get("target_column") or settings.get(
-        "data", {}
-    ).get("synthetic", {}).get("target", {}).get("column_name", "target")
+    target_col = _resolve_target_column(settings)
+
+    if target_col not in df.columns:
+        raise KeyError(
+            f"Target column '{target_col}' not found in preparation dataset. "
+            f"Available columns: {df.columns.tolist()}"
+        )
+
+    source_n_rows = int(len(df))
+    source_n_features = int(max(df.shape[1] - 1, 0))
 
     cleaned_df, cleaning_summary = apply_cleaning_actions(
         df=df,
@@ -54,6 +75,9 @@ def run_preparation_workflow(
     )
 
     filename = build_processed_filename(source_path)
+    processed_path = build_s3_uri(settings, "processed", filename)
+    processed_n_rows = int(len(engineered_df))
+    processed_n_features = int(max(engineered_df.shape[1] - 1, 0))
     with TemporaryDirectory() as tmp_dir:
         local_path = Path(tmp_dir) / filename
         engineered_df.to_parquet(local_path)
@@ -66,9 +90,15 @@ def run_preparation_workflow(
 
     return {
         "source_data_path": source_path,
-        "processed_data_path": build_s3_uri(settings, "processed", filename),
-        "n_rows": int(len(engineered_df)),
-        "n_features": int(engineered_df.shape[1] - 1),
+        "target_column": target_col,
+        "artifact_filename": filename,
+        "processed_data_path": processed_path,
+        "source_n_rows": source_n_rows,
+        "source_n_features": source_n_features,
+        "n_rows": processed_n_rows,
+        "n_features": processed_n_features,
+        "processed_n_rows": processed_n_rows,
+        "processed_n_features": processed_n_features,
         "cleaning_summary": cleaning_summary,
         "feature_summary": feature_summary,
     }

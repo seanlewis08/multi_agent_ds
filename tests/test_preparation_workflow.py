@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
 from multi_agent_ds.workflows.preparation import run_preparation_workflow
 
@@ -39,7 +40,16 @@ def test_run_preparation_workflow_applies_plan_and_returns_processed_artifact(mo
                     "params": {"columns": ["distance_to_work"]},
                 },
             ],
-            "feature_actions": [],
+            "feature_actions": [
+                {
+                    "action": "ratio",
+                    "params": {
+                        "numerator": "claim_amount_avg",
+                        "denominator": "distance_to_work",
+                        "output_column": "claim_per_distance",
+                    },
+                }
+            ],
         },
         settings={
             "data": {"source": "existing", "existing": {"target_column": "binary_target"}},
@@ -52,5 +62,55 @@ def test_run_preparation_workflow_applies_plan_and_returns_processed_artifact(mo
     )
 
     assert result["processed_data_path"].startswith("s3://example-bucket/multi_agent_ds/data/processed/")
+    assert result["source_data_path"] == str(source_path)
+    assert result["target_column"] == "binary_target"
+    assert result["artifact_filename"].startswith("raw_processed_")
+    assert result["artifact_filename"].endswith(".parquet")
+    assert result["source_n_rows"] == 3
+    assert result["source_n_features"] == 2
     assert result["n_rows"] == 3
+    assert result["n_features"] == 3
+    assert result["processed_n_rows"] == 3
+    assert result["processed_n_features"] == 3
+    assert result["cleaning_summary"][0]["action"] == "clip_outliers_iqr"
+    assert result["feature_summary"][0]["action"] == "ratio"
+    assert result["feature_summary"][0]["created_features"][0]["feature"] == "claim_per_distance"
     assert uploads[0][0] == "processed"
+
+
+def test_run_preparation_workflow_raises_when_target_column_is_missing(tmp_path: Path) -> None:
+    source_path = tmp_path / "raw.parquet"
+    pd.DataFrame({"a": [1, 2], "b": [3, 4]}).to_parquet(source_path)
+
+    with pytest.raises(KeyError, match="Target column 'binary_target' not found"):
+        run_preparation_workflow(
+            data_path=str(source_path),
+            prep_plan={"cleaning_actions": [], "feature_actions": []},
+            settings={
+                "data": {"source": "existing", "existing": {"target_column": "binary_target"}},
+                "s3": {
+                    "bucket": "example-bucket",
+                    "prefix": "multi_agent_ds",
+                    "paths": {"processed": "data/processed"},
+                },
+            },
+        )
+
+
+def test_run_preparation_workflow_requires_existing_target_column_config(tmp_path: Path) -> None:
+    source_path = tmp_path / "raw.parquet"
+    pd.DataFrame({"feature": [1, 2], "binary_target": [0, 1]}).to_parquet(source_path)
+
+    with pytest.raises(ValueError, match="data.existing.target_column"):
+        run_preparation_workflow(
+            data_path=str(source_path),
+            prep_plan={"cleaning_actions": [], "feature_actions": []},
+            settings={
+                "data": {"source": "existing", "existing": {}},
+                "s3": {
+                    "bucket": "example-bucket",
+                    "prefix": "multi_agent_ds",
+                    "paths": {"processed": "data/processed"},
+                },
+            },
+        )

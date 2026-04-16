@@ -23,9 +23,9 @@ The current agent should:
 ## Current Status
 
 - Overall status: `planning complete`
-- Current checkpoint: `Step 3 - Preparation workflow`
+- Current checkpoint: `Step 4 - Data Engineer agent`
 - Human review completed through: `planning only`
-- Testing completed through: `Step 2 - Feature engineering surface`
+- Testing completed through: `Step 3 - Preparation workflow`
 
 ## Checkpoint Checklist
 
@@ -65,21 +65,21 @@ Testing checkpoint:
 
 ### Step 3: Preparation Workflow
 
-- [ ] Re-check source-data loading path
-- [ ] Re-check target-column resolution
-- [ ] Re-check cleaning application
-- [ ] Re-check feature application
-- [ ] Re-check processed parquet save path and result structure
+- [x] Re-check source-data loading path
+- [x] Re-check target-column resolution
+- [x] Re-check cleaning application
+- [x] Re-check feature application
+- [x] Re-check processed parquet save path and result structure
 
 Human review checkpoint:
 
-- [ ] Confirm side effects stay in the workflow layer
-- [ ] Confirm the workflow result is stable enough for downstream modeling
+- [x] Confirm side effects stay in the workflow layer
+- [x] Confirm the workflow result is stable enough for downstream modeling
 
 Testing checkpoint:
 
-- [ ] Preparation workflow tests pass
-- [ ] Processed artifact result is inspectable
+- [x] Preparation workflow tests pass
+- [x] Processed artifact result is inspectable
 
 ### Step 4: Data Engineer Agent
 
@@ -187,4 +187,22 @@ Notes:
 - Feature engineering logic remains pure; no workflow or file-I/O behavior was added to skills/feature_engineering.py.
 Next item:
 - Step 3 - Preparation workflow
+```
+
+```text
+Date: 2026-04-16
+Checkpoint: Step 3 - Preparation workflow
+Status: Complete
+Files touched:
+- /Users/sean.lewis/DataspellProjects/multi_agent_ds/src/multi_agent_ds/workflows/preparation.py
+- /Users/sean.lewis/DataspellProjects/multi_agent_ds/tests/test_preparation_workflow.py
+- /Users/sean.lewis/DataspellProjects/multi_agent_ds/project_planning/sean_step_artifacts/Data_Engineer_Checklist.md
+Validation run:
+- uv run pytest tests/test_preparation_workflow.py tests/test_cleaning.py tests/test_feature_engineering.py
+Notes:
+- The preparation workflow now resolves the configured target column explicitly and fails fast when it is missing or absent from the dataset.
+- The workflow result now includes target_column, artifact_filename, source counts, processed counts, and the existing cleaning/feature summaries.
+- Side effects remain in the workflow layer; skills remain pure.
+Next item:
+- Step 4 - Data Engineer agent
 ```
