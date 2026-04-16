@@ -23,29 +23,29 @@ The current agent should:
 ## Current Status
 
 - Overall status: `planning complete`
-- Current checkpoint: `Step 1 - Cleaning surface`
+- Current checkpoint: `Step 2 - Feature engineering surface`
 - Human review completed through: `planning only`
-- Testing completed through: `none yet`
+- Testing completed through: `Step 1 - Cleaning surface`
 
 ## Checkpoint Checklist
 
 ### Step 1: Cleaning Surface
 
-- [ ] Tighten `drop_columns`
-- [ ] Tighten `impute_numeric_median`
-- [ ] Tighten `impute_categorical_mode`
-- [ ] Tighten `clip_outliers_iqr`
-- [ ] Keep cleaning logic pure and target-column safe
+- [x] Tighten `drop_columns`
+- [x] Tighten `impute_numeric_median`
+- [x] Tighten `impute_categorical_mode`
+- [x] Tighten `clip_outliers_iqr`
+- [x] Keep cleaning logic pure and target-column safe
 
 Human review checkpoint:
 
-- [ ] Confirm the supported cleaning actions are still the intended initial scope
-- [ ] Confirm no file I/O or workflow logic leaked into `skills/cleaning.py`
+- [x] Confirm the supported cleaning actions are still the intended initial scope
+- [x] Confirm no file I/O or workflow logic leaked into `skills/cleaning.py`
 
 Testing checkpoint:
 
-- [ ] Focused cleaning tests pass
-- [ ] Cleaning summaries show applied vs skipped actions clearly
+- [x] Focused cleaning tests pass
+- [x] Cleaning summaries show applied vs skipped actions clearly
 
 ### Step 2: Feature Engineering Surface
 
@@ -149,4 +149,24 @@ Notes:
 - The main files are skills/cleaning.py, skills/feature_engineering.py, workflows/preparation.py, and agents/data_engineer.py.
 Next item:
 - Step 1 - Cleaning surface
+```
+
+### Progress Updates
+
+```text
+Date: 2026-04-16
+Checkpoint: Step 1 - Cleaning surface
+Status: Complete
+Files touched:
+- /Users/sean.lewis/DataspellProjects/multi_agent_ds/src/multi_agent_ds/skills/cleaning.py
+- /Users/sean.lewis/DataspellProjects/multi_agent_ds/tests/test_cleaning.py
+- /Users/sean.lewis/DataspellProjects/multi_agent_ds/project_planning/sean_step_artifacts/Data_Engineer_Checklist.md
+Validation run:
+- uv run pytest tests/test_cleaning.py tests/test_preparation_workflow.py
+Notes:
+- Cleaning summaries now report requested columns, applied columns, skipped columns, and per-column skip reasons.
+- Target-column protection is explicit across all supported cleaning actions.
+- Cleaning logic remains pure; no workflow or file-I/O behavior was added to skills/cleaning.py.
+Next item:
+- Step 2 - Feature engineering surface
 ```
