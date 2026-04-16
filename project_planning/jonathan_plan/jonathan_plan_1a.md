@@ -81,7 +81,7 @@ Execute Step 1a by implementing `src/multi_agent_ds/tools/git.py` as a stateless
 - [x] Run the targeted test selection for `tools/git.py`
 - [x] Review the final diff for architecture fit and scope control
   Confirmed: the implementation stays in `tools/`, uses no new dependency, and remains scoped to Step 1a; unrelated worktree changes still require narrow staging later.
-- [ ] Update `jonathan_plan_1.md` to mark completed Step 1a checkboxes after implementation
+- [x] Update `jonathan_plan_1.md` to mark completed Step 1a checkboxes after implementation
 
 ## Done Condition
 
