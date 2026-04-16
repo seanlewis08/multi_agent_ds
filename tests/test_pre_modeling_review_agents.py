@@ -273,6 +273,101 @@ def test_ml_modeler_baseline_runs_skill_and_records_decision(monkeypatch) -> Non
     assert decision_log["algorithms_to_tune"] == ["lightgbm", "logistic_regression"]
 
 
+def test_ml_modeler_baseline_injects_reviewer_critique_on_loopback(monkeypatch) -> None:
+    """On revise loop-back, the modeler's next prompt must include the reviewer's critique."""
+    captured = {}
+
+    class CapturingAdapter(FakeReviewAdapter):
+        def structured_output(self, messages, schema):
+            captured["user_content"] = messages[1]["content"]
+            return super().structured_output(messages, schema)
+
+    def fake_train_with_defaults(data, settings=None, algorithms=None):
+        return {"lightgbm": {"cv_scores": {"gini": 0.6}, "test_scores": {"gini": 0.59},
+                              "params_used": {}, "model": object(), "y_pred": "x", "y_prob": "x",
+                              "elapsed_seconds": 0.1, "phase": "baseline"}}
+
+    monkeypatch.setattr("multi_agent_ds.agents.ml_modeler.OpenAIAdapter", CapturingAdapter)
+    monkeypatch.setattr("multi_agent_ds.agents.ml_modeler.load_prompts_config", _prompts)
+    monkeypatch.setattr("multi_agent_ds.agents.ml_modeler.train_with_defaults", fake_train_with_defaults)
+
+    # Extend the _prompts fixture in-place for this test so {critique_section} is actually rendered
+    prompts_with_critique = _prompts()
+    prompts_with_critique["sean_ml_modeler"]["baseline_review"] = (
+        "{critique_section}results={results_json}"
+    )
+    monkeypatch.setattr(
+        "multi_agent_ds.agents.ml_modeler.load_prompts_config", lambda: prompts_with_critique
+    )
+
+    state = {
+        "settings": _settings(),
+        "data": {"X_train": "fake"},
+        "ml_review": {
+            "baseline": {
+                "summary": "Baseline pick ignored the CV/test gap for logistic_regression.",
+                "approved": False,
+                "next_action": "revise_modeling",
+                "decisions": [
+                    {
+                        "decision": "Keep both algorithms in the tuning set",
+                        "classification": "mixed",
+                        "mathematical_basis": "CV/test gap not examined.",
+                        "reasoning_quality": "weak",
+                        "revision_questions": [
+                            "What is the CV/test gini gap for logistic_regression?",
+                            "Is the lightgbm lead larger than either model's CV std?",
+                        ],
+                    }
+                ],
+                "phase": "baseline",
+            }
+        },
+        "agent_decisions": [],
+        "modeling_iteration": 0,
+    }
+
+    ml_modeler_node(state, mode="baseline")
+
+    prompt = captured["user_content"]
+    assert "Prior reviewer critique" in prompt
+    assert "Baseline pick ignored the CV/test gap" in prompt
+    assert "What is the CV/test gini gap" in prompt
+    assert "Is the lightgbm lead" in prompt
+
+
+def test_ml_modeler_baseline_omits_critique_on_fresh_entry(monkeypatch) -> None:
+    """Without a prior ml_review entry, the critique section must be empty."""
+    captured = {}
+
+    class CapturingAdapter(FakeReviewAdapter):
+        def structured_output(self, messages, schema):
+            captured["user_content"] = messages[1]["content"]
+            return super().structured_output(messages, schema)
+
+    def fake_train_with_defaults(data, settings=None, algorithms=None):
+        return {"lightgbm": {"cv_scores": {"gini": 0.6}, "test_scores": {"gini": 0.59},
+                              "params_used": {}, "model": object(), "y_pred": "x", "y_prob": "x",
+                              "elapsed_seconds": 0.1, "phase": "baseline"}}
+
+    prompts_with_critique = _prompts()
+    prompts_with_critique["sean_ml_modeler"]["baseline_review"] = (
+        "{critique_section}results={results_json}"
+    )
+    monkeypatch.setattr("multi_agent_ds.agents.ml_modeler.OpenAIAdapter", CapturingAdapter)
+    monkeypatch.setattr(
+        "multi_agent_ds.agents.ml_modeler.load_prompts_config", lambda: prompts_with_critique
+    )
+    monkeypatch.setattr("multi_agent_ds.agents.ml_modeler.train_with_defaults", fake_train_with_defaults)
+
+    ml_modeler_node(
+        {"settings": _settings(), "data": {"X_train": "fake"}, "agent_decisions": []},
+        mode="baseline",
+    )
+
+    assert "Prior reviewer critique" not in captured["user_content"]
+
+
 def test_ml_modeler_tune_iterates_algorithms_and_records_decisions(monkeypatch) -> None:
     tune_calls = []
 

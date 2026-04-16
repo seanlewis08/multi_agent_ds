@@ -99,6 +99,31 @@ def _latest_result_for(state: PipelineState, algo_name: str) -> tuple[str, dict[
     raise KeyError(f"No fitted result found for algorithm '{algo_name}'")
 
 
+def _critique_section_for(state: PipelineState, phase_name: str) -> str:
+    """Format the reviewer's prior critique for the modeler's next-turn prompt.
+
+    Returns an empty string on fresh phase entry. On loop-back, returns the
+    prior ml_review verdict's summary plus the concatenated revision_questions
+    from each ModelingDecisionReview, so the modeler can respond directly to
+    the critique rather than re-running the same prompt.
+    """
+    review = state.get("ml_review", {}).get(phase_name)
+    if not review:
+        return ""
+    questions: list[str] = []
+    for decision in review.get("decisions", []):
+        questions.extend(decision.get("revision_questions", []) or [])
+    question_block = (
+        "\n".join(f"- {q}" for q in questions) if questions else "- (reviewer raised no specific questions)"
+    )
+    return (
+        "Prior reviewer critique (you are retrying after a revise verdict):\n"
+        f"Summary: {review.get('summary', '(no summary)')}\n"
+        "Revision questions:\n"
+        f"{question_block}\n\n"
+    )
+
+
 def _next_modeling_iteration(state: PipelineState, phase_name: str) -> int:
     """Return the next modeling_iteration value for a reviewed phase.
 
@@ -181,6 +206,7 @@ def ml_modeler_node(state: PipelineState, mode: str = "eda_review") -> dict[str,
                     "role": "user",
                     "content": prompts["baseline_review"].format(
                         results_json=json.dumps(prompt_payload, sort_keys=True, default=str),
+                        critique_section=_critique_section_for(state, "baseline"),
                     ),
                 },
             ],
@@ -239,6 +265,7 @@ def ml_modeler_node(state: PipelineState, mode: str = "eda_review") -> dict[str,
                             tuning_json=json.dumps(
                                 _serialize_tuning_for_prompt(skill_result), sort_keys=True, default=str
                             ),
+                            critique_section=_critique_section_for(state, "tune"),
                         ),
                     },
                 ],
@@ -398,6 +425,7 @@ def ml_modeler_node(state: PipelineState, mode: str = "eda_review") -> dict[str,
                         "content": prompts["lr_adjustment_review"].format(
                             algorithm=algo_name,
                             adjustment_json=json.dumps(prompt_payload, sort_keys=True, default=str),
+                            critique_section=_critique_section_for(state, "adjust_lr"),
                         ),
                     },
                 ],
@@ -534,6 +562,7 @@ def ml_modeler_node(state: PipelineState, mode: str = "eda_review") -> dict[str,
                         "content": prompts["feature_selection_review"].format(
                             algorithm=algo_name,
                             selection_json=json.dumps(prompt_payload, sort_keys=True, default=str),
+                            critique_section=_critique_section_for(state, "feature_selection"),
                         ),
                     },
                 ],
@@ -591,6 +620,7 @@ def ml_modeler_node(state: PipelineState, mode: str = "eda_review") -> dict[str,
                     "content": prompts["final_recommendation"].format(
                         primary_metric=primary_metric,
                         candidates_json=json.dumps(summary_payload, sort_keys=True, default=str),
+                        critique_section=_critique_section_for(state, "final_recommendation"),
                     ),
                 },
             ],
