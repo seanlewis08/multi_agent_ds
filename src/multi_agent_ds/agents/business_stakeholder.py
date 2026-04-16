@@ -33,7 +33,10 @@ def _append_decision(state: PipelineState, phase: str, **payload: Any) -> list[d
 def business_stakeholder_node(state: PipelineState, mode: str = "eda_review") -> dict[str, Any]:
     """Review raw or processed EDA from a business realism perspective."""
     if mode not in {"raw_review", "processed_review"}:
-        return state
+        raise ValueError(
+            f"Unsupported mode '{mode}' for business_stakeholder_node. "
+            "Expected one of: 'raw_review', 'processed_review'."
+        )
 
     settings = state.get("settings") or load_settings()
     prompts = load_prompts_config()["business_stakeholder"]
