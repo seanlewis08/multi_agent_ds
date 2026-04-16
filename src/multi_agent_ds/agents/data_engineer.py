@@ -55,7 +55,9 @@ def data_engineer_node(state: PipelineState, mode: str = "feedback") -> dict[str
             "agent_decisions": _append_decision(
                 state,
                 "prep_feedback",
+                summary=feedback["summary"],
                 ready_for_execution=feedback["ready_for_execution"],
+                action_feedback_count=len(feedback["action_feedback"]),
             ),
             "current_phase": "prep_feedback",
         }
@@ -72,7 +74,11 @@ def data_engineer_node(state: PipelineState, mode: str = "feedback") -> dict[str
             "agent_decisions": _append_decision(
                 state,
                 "prep_execute",
+                artifact_filename=prep_result.get("artifact_filename"),
                 processed_data_path=prep_result["processed_data_path"],
+                target_column=prep_result.get("target_column"),
+                processed_n_rows=prep_result.get("processed_n_rows", prep_result.get("n_rows")),
+                processed_n_features=prep_result.get("processed_n_features", prep_result.get("n_features")),
             ),
             "current_phase": "prep_execute",
         }
