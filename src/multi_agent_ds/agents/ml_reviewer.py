@@ -28,10 +28,10 @@ def _append_decision(state: PipelineState, phase: str, **payload: Any) -> list[d
     return state.get("agent_decisions", []) + [{"agent": "ml_reviewer", "phase": phase, **payload}]
 
 
-def ml_reviewer_node(state: PipelineState, mode: str = "eda_review") -> dict[str, Any]:
+def ml_reviewer_node(state: PipelineState, mode: str = "raw_review") -> dict[str, Any]:
     """Review raw or processed EDA from a mathematical perspective."""
     if mode not in {"raw_review", "processed_review"}:
-        return state
+        raise ValueError(f"Unsupported mode: {mode}. Expected one of: raw_review, processed_review")
 
     settings = state.get("settings") or load_settings()
     prompts = load_prompts_config()["ml_reviewer"]
