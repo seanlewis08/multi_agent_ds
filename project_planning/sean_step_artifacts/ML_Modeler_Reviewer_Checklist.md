@@ -23,9 +23,9 @@ The current agent should:
 ## Current Status
 
 - Overall status: `in progress`
-- Current checkpoint: `Step 2 - ML Modeler agent modeling modes (all 8 new modes done, awaiting human review)`
-- Human review completed through: `Step 1 - Contracts and state`
-- Testing completed through: `Step 2 - all modeling modes`
+- Current checkpoint: `Step 3 - ML Reviewer agent modeling review modes (all 5 new review modes done, awaiting human review)`
+- Human review completed through: `Step 2 - ML Modeler agent modeling modes`
+- Testing completed through: `Step 3 - all modeling review modes`
 
 ## Checkpoint Checklist
 
@@ -73,12 +73,12 @@ Testing checkpoint:
 
 ### Step 3: ML Reviewer Agent — Modeling Review Modes
 
-- [ ] Add `baseline_review` mode
-- [ ] Add `tuning_review` mode
-- [ ] Add `lr_adjustment_review` mode
-- [ ] Add `feature_selection_review` mode
-- [ ] Add `final_recommendation_review` mode
-- [ ] Preserve existing `raw_review` and `processed_review` modes
+- [x] Add `baseline_review` mode
+- [x] Add `tuning_review` mode
+- [x] Add `lr_adjustment_review` mode
+- [x] Add `feature_selection_review` mode
+- [x] Add `final_recommendation_review` mode
+- [x] Preserve existing `raw_review` and `processed_review` modes
 
 Human review checkpoint:
 
@@ -87,8 +87,8 @@ Human review checkpoint:
 
 Testing checkpoint:
 
-- [ ] Mocked-LLM reviewer tests cover each new review mode
-- [ ] Revise verdicts populate `should_revise_modeling` and a critique string
+- [x] Mocked-LLM reviewer tests cover each new review mode
+- [x] Revise verdicts populate `should_revise_modeling` and a critique string
 
 ### Step 4: Prompts + Router
 
@@ -239,4 +239,27 @@ Notes:
 - All five new modes are covered by dedicated mocked-LLM tests; prior baseline/tune/train_tuned tests still pass unchanged.
 Next item:
 - Step 3 - ML Reviewer agent modeling review modes
+```
+
+```text
+Date: 2026-04-16
+Checkpoint: Step 3 - ML Reviewer agent modeling review modes
+Status: Implementation complete, awaiting human review
+Files touched:
+- src/multi_agent_ds/agents/ml_reviewer.py
+- config/prompts.yaml (ml_reviewer.baseline_review, tuning_review, lr_adjustment_review, feature_selection_review, final_recommendation_review)
+- tests/test_pre_modeling_review_agents.py
+- project_planning/sean_step_artifacts/ML_Modeler_Reviewer_Checklist.md
+Validation run:
+- uv run pytest tests/test_pre_modeling_review_agents.py tests/test_cleaning.py tests/test_feature_engineering.py tests/test_preparation_workflow.py (28 passed; +6 new)
+Notes:
+- The five new review modes share a single code path dispatched via _MODELING_REVIEW_MODES. Each mode calls _modeling_payload(state, phase) to build the {decision + underlying skill output} payload the LLM reviews, then asks for an MLReviewOutput with the matching phase field.
+- Reused MLReviewOutput (with the optional phase field added in Step 1) for reviewer verdicts. The reviewer never retrains or re-tunes — it only inspects the modeler's decisions and the skill result that drove them.
+- Revise verdicts set should_revise_modeling=True and leave summary + decisions[].revision_questions as the critique channel. The router in Step 4 will read should_revise_modeling to loop back.
+- _strip_nested drops the same non-serializable / verbose keys the modeler strips (model, y_pred, y_prob, trial_history) so the reviewer's prompt payload stays compact.
+- The per-phase review is unified across algorithms (one LLM call covers every algo's decision in that phase) rather than per-algo. This reduces LLM calls and keeps the reviewer's reasoning holistic.
+- Existing raw_review and processed_review modes are untouched and still return EDAReviewOutput into their prior state keys (raw_eda_ml_review / processed_eda_ml_review).
+- The agent_decisions entry uses review_phase instead of phase for the reviewed phase name, because _append_decision already takes phase as its positional argument for the current-mode label.
+Next item:
+- Step 4 - Prompts + router (router in orchestration/router.py)
 ```

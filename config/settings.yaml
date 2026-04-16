@@ -179,6 +179,7 @@ model:
     max_trials: 50
     timeout: 36000
     min_improvement: 0.01
+    lr_reduction_factor: 0.5
 
   baseline:
     algorithm: GradientBoostingClassifier

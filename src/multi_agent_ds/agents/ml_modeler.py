@@ -31,7 +31,6 @@ from multi_agent_ds.skills.modeling import (
 _BASELINE_PROMPT_DROP_KEYS = ("model", "y_pred", "y_prob")
 _TUNING_PROMPT_DROP_KEYS = ("trial_history",)
 _PHASE_PREFERENCE = ("feature_selection", "adjust_lr", "train_tuned", "baseline")
-_LR_REDUCTION_FACTOR = 0.5
 
 
 def _schema_for(model_cls: type[Any]) -> dict[str, Any]:
@@ -308,7 +307,7 @@ def ml_modeler_node(state: PipelineState, mode: str = "eda_review") -> dict[str,
             if not algo_info.get("supports_boosting_phases", False):
                 skipped.append(algo_name)
                 continue
-            learning_rate = algo_info.get("default_params", {}).get("learning_rate")
+            learning_rate, _ = _boosting_inputs_for(state, algo_name)
             skill_result = find_optimal_estimators(
                 algo_name=algo_name,
                 X_train=data["X_train"],
@@ -341,7 +340,7 @@ def ml_modeler_node(state: PipelineState, mode: str = "eda_review") -> dict[str,
         prompts = load_prompts_config()["sean_ml_modeler"]
         data = state["data"]
         primary_metric = settings["model"]["primary_metric"]
-        tuning_decisions = state["modeling_results"].get("tuning_decisions", {})
+        tuning_decisions = state["modeling_results"]["tuning_decisions"]
 
         adapter = OpenAIAdapter(settings)
         adjusted: dict[str, Any] = {}
@@ -359,7 +358,8 @@ def ml_modeler_node(state: PipelineState, mode: str = "eda_review") -> dict[str,
                 continue
             current_params = _tuned_params_for(state, algo_name)
             current_lr = float(current_params["learning_rate"])
-            new_lr = current_lr * _LR_REDUCTION_FACTOR
+            lr_reduction_factor = settings["model"]["tuning"].get("lr_reduction_factor", 0.5)
+            new_lr = current_lr * lr_reduction_factor
             current_score = float(
                 state["modeling_results"]["train_tuned"][algo_name]["test_scores"].get(primary_metric, 0.0)
             )
@@ -466,7 +466,7 @@ def ml_modeler_node(state: PipelineState, mode: str = "eda_review") -> dict[str,
         prompts = load_prompts_config()["sean_ml_modeler"]
         data = state["data"]
         primary_metric = settings["model"]["primary_metric"]
-        importances = state["modeling_results"].get("importances", {})
+        importances = state["modeling_results"]["importances"]
 
         adapter = OpenAIAdapter(settings)
         subset_results: dict[str, Any] = {}

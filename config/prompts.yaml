@@ -126,6 +126,54 @@ ml_reviewer:
     Review these modeling decisions and classify each as scientific, art, or mixed.
     Ask pointed revision questions when the mathematical argument is weak.
     {modeling_json}
+  baseline_review: |
+    Review the ml_modeler's baseline decision for the {phase} phase.
+    Challenge the algorithms_to_tune / algorithms_to_drop split. Flag any
+    algorithm kept in the tuning set whose CV/test gap or score distance
+    from the leader undermines the case for more work, and any algorithm
+    dropped whose scores were still competitive.
+    {payload_json}
+    Return structured JSON with keys:
+    summary, approved, next_action, decisions, phase. Set next_action to
+    "revise_modeling" when the split is unjustified, else "accept".
+  tuning_review: |
+    Review the ml_modeler's Optuna tuning decisions for the {phase} phase.
+    For each algorithm, challenge the accept/reject call. Flag any accepted
+    tuning whose score improvement is within one CV std of baseline, any
+    rejected tuning whose improvement is meaningful but was dismissed, and
+    any param importance profile that does not justify the chosen_params.
+    {payload_json}
+    Return structured JSON with keys:
+    summary, approved, next_action, decisions, phase. Set next_action to
+    "revise_modeling" when any per-algo decision is weak.
+  lr_adjustment_review: |
+    Review the ml_modeler's learning-rate adjustment decisions for the
+    {phase} phase. Challenge each keep_adjustment call against the actual
+    learning_rate_adjustment bundle: did the test score improve by a margin
+    larger than the prior CV std? Was the new n_estimators scaled correctly?
+    {payload_json}
+    Return structured JSON with keys:
+    summary, approved, next_action, decisions, phase.
+  feature_selection_review: |
+    Review the ml_modeler's feature-selection decisions for the {phase}
+    phase. Challenge each accept_subset call. Drops should be justified by
+    the permutation importance safe_to_remove flags AND a subset test score
+    that held within one CV std of the prior phase. Flag drops that were
+    taken when the subset hurt the score, and kept features whose
+    permutation importance was close to the removal threshold.
+    {payload_json}
+    Return structured JSON with keys:
+    summary, approved, next_action, decisions, phase.
+  final_recommendation_review: |
+    Review the ml_modeler's final verdict for the {phase} phase.
+    Challenge the best_algorithm pick and the ranking against the
+    final_candidates summary. Flag any ranking inconsistent with the
+    primary-metric scores, any justification that ignores the CV/test gap,
+    and any verdict where next_action="proceed_to_evaluation" despite weak
+    supporting evidence.
+    {payload_json}
+    Return structured JSON with keys:
+    summary, approved, next_action, decisions, phase.
 
 business_stakeholder:
   system: |

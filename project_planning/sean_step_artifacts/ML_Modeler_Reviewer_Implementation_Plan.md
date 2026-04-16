@@ -26,13 +26,22 @@ The existing `eda_review` modes on both agents must keep working. This step adds
 
 ## Constraints
 
-- Do not add a new script, notebook, or CLI entrypoint.
+- Do not add a new script or CLI entrypoint.
+- Per-step human-review notebooks under `notebooks/` are allowed (one per step, matching the established `Data_Engineer_Testing.ipynb` pattern). These are throwaway review aids, not runtime code.
 - Do not add a new dependency.
 - Do not duplicate modeling logic inside the agents. Agents orchestrate; skills compute.
 - Do not move MLflow logging or artifact writes out of the workflow layer.
 - Do not change `ALGORITHM_REGISTRY` shape or add new algorithms as part of this step (defer to FUTURE_WORK item 6).
 - Keep the existing `eda_review` and `modeling_handoff` modes on both agents working unchanged.
 - Keep the ML reviewer focused on challenging the modeler's reasoning — it does not retrain or re-tune models itself.
+
+## Accepted Plan Deviations
+
+The implementation intentionally diverges from the minimal-target list below in three places. Each deviation is documented here so later steps (router wiring, evaluation) do not re-introduce the original expectation.
+
+- **`n_estimator_search` runs without an LLM call.** The plan originally called for an LLM to "accept or try a different lr" at this phase. No existing Pydantic contract captures that decision cleanly, and the learning-rate decision is already revisited in the `adjust_lr` phase via `LearningRateDecision`. Adding a second lr decision here would duplicate that surface. The mode is a pure skill wrapper that records the optimal n for each boosting algorithm; the LLM's first look at the lr happens at `adjust_lr`.
+- **`importance_review` runs without an LLM call.** The plan originally called for an LLM to identify safe-to-drop features here. The `safe_to_remove` list returned by `get_permutation_importances` already encodes that signal deterministically, and the LLM's accept/reject call happens at the `feature_selection` phase via `FeatureSelectionDecision`. Splitting drop proposal and drop acceptance across two LLM calls adds a round-trip with no decision gained.
+- **`adjust_lr` uses a fixed `lr/2` reduction rule.** The new learning rate is `current_lr * settings.model.tuning.lr_reduction_factor` (default `0.5`). The LLM only decides whether to keep or revert the adjustment. The factor is config-driven so future slices can tune the schedule without touching the agent.
 
 ## Minimal Target Design
 

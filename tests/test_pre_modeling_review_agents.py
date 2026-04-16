@@ -15,98 +15,99 @@ class FakeReviewAdapter:
         self.settings = settings
 
     def structured_output(self, messages: list[dict[str, str]], schema: dict[str, Any]) -> dict[str, Any]:
-        if "ready_for_execution" in schema["properties"]:
+        title = schema.get("title")
+
+        if title == "EDAReviewOutput":
+            system_prompt = messages[0]["content"].lower()
+            if "modeler agent" in system_prompt:
+                reviewer_role = "ml_modeler"
+            elif "business stakeholder" in system_prompt:
+                reviewer_role = "business_stakeholder"
+            else:
+                reviewer_role = "ml_reviewer"
             return {
                 "parsed": {
-                    "summary": "The plan is feasible.",
-                    "ready_for_execution": True,
-                    "action_feedback": [
-                        {
-                            "action": "clip_outliers_iqr",
-                            "feasible": True,
-                            "reason": "The feature is numeric.",
-                        }
-                    ],
-                    "execution_notes": ["Run the approved plan once."],
+                    "reviewer_role": reviewer_role,
+                    "summary": "The EDA review is acceptable.",
+                    "concerns": [],
+                    "recommendations": ["Proceed carefully."],
+                    "modeling_implications": ["Use robust validation."],
+                    "business_implications": [],
+                    "scientific_vs_art": [],
                 }
             }
 
-        if "algorithms_to_tune" in schema["properties"]:
-            return {
-                "parsed": {
-                    "summary": "LightGBM leads; both algorithms are worth tuning.",
-                    "algorithms_to_tune": ["lightgbm", "logistic_regression"],
-                    "algorithms_to_drop": [],
-                    "reasoning": "Baseline scores are within tuning range for both models.",
-                }
-            }
-
-        if "accept_tuned_params" in schema["properties"]:
-            return {
-                "parsed": {
-                    "algorithm": "lightgbm",
-                    "accept_tuned_params": True,
-                    "chosen_params": {"max_depth": 7, "num_leaves": 63},
-                    "reasoning": "CV gini improved by 0.03 with flat convergence slope.",
-                }
-            }
-
-        if "keep_adjustment" in schema["properties"]:
-            return {
-                "parsed": {
-                    "algorithm": "lightgbm",
-                    "keep_adjustment": True,
-                    "chosen_learning_rate": 0.005,
-                    "chosen_n_estimators": 1000,
-                    "reasoning": "Lower lr improved test gini beyond prior CV std.",
-                }
-            }
-
-        if "accept_subset" in schema["properties"]:
-            return {
-                "parsed": {
-                    "algorithm": "lightgbm",
-                    "accept_subset": True,
-                    "kept_features": ["age", "income"],
-                    "dropped_features": ["postal_code"],
-                    "reasoning": "Subset score held within one CV std of prior.",
-                }
-            }
-
-        if "best_algorithm" in schema["properties"]:
-            return {
-                "parsed": {
-                    "summary": "LightGBM leads across every metric.",
-                    "best_algorithm": "lightgbm",
-                    "ranked_algorithms": ["lightgbm", "logistic_regression"],
-                    "final_metrics": {
-                        "lightgbm": {"gini": 0.66},
-                        "logistic_regression": {"gini": 0.52},
-                    },
-                    "justification": "LightGBM primary-metric lead is larger than either model's CV std.",
-                    "next_action": "proceed_to_evaluation",
-                }
-            }
-
-        system_prompt = messages[0]["content"].lower()
-        if "modeler agent" in system_prompt:
-            reviewer_role = "ml_modeler"
-        elif "business stakeholder" in system_prompt:
-            reviewer_role = "business_stakeholder"
-        else:
-            reviewer_role = "ml_reviewer"
-
-        return {
-            "parsed": {
-                "reviewer_role": reviewer_role,
-                "summary": "The EDA review is acceptable.",
-                "concerns": [],
-                "recommendations": ["Proceed carefully."],
-                "modeling_implications": ["Use robust validation."],
-                "business_implications": [],
-                "scientific_vs_art": [],
-            }
+        canned: dict[str, dict[str, Any]] = {
+            "PreparationFeedbackOutput": {
+                "summary": "The plan is feasible.",
+                "ready_for_execution": True,
+                "action_feedback": [
+                    {
+                        "action": "clip_outliers_iqr",
+                        "feasible": True,
+                        "reason": "The feature is numeric.",
+                    }
+                ],
+                "execution_notes": ["Run the approved plan once."],
+            },
+            "BaselineDecision": {
+                "summary": "LightGBM leads; both algorithms are worth tuning.",
+                "algorithms_to_tune": ["lightgbm", "logistic_regression"],
+                "algorithms_to_drop": [],
+                "reasoning": "Baseline scores are within tuning range for both models.",
+            },
+            "TuningDecision": {
+                "algorithm": "lightgbm",
+                "accept_tuned_params": True,
+                "chosen_params": {"max_depth": 7, "num_leaves": 63},
+                "reasoning": "CV gini improved by 0.03 with flat convergence slope.",
+            },
+            "LearningRateDecision": {
+                "algorithm": "lightgbm",
+                "keep_adjustment": True,
+                "chosen_learning_rate": 0.005,
+                "chosen_n_estimators": 1000,
+                "reasoning": "Lower lr improved test gini beyond prior CV std.",
+            },
+            "FeatureSelectionDecision": {
+                "algorithm": "lightgbm",
+                "accept_subset": True,
+                "kept_features": ["age", "income"],
+                "dropped_features": ["postal_code"],
+                "reasoning": "Subset score held within one CV std of prior.",
+            },
+            "ModelingVerdict": {
+                "summary": "LightGBM leads across every metric.",
+                "best_algorithm": "lightgbm",
+                "ranked_algorithms": ["lightgbm", "logistic_regression"],
+                "final_metrics": {
+                    "lightgbm": {"gini": 0.66},
+                    "logistic_regression": {"gini": 0.52},
+                },
+                "justification": "LightGBM primary-metric lead is larger than either model's CV std.",
+                "next_action": "proceed_to_evaluation",
+            },
+            "MLReviewOutput": {
+                "summary": "Decisions hold up against the CV evidence.",
+                "approved": True,
+                "next_action": "accept",
+                "decisions": [
+                    {
+                        "decision": "Keep both algorithms in the tuning set",
+                        "classification": "scientific",
+                        "mathematical_basis": "Baseline scores within tuning range for both.",
+                        "reasoning_quality": "adequate",
+                        "revision_questions": [],
+                    }
+                ],
+                "phase": None,
+            },
         }
+
+        if title in canned:
+            return {"parsed": canned[title]}
+
+        raise AssertionError(f"Unexpected schema: {schema.get('title')}")
 
 
 def _settings() -> dict[str, Any]:
@@ -131,6 +132,11 @@ def _prompts() -> dict[str, Any]:
         "ml_reviewer": {
             "system": "You are an ML reviewer.",
             "eda_review": "stage={review_stage}; eda={eda_json}",
+            "baseline_review": "phase={phase}; payload={payload_json}",
+            "tuning_review": "phase={phase}; payload={payload_json}",
+            "lr_adjustment_review": "phase={phase}; payload={payload_json}",
+            "feature_selection_review": "phase={phase}; payload={payload_json}",
+            "final_recommendation_review": "phase={phase}; payload={payload_json}",
         },
         "business_stakeholder": {
             "system": "You are a business stakeholder.",
@@ -451,7 +457,10 @@ def test_ml_modeler_adjust_lr_skips_non_boosting_and_runs_boosting(monkeypatch) 
 
     result = ml_modeler_node(
         {
-            "settings": {**_settings(), "model": {"primary_metric": "gini"}},
+            "settings": {
+                **_settings(),
+                "model": {"primary_metric": "gini", "tuning": {"lr_reduction_factor": 0.5}},
+            },
             "data": {"X_train": "X", "y_train": "y", "categorical_features": []},
             "modeling_results": {
                 "tuning": {
@@ -649,3 +658,245 @@ def test_ml_reviewer_and_business_stakeholder_processed_reviews_return_payloads(
 
     assert ml_review["processed_eda_ml_review"]["summary"] == "The EDA review is acceptable."
     assert biz_review["processed_eda_business_review"]["summary"] == "The EDA review is acceptable."
+
+
+class RevisingReviewerAdapter(FakeReviewAdapter):
+    """Returns a revise verdict on every MLReviewOutput request."""
+
+    def structured_output(self, messages, schema):
+        props = schema["properties"]
+        if {"approved", "next_action", "decisions"}.issubset(props):
+            return {
+                "parsed": {
+                    "summary": "Tuning accepted on noise-level CV improvement.",
+                    "approved": False,
+                    "next_action": "revise_modeling",
+                    "decisions": [
+                        {
+                            "decision": "Accept tuned params",
+                            "classification": "art",
+                            "mathematical_basis": "Improvement inside one CV std.",
+                            "reasoning_quality": "weak",
+                            "revision_questions": [
+                                "What is the CV std of the baseline score?",
+                                "Does the test score track the CV score?",
+                            ],
+                        }
+                    ],
+                    "phase": None,
+                }
+            }
+        return super().structured_output(messages, schema)
+
+
+def _reviewer_state(phase_blocks: dict[str, Any]) -> dict[str, Any]:
+    """Build the minimum state a reviewer modeling-review mode needs."""
+    return {
+        "settings": _settings(),
+        "modeling_results": phase_blocks,
+        "modeling_verdict": phase_blocks.get("_verdict"),
+        "agent_decisions": [],
+    }
+
+
+def test_ml_reviewer_rejects_unknown_mode() -> None:
+    try:
+        ml_reviewer_node({"settings": _settings(), "agent_decisions": []}, mode="not_a_mode")
+    except ValueError as exc:
+        assert "Unsupported mode" in str(exc)
+    else:
+        raise AssertionError("ml_reviewer_node should reject unknown modes")
+
+
+def test_ml_reviewer_baseline_review_approves_sound_decision(monkeypatch) -> None:
+    monkeypatch.setattr("multi_agent_ds.agents.ml_reviewer.OpenAIAdapter", FakeReviewAdapter)
+    monkeypatch.setattr("multi_agent_ds.agents.ml_reviewer.load_prompts_config", _prompts)
+
+    result = ml_reviewer_node(
+        _reviewer_state(
+            {
+                "baseline": {
+                    "lightgbm": {
+                        "cv_scores": {"gini": 0.61},
+                        "test_scores": {"gini": 0.60},
+                        "params_used": {},
+                        "model": object(),
+                        "y_pred": "numpy",
+                        "y_prob": "numpy",
+                    },
+                    "logistic_regression": {
+                        "cv_scores": {"gini": 0.52},
+                        "test_scores": {"gini": 0.51},
+                        "params_used": {},
+                        "model": object(),
+                        "y_pred": "numpy",
+                        "y_prob": "numpy",
+                    },
+                },
+                "baseline_decision": {
+                    "summary": "Keep both",
+                    "algorithms_to_tune": ["lightgbm", "logistic_regression"],
+                    "algorithms_to_drop": [],
+                    "reasoning": "Within range",
+                },
+            }
+        ),
+        mode="baseline_review",
+    )
+
+    assert result["ml_review"]["baseline"]["approved"] is True
+    assert result["ml_review"]["baseline"]["next_action"] == "accept"
+    assert result["ml_review"]["baseline"]["phase"] == "baseline"
+    assert result["should_revise_modeling"] is False
+    assert result["agent_decisions"][0]["phase"] == "baseline_review"
+    assert result["agent_decisions"][0]["review_phase"] == "baseline"
+    assert result["agent_decisions"][0]["approved"] is True
+
+
+def test_ml_reviewer_tuning_review_revises_weak_decision(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "multi_agent_ds.agents.ml_reviewer.OpenAIAdapter", RevisingReviewerAdapter
+    )
+    monkeypatch.setattr("multi_agent_ds.agents.ml_reviewer.load_prompts_config", _prompts)
+
+    result = ml_reviewer_node(
+        _reviewer_state(
+            {
+                "tuning": {
+                    "lightgbm": {
+                        "best_params": {"max_depth": 7},
+                        "best_score": 0.614,
+                        "baseline_score": 0.61,
+                        "score_improvement": 0.004,
+                        "trial_history": [{"number": i} for i in range(50)],
+                    },
+                },
+                "tuning_decisions": {
+                    "lightgbm": {
+                        "algorithm": "lightgbm",
+                        "accept_tuned_params": True,
+                        "chosen_params": {"max_depth": 7},
+                        "reasoning": "Small improvement.",
+                    },
+                },
+            }
+        ),
+        mode="tuning_review",
+    )
+
+    assert result["ml_review"]["tune"]["approved"] is False
+    assert result["ml_review"]["tune"]["next_action"] == "revise_modeling"
+    assert result["should_revise_modeling"] is True
+    payload_prompt = result["ml_review"]["tune"]
+    # verbose trial history must not have propagated into the stored review
+    assert "trial_history" not in payload_prompt
+
+
+def test_ml_reviewer_lr_adjustment_review_returns_phase_verdict(monkeypatch) -> None:
+    monkeypatch.setattr("multi_agent_ds.agents.ml_reviewer.OpenAIAdapter", FakeReviewAdapter)
+    monkeypatch.setattr("multi_agent_ds.agents.ml_reviewer.load_prompts_config", _prompts)
+
+    result = ml_reviewer_node(
+        _reviewer_state(
+            {
+                "adjust_lr": {
+                    "lightgbm": {
+                        "test_scores": {"gini": 0.68},
+                        "params_used": {"learning_rate": 0.005},
+                        "learning_rate_adjustment": {
+                            "old_score": 0.65,
+                            "new_score": 0.68,
+                            "improved": True,
+                        },
+                        "model": object(),
+                    },
+                },
+                "adjust_lr_decisions": {
+                    "lightgbm": {
+                        "algorithm": "lightgbm",
+                        "keep_adjustment": True,
+                        "chosen_learning_rate": 0.005,
+                        "chosen_n_estimators": 1000,
+                        "reasoning": "Better than prior CV std.",
+                    },
+                },
+            }
+        ),
+        mode="lr_adjustment_review",
+    )
+
+    assert result["ml_review"]["adjust_lr"]["phase"] == "adjust_lr"
+    assert result["should_revise_modeling"] is False
+
+
+def test_ml_reviewer_feature_selection_review_receives_importances(monkeypatch) -> None:
+    captured = {}
+
+    class CapturingAdapter(FakeReviewAdapter):
+        def structured_output(self, messages, schema):
+            captured["user_content"] = messages[1]["content"]
+            return super().structured_output(messages, schema)
+
+    monkeypatch.setattr("multi_agent_ds.agents.ml_reviewer.OpenAIAdapter", CapturingAdapter)
+    monkeypatch.setattr("multi_agent_ds.agents.ml_reviewer.load_prompts_config", _prompts)
+
+    ml_reviewer_node(
+        _reviewer_state(
+            {
+                "feature_selection": {
+                    "lightgbm": {
+                        "test_scores": {"gini": 0.66},
+                        "cv_scores": {"gini": 0.66},
+                        "test_score_delta_vs_prior": 0.01,
+                    },
+                },
+                "feature_selection_decisions": {
+                    "lightgbm": {
+                        "algorithm": "lightgbm",
+                        "accept_subset": True,
+                        "kept_features": ["age"],
+                        "dropped_features": ["postal_code"],
+                        "reasoning": "Held score.",
+                    },
+                },
+                "importances": {
+                    "lightgbm": {
+                        "source_phase": "train_tuned",
+                        "native": {},
+                        "permutation": {"safe_to_remove": ["postal_code"]},
+                    }
+                },
+            }
+        ),
+        mode="feature_selection_review",
+    )
+
+    assert "postal_code" in captured["user_content"]
+    assert "importances" in captured["user_content"]
+
+
+def test_ml_reviewer_final_recommendation_review_reads_verdict(monkeypatch) -> None:
+    monkeypatch.setattr("multi_agent_ds.agents.ml_reviewer.OpenAIAdapter", FakeReviewAdapter)
+    monkeypatch.setattr("multi_agent_ds.agents.ml_reviewer.load_prompts_config", _prompts)
+
+    state = _reviewer_state(
+        {
+            "final_candidates": {
+                "lightgbm": {"final_phase": "feature_selection", "test_scores": {"gini": 0.66}},
+                "logistic_regression": {"final_phase": "baseline", "test_scores": {"gini": 0.51}},
+            },
+        }
+    )
+    state["modeling_verdict"] = {
+        "summary": "LightGBM leads.",
+        "best_algorithm": "lightgbm",
+        "ranked_algorithms": ["lightgbm", "logistic_regression"],
+        "final_metrics": {"lightgbm": {"gini": 0.66}, "logistic_regression": {"gini": 0.51}},
+        "justification": "Clear lead.",
+        "next_action": "proceed_to_evaluation",
+    }
+
+    result = ml_reviewer_node(state, mode="final_recommendation_review")
+
+    assert result["ml_review"]["final_recommendation"]["phase"] == "final_recommendation"
+    assert result["should_revise_modeling"] is False

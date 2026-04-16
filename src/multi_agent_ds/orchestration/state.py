@@ -36,7 +36,6 @@ class PipelineState(TypedDict, total=False):
     modeling_results: dict[str, Any]
     modeling_verdict: dict[str, Any]
     ml_review: dict[str, Any]
-    should_revise_modeling: bool
     evaluation_result: dict[str, Any]
     report_draft: str
     experiment_report: str
@@ -46,4 +45,5 @@ class PipelineState(TypedDict, total=False):
     agent_decisions: Annotated[list[dict[str, Any]], operator.add]
     current_phase: str
     should_loop: bool
+    should_revise_modeling: bool
     iteration: int
