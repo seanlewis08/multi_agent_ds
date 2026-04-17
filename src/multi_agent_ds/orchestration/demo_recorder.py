@@ -267,7 +267,11 @@ def build_demo_subgraph():
     return g.compile()
 
 
-# --- Preflight guards (Functional Core) ----------------------------------
+# =============================================================================
+# END FUNCTIONAL CORE. Imperative Shell (with side effects) follows below.
+# =============================================================================
+
+# --- Preflight guards (Imperative Shell) ---------------------------------
 
 # pattern: Imperative Shell
 def preflight(*, parquet_path: Path) -> None:
@@ -294,10 +298,6 @@ def preflight(*, parquet_path: Path) -> None:
             f"Check config/settings.yaml -> data.source or pass --parquet."
         )
 
-
-# =============================================================================
-# END FUNCTIONAL CORE. Imperative Shell (with side effects) follows below.
-# =============================================================================
 
 # --- Async driver (Imperative Shell) ----------------------------------------
 
