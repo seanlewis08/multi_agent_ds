@@ -17,7 +17,7 @@
 This phase implements and verifies:
 
 ### demo-runtime-viewer.AC3: Config screen
-- **demo-runtime-viewer.AC3.1 Success:** Page 1 shows source path, target column, rows × cols, positive rate, scale, max_trials, cv_folds, timeout, algorithms, and review settings from `config/settings.yaml`.
+- **demo-runtime-viewer.AC3.1 Success:** Page 1 shows source path, target column, rows × cols, positive rate, scale, max_trials, cv_folds, timeout, algorithms, and tracing from `config/settings.yaml`.
 - **demo-runtime-viewer.AC3.2 Success:** Clicking the RUN button transitions to the Input Preview screen.
 
 ### demo-runtime-viewer.AC4: Input Preview screen
@@ -344,7 +344,7 @@ git commit -m "feat(demo-viewer): render Page 1 (Config) from DEMO_LOG
 
 why: AC3.1 requires Page 1 to show source path, target column,
 rows × cols, positive rate, scale, max_trials, cv_folds, timeout,
-algorithms, and review settings from config/settings.yaml. These
+algorithms, and tracing from config/settings.yaml. These
 values come through the recorder's config snapshot on
 window.DEMO_LOG.config.
 
@@ -512,7 +512,19 @@ Extend the Task 2 stub with sample input data:
 cat > /tmp/demo_viewer_test2.html <<'EOF'
 <script>
 window.DEMO_LOG = {
-  config: { source: "data/raw/synthetic_dataset.parquet", target: "binary_target", rows: 500000, cols: 17, positive_rate: 0.268, scale: "small", max_trials: 5, cv_folds: 2, timeout_s: 60, algorithms: ["lightgbm", "xgboost"], primary_metric: "roc_auc", tiebreaker: "pr_auc", ml_reviewer: "enabled", business_stakeholder: "enabled", report_writer: "markdown", tracing: "off (local)" },
+  config: {
+    source: "data/raw/synthetic_dataset.parquet",
+    source_mode: "synthetic",
+    target: "binary_target",
+    scale: "small",
+    max_trials: 5,
+    cv_folds: 2,
+    timeout: 60,
+    algorithms: ["lightgbm", "xgboost"],
+    primary_metric: "roc_auc",
+    cost_override: { fn_cost: 5, fp_cost: 1 },
+    tracing: "disabled"
+  },
   artifacts: {
     input_df_stats: { rows: 500000, cols: 17, target: "binary_target", positive_rate: 0.268, numeric_count: 11, categorical_count: 5, missing_pct: 0.031 },
     input_df_head: [
