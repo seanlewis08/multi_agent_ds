@@ -632,41 +632,59 @@
               </div>
             </div>
 
-            <!-- ML Modeler column (not scheduled) -->
-            <div class="col" data-col="ml_modeler" style="opacity:.45;">
+            <!-- ML Modeler column (recorded) -->
+            <div class="col" data-col="ml_modeler">
               <div class="head"><span>ML Modeler</span><span class="idx">03</span></div>
               <div class="lanes">
-                <div class="lane" style="grid-column: 1 / -1; text-align:center;">
-                  <div class="lbl">SCOPE</div>
-                  <div class="item" style="background:transparent; border:1px dashed var(--div); color:var(--slate);">
-                    not scheduled in demo scope
-                  </div>
+                <div class="lane input">
+                  <div class="lbl">INPUT</div>
+                  <div class="lane-items" data-lane="input"></div>
+                </div>
+                <div class="lane action">
+                  <div class="lbl">ACTION</div>
+                  <div class="lane-items" data-lane="action"></div>
+                </div>
+                <div class="lane output">
+                  <div class="lbl">OUTPUT</div>
+                  <div class="lane-items" data-lane="output"></div>
                 </div>
               </div>
             </div>
 
-            <!-- ML Reviewer column (not scheduled) -->
-            <div class="col" data-col="ml_reviewer" style="opacity:.45;">
+            <!-- ML Reviewer column (recorded) -->
+            <div class="col" data-col="ml_reviewer">
               <div class="head"><span>ML Reviewer</span><span class="idx">04</span></div>
               <div class="lanes">
-                <div class="lane" style="grid-column: 1 / -1; text-align:center;">
-                  <div class="lbl">SCOPE</div>
-                  <div class="item" style="background:transparent; border:1px dashed var(--div); color:var(--slate);">
-                    not scheduled in demo scope
-                  </div>
+                <div class="lane input">
+                  <div class="lbl">INPUT</div>
+                  <div class="lane-items" data-lane="input"></div>
+                </div>
+                <div class="lane action">
+                  <div class="lbl">ACTION</div>
+                  <div class="lane-items" data-lane="action"></div>
+                </div>
+                <div class="lane output">
+                  <div class="lbl">OUTPUT</div>
+                  <div class="lane-items" data-lane="output"></div>
                 </div>
               </div>
             </div>
 
-            <!-- Business Stakeholder column (not scheduled) -->
-            <div class="col" data-col="business_stakeholder" style="opacity:.45;">
+            <!-- Business Stakeholder column (recorded) -->
+            <div class="col" data-col="business_stakeholder">
               <div class="head"><span>Business Stakeholder</span><span class="idx">05</span></div>
               <div class="lanes">
-                <div class="lane" style="grid-column: 1 / -1; text-align:center;">
-                  <div class="lbl">SCOPE</div>
-                  <div class="item" style="background:transparent; border:1px dashed var(--div); color:var(--slate);">
-                    not scheduled in demo scope
-                  </div>
+                <div class="lane input">
+                  <div class="lbl">INPUT</div>
+                  <div class="lane-items" data-lane="input"></div>
+                </div>
+                <div class="lane action">
+                  <div class="lbl">ACTION</div>
+                  <div class="lane-items" data-lane="action"></div>
+                </div>
+                <div class="lane output">
+                  <div class="lbl">OUTPUT</div>
+                  <div class="lane-items" data-lane="output"></div>
                 </div>
               </div>
             </div>
@@ -707,10 +725,55 @@
         input_df_stats: {}
       },
       events: [
+        // RAW EDA: eda_raw profiles the raw dataset
         { kind: "node_start", node: "eda_raw", elapsed_ms: 100, data: {} },
-        { kind: "node_end", node: "eda_raw", elapsed_ms: 3500, data: {} },
-        { kind: "node_start", node: "data_engineer", elapsed_ms: 3800, data: {} },
-        { kind: "node_end", node: "data_engineer", elapsed_ms: 6200, data: {} }
+        { kind: "node_end", node: "eda_raw", elapsed_ms: 4000, data: {} },
+
+        // RAW REVIEW: Three reviewers fan-out in parallel from eda_raw output
+        { kind: "node_start", node: "ml_modeler_raw_review", elapsed_ms: 4100, data: {} },
+        { kind: "node_start", node: "ml_reviewer_raw_review", elapsed_ms: 4150, data: {} },
+        { kind: "node_start", node: "business_stakeholder_raw_review", elapsed_ms: 4200, data: {} },
+        { kind: "node_end", node: "ml_modeler_raw_review", elapsed_ms: 6500, data: {} },
+        { kind: "node_end", node: "ml_reviewer_raw_review", elapsed_ms: 6800, data: {} },
+        { kind: "node_end", node: "business_stakeholder_raw_review", elapsed_ms: 7200, data: {} },
+
+        // PREP PLAN: eda_analyst synthesizes from raw review inputs
+        { kind: "node_start", node: "eda_prep_plan", elapsed_ms: 7300, data: {} },
+        { kind: "node_end", node: "eda_prep_plan", elapsed_ms: 8200, data: {} },
+
+        // FEEDBACK LOOP: data_engineer reviews feasibility
+        { kind: "node_start", node: "data_engineer_feedback", elapsed_ms: 8300, data: {} },
+        { kind: "node_end", node: "data_engineer_feedback", elapsed_ms: 8900, data: {} },
+
+        // LOOP ITERATION: prep_plan revised, feedback again, then approved
+        { kind: "node_start", node: "eda_prep_plan", elapsed_ms: 9000, data: {} },
+        { kind: "node_end", node: "eda_prep_plan", elapsed_ms: 9800, data: {} },
+        { kind: "node_start", node: "data_engineer_feedback", elapsed_ms: 9900, data: {} },
+        { kind: "node_end", node: "data_engineer_feedback", elapsed_ms: 10500, data: {} },
+
+        // EXECUTE: data_engineer runs the approved preparation plan
+        { kind: "node_start", node: "data_engineer_execute", elapsed_ms: 10600, data: {} },
+        { kind: "node_end", node: "data_engineer_execute", elapsed_ms: 13000, data: {} },
+
+        // PROCESSED EDA: eda_analyst profiles the processed dataset
+        { kind: "node_start", node: "eda_processed", elapsed_ms: 13100, data: {} },
+        { kind: "node_end", node: "eda_processed", elapsed_ms: 14500, data: {} },
+
+        // PROCESSED REVIEW: Three reviewers fan-out on processed data
+        { kind: "node_start", node: "ml_modeler_processed_review", elapsed_ms: 14600, data: {} },
+        { kind: "node_start", node: "ml_reviewer_processed_review", elapsed_ms: 14650, data: {} },
+        { kind: "node_start", node: "business_stakeholder_processed_review", elapsed_ms: 14700, data: {} },
+        { kind: "node_end", node: "ml_modeler_processed_review", elapsed_ms: 16200, data: {} },
+        { kind: "node_end", node: "ml_reviewer_processed_review", elapsed_ms: 16300, data: {} },
+        { kind: "node_end", node: "business_stakeholder_processed_review", elapsed_ms: 16500, data: {} },
+
+        // FINAL APPROVAL: eda_analyst approves and clears for handoff
+        { kind: "node_start", node: "eda_processed_approval", elapsed_ms: 16600, data: {} },
+        { kind: "node_end", node: "eda_processed_approval", elapsed_ms: 17200, data: {} },
+
+        // HANDOFF: ml_modeler prepares the modeling context
+        { kind: "node_start", node: "ml_modeler_handoff", elapsed_ms: 17300, data: {} },
+        { kind: "node_end", node: "ml_modeler_handoff", elapsed_ms: 17800, data: {} }
       ]
     };
   </script>
@@ -761,17 +824,139 @@
     function _laneItemsFor(event) {
       // Lane labels are illustrative/cosmetic — not derived from event payloads.
       // The drawer in Page 4 shows the real recorded payloads (orch / eda / de).
-      const d = event.data || {};
       const node = event.node;
+      const kind = event.kind;
+
+      // === EDA Analyst nodes ===
       if (node === 'eda_raw') {
-        if (event.kind === 'node_start') return { input: ['raw_df'], action: [], output: [] };
-        if (event.kind === 'node_end')   return { input: [], action: ['profile columns', 'detect leakage'], output: ['raw_eda_insights'] };
+        if (kind === 'node_start') return { input: ['raw_df'], action: [], output: [] };
+        if (kind === 'node_end')   return { input: [], action: ['profile columns', 'detect leakage'], output: ['raw_eda_insights'] };
       }
-      if (node === 'data_engineer') {
-        if (event.kind === 'node_start') return { input: ['raw_eda_insights'], action: [], output: [] };
-        if (event.kind === 'node_end')   return { input: [], action: ['impute · encode', 'train/test split'], output: ['prep_plan', 'processed_df'] };
+      if (node === 'eda_prep_plan') {
+        if (kind === 'node_start') return { input: ['raw_reviews'], action: [], output: [] };
+        if (kind === 'node_end')   return { input: [], action: ['synthesize plan', 'validate assumptions'], output: ['prep_plan'] };
       }
+      if (node === 'eda_processed') {
+        if (kind === 'node_start') return { input: ['processed_df'], action: [], output: [] };
+        if (kind === 'node_end')   return { input: [], action: ['profile features', 'compare raw'], output: ['processed_eda_insights'] };
+      }
+      if (node === 'eda_processed_approval') {
+        if (kind === 'node_start') return { input: ['processed_reviews'], action: [], output: [] };
+        if (kind === 'node_end')   return { input: [], action: ['approve ready', 'sign off'], output: ['approved'] };
+      }
+
+      // === ML Modeler nodes ===
+      if (node === 'ml_modeler_raw_review') {
+        if (kind === 'node_start') return { input: ['raw_eda'], action: [], output: [] };
+        if (kind === 'node_end')   return { input: [], action: ['assess modeling fit', 'flag risks'], output: ['modeling_insights'] };
+      }
+      if (node === 'ml_modeler_processed_review') {
+        if (kind === 'node_start') return { input: ['processed_eda'], action: [], output: [] };
+        if (kind === 'node_end')   return { input: [], action: ['validate features', 'confirm ready'], output: ['feature_ok'] };
+      }
+      if (node === 'ml_modeler_handoff') {
+        if (kind === 'node_start') return { input: ['approved_eda'], action: [], output: [] };
+        if (kind === 'node_end')   return { input: [], action: ['prepare context', 'load artifacts'], output: ['modeling_context'] };
+      }
+
+      // === ML Reviewer nodes ===
+      if (node === 'ml_reviewer_raw_review') {
+        if (kind === 'node_start') return { input: ['raw_eda'], action: [], output: [] };
+        if (kind === 'node_end')   return { input: [], action: ['math critique', 'validate stats'], output: ['review_notes'] };
+      }
+      if (node === 'ml_reviewer_processed_review') {
+        if (kind === 'node_start') return { input: ['processed_eda'], action: [], output: [] };
+        if (kind === 'node_end')   return { input: [], action: ['check assumptions', 'validate dist'], output: ['validation'] };
+      }
+
+      // === Business Stakeholder nodes ===
+      if (node === 'business_stakeholder_raw_review') {
+        if (kind === 'node_start') return { input: ['raw_eda'], action: [], output: [] };
+        if (kind === 'node_end')   return { input: [], action: ['reality check', 'business fit'], output: ['stakeholder_ok'] };
+      }
+      if (node === 'business_stakeholder_processed_review') {
+        if (kind === 'node_start') return { input: ['processed_eda'], action: [], output: [] };
+        if (kind === 'node_end')   return { input: [], action: ['confirm usefulness', 'sign off'], output: ['stakeholder_approved'] };
+      }
+
+      // === Data Engineer nodes ===
+      if (node === 'data_engineer_feedback') {
+        if (kind === 'node_start') return { input: ['prep_plan'], action: [], output: [] };
+        if (kind === 'node_end')   return { input: [], action: ['feasibility check', 'estimate cost'], output: ['feedback'] };
+      }
+      if (node === 'data_engineer_execute') {
+        if (kind === 'node_start') return { input: ['approved_plan'], action: [], output: [] };
+        if (kind === 'node_end')   return { input: [], action: ['impute · encode', 'split · scale'], output: ['processed_df'] };
+      }
+
       return { input: [], action: [], output: [] };
+    }
+
+    // Map node names to their agent column keys (eda_raw, ml_modeler, etc.)
+    function _agentForNode(node) {
+      const mapping = {
+        'eda_raw': 'eda_raw',
+        'eda_prep_plan': 'eda_raw',
+        'eda_processed': 'eda_raw',
+        'eda_processed_approval': 'eda_raw',
+        'ml_modeler_raw_review': 'ml_modeler',
+        'ml_modeler_processed_review': 'ml_modeler',
+        'ml_modeler_handoff': 'ml_modeler',
+        'ml_reviewer_raw_review': 'ml_reviewer',
+        'ml_reviewer_processed_review': 'ml_reviewer',
+        'business_stakeholder_raw_review': 'business_stakeholder',
+        'business_stakeholder_processed_review': 'business_stakeholder',
+        'data_engineer_feedback': 'data_engineer',
+        'data_engineer_execute': 'data_engineer',
+      };
+      return mapping[node] || null;
+    }
+
+    // Determine orchestrator state label based on which nodes are active
+    function _updateOrchState(activeNodes) {
+      if (activeNodes.size === 0) {
+        _setOrchState('STARTING');
+        return;
+      }
+
+      // Check the workflow stage from the first/dominant active node
+      const first = Array.from(activeNodes)[0];
+
+      // Raw EDA phase
+      if (first === 'eda_raw' && !activeNodes.has('eda_prep_plan')) {
+        _setOrchState('RAW EDA');
+      }
+      // Raw review phase (fan-out reviewers)
+      else if (activeNodes.has('ml_modeler_raw_review') || activeNodes.has('ml_reviewer_raw_review') || activeNodes.has('business_stakeholder_raw_review')) {
+        _setOrchState('RAW REVIEW (3 agents)');
+      }
+      // Prep loop phase
+      else if (activeNodes.has('eda_prep_plan') || activeNodes.has('data_engineer_feedback')) {
+        _setOrchState('PREP PLAN & FEEDBACK');
+      }
+      // Data engineer execute phase
+      else if (first === 'data_engineer' && activeNodes.has('data_engineer_execute')) {
+        _setOrchState('DATA ENGINEER EXECUTE');
+      }
+      // Processed EDA phase
+      else if (first === 'eda_raw' && !activeNodes.has('eda_prep_plan') && activeNodes.has('eda_processed') && !activeNodes.has('ml_modeler_processed_review')) {
+        _setOrchState('PROCESSED EDA');
+      }
+      // Processed review phase
+      else if (activeNodes.has('ml_modeler_processed_review') || activeNodes.has('ml_reviewer_processed_review') || activeNodes.has('business_stakeholder_processed_review')) {
+        _setOrchState('PROCESSED REVIEW (3 agents)');
+      }
+      // Final approval phase
+      else if (activeNodes.has('eda_processed_approval')) {
+        _setOrchState('FINAL APPROVAL');
+      }
+      // Handoff phase
+      else if (activeNodes.has('ml_modeler_handoff')) {
+        _setOrchState('HANDOFF → MODELING');
+      }
+      else {
+        _setOrchState('RUNNING');
+      }
     }
 
     function startRuntimeReplay() {
@@ -798,31 +983,40 @@
 
       _setOrchState('STARTING');
 
+      const activeNodes = new Set(); // Track which nodes are currently running
+
       events.forEach((evt) => {
         const delayMs = (evt.elapsed_ms || 0) / speed;
         setTimeout(() => {
+          const agent = _agentForNode(evt.node);
+          if (!agent) return; // Unknown node, skip
+
           const lanes = _laneItemsFor(evt);
-          if (evt.kind === 'node_start' && evt.node === 'eda_raw') {
-            _setOrchState('EDA RUNNING');
-            _markColumn('eda_raw', 'active');
-            _addLaneItems('eda_raw', 'input', lanes.input);
-          } else if (evt.kind === 'node_end' && evt.node === 'eda_raw') {
-            _setOrchState('HANDOFF');
-            _markColumn('eda_raw', 'done');
-            _addLaneItems('eda_raw', 'action', lanes.action);
-            _addLaneItems('eda_raw', 'output', lanes.output);
-          } else if (evt.kind === 'node_start' && evt.node === 'data_engineer') {
-            _setOrchState('DATA ENGINEER RUNNING');
-            _markColumn('data_engineer', 'active');
-            _addLaneItems('data_engineer', 'input', lanes.input);
-          } else if (evt.kind === 'node_end' && evt.node === 'data_engineer') {
-            _setOrchState('COMPLETE');
-            _markColumn('data_engineer', 'done');
-            _addLaneItems('data_engineer', 'action', lanes.action);
-            _addLaneItems('data_engineer', 'output', lanes.output);
+
+          if (evt.kind === 'node_start') {
+            activeNodes.add(evt.node);
+            _markColumn(agent, 'active');
+            _addLaneItems(agent, 'input', lanes.input);
+            _updateOrchState(activeNodes);
+          } else if (evt.kind === 'node_end') {
+            activeNodes.delete(evt.node);
+            _addLaneItems(agent, 'action', lanes.action);
+            _addLaneItems(agent, 'output', lanes.output);
+
+            // Mark column as done only if no more nodes are running for this agent
+            const agentStillActive = Array.from(activeNodes).some((n) => _agentForNode(n) === agent);
+            if (!agentStillActive) {
+              _markColumn(agent, 'done');
+            } else {
+              // Agent still has other nodes running, keep it active
+              _markColumn(agent, 'active');
+            }
+
+            _updateOrchState(activeNodes);
           } else if (evt.kind === 'node_error') {
+            activeNodes.delete(evt.node);
             _setOrchState(`ERROR: ${evt.node}`);
-            _markColumn(evt.node, 'errored');
+            _markColumn(agent, 'errored');
           }
         }, delayMs);
       });
@@ -830,6 +1024,7 @@
       // After the final event, stop the ticker and advance to summary.
       const finalDelay = (events[events.length - 1].elapsed_ms || 0) / speed;
       setTimeout(() => {
+        _setOrchState('COMPLETE');
         if (_replayElapsedTicker) {
           clearInterval(_replayElapsedTicker);
           _replayElapsedTicker = null;
