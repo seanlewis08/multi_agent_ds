@@ -58,9 +58,54 @@ sean_ml_modeler:
     reviewer_role, summary, concerns, recommendations, modeling_implications,
     business_implications, scientific_vs_art.
   baseline_review: |
-    Review the baseline model results below.
-    Explain which algorithms deserve more work and why.
+    {critique_section}Review the baseline model results below.
+    Decide which algorithms deserve further tuning and which should be dropped.
+    Be conservative: keep an algorithm in the tuning set unless its CV or test
+    scores are clearly far behind the leader, or its CV/test gap suggests it is
+    unlikely to close the gap with tuning.
     {results_json}
+    Return structured JSON with keys:
+    summary, algorithms_to_tune, algorithms_to_drop, reasoning.
+  tuning_review: |
+    {critique_section}Review the Optuna tuning results below for {algorithm}.
+    Decide whether the tuned parameters are worth adopting.
+    Only accept the tuned params when the CV score improvement is meaningful
+    AND the convergence/param-importance evidence supports the choice.
+    Reject tuning (keep defaults) when the improvement is within noise
+    (e.g. less than one CV-std) or when the param importances are flat.
+    {tuning_json}
+    Return structured JSON with keys:
+    algorithm, accept_tuned_params, chosen_params, reasoning.
+    When accept_tuned_params is true, chosen_params must be the tuned
+    best_params. When false, chosen_params must be the baseline defaults.
+  lr_adjustment_review: |
+    {critique_section}Review the learning-rate adjustment result for {algorithm}.
+    Decide whether to keep the reduced learning rate or revert.
+    Keep the adjustment only when the primary-metric test score improved
+    by a margin meaningfully larger than the prior CV std. Revert when the
+    new score is flat or worse. The scaled n_estimators is what the skill
+    actually trained with.
+    {adjustment_json}
+    Return structured JSON with keys:
+    algorithm, keep_adjustment, chosen_learning_rate, chosen_n_estimators, reasoning.
+  feature_selection_review: |
+    {critique_section}Review the feature-selection training for {algorithm}.
+    The dropped features come from permutation importance "safe to remove" flags.
+    Decide whether the reduced-feature model is acceptable.
+    Accept the subset only when the primary-metric test score held or improved.
+    Reject when the drop hurts the score beyond the prior CV std.
+    {selection_json}
+    Return structured JSON with keys:
+    algorithm, accept_subset, kept_features, dropped_features, reasoning.
+  final_recommendation: |
+    {critique_section}Produce the final modeling recommendation.
+    Compare the candidate algorithms below on the primary metric ({primary_metric})
+    and supporting scores. Rank them, pick a best model, and justify the choice.
+    If no candidate is strong enough, return next_action="revise_modeling" with a
+    concrete revision instruction in the justification.
+    {candidates_json}
+    Return structured JSON with keys:
+    summary, best_algorithm, ranked_algorithms, final_metrics, justification, next_action.
   decision_explanation: |
     Explain this modeling choice mathematically.
     Separate evidence-based reasoning from rule-of-thumb judgment.
@@ -81,6 +126,54 @@ ml_reviewer:
     Review these modeling decisions and classify each as scientific, art, or mixed.
     Ask pointed revision questions when the mathematical argument is weak.
     {modeling_json}
+  baseline_review: |
+    Review the ml_modeler's baseline decision for the {phase} phase.
+    Challenge the algorithms_to_tune / algorithms_to_drop split. Flag any
+    algorithm kept in the tuning set whose CV/test gap or score distance
+    from the leader undermines the case for more work, and any algorithm
+    dropped whose scores were still competitive.
+    {payload_json}
+    Return structured JSON with keys:
+    summary, approved, next_action, decisions, phase. Set next_action to
+    "revise_modeling" when the split is unjustified, else "accept".
+  tuning_review: |
+    Review the ml_modeler's Optuna tuning decisions for the {phase} phase.
+    For each algorithm, challenge the accept/reject call. Flag any accepted
+    tuning whose score improvement is within one CV std of baseline, any
+    rejected tuning whose improvement is meaningful but was dismissed, and
+    any param importance profile that does not justify the chosen_params.
+    {payload_json}
+    Return structured JSON with keys:
+    summary, approved, next_action, decisions, phase. Set next_action to
+    "revise_modeling" when any per-algo decision is weak.
+  lr_adjustment_review: |
+    Review the ml_modeler's learning-rate adjustment decisions for the
+    {phase} phase. Challenge each keep_adjustment call against the actual
+    learning_rate_adjustment bundle: did the test score improve by a margin
+    larger than the prior CV std? Was the new n_estimators scaled correctly?
+    {payload_json}
+    Return structured JSON with keys:
+    summary, approved, next_action, decisions, phase.
+  feature_selection_review: |
+    Review the ml_modeler's feature-selection decisions for the {phase}
+    phase. Challenge each accept_subset call. Drops should be justified by
+    the permutation importance safe_to_remove flags AND a subset test score
+    that held within one CV std of the prior phase. Flag drops that were
+    taken when the subset hurt the score, and kept features whose
+    permutation importance was close to the removal threshold.
+    {payload_json}
+    Return structured JSON with keys:
+    summary, approved, next_action, decisions, phase.
+  final_recommendation_review: |
+    Review the ml_modeler's final verdict for the {phase} phase.
+    Challenge the best_algorithm pick and the ranking against the
+    final_candidates summary. Flag any ranking inconsistent with the
+    primary-metric scores, any justification that ignores the CV/test gap,
+    and any verdict where next_action="proceed_to_evaluation" despite weak
+    supporting evidence.
+    {payload_json}
+    Return structured JSON with keys:
+    summary, approved, next_action, decisions, phase.
 
 business_stakeholder:
   system: |
@@ -95,6 +188,62 @@ business_stakeholder:
     reviewer_role, summary, concerns, recommendations, modeling_implications,
     business_implications, scientific_vs_art.
   report_review: |
-    Review this stakeholder report and the supporting model summary.
-    Call out unrealistic claims, unclear explanations, and missing business context.
-    {report_json}
+    Review the stakeholder report below against the supporting model and
+    evaluation context. Decide whether to accept the report as-is, send it
+    back for a rewrite, or send the modeling work back for revision.
+
+    - Choose next_action="accept" when the report is readable, the conclusions
+      are plausible against the supporting context, and the caveats are clear.
+    - Choose next_action="revise_report" when the modeling result is sound but
+      the writeup is unclear, jargon-heavy, missing caveats, or omits required
+      sections (data, models tried, winner + why, top features, confidence,
+      caveats).
+    - Choose next_action="revise_modeling" when the underlying modeling result
+      itself looks implausible or business-unrealistic — not just the writeup.
+
+    Stakeholder report:
+    ---
+    {report_markdown}
+    ---
+
+    Supporting modeling summary:
+    {modeling_summary}
+
+    Supporting evaluation summary:
+    {evaluation_summary}
+
+    Return structured JSON with keys:
+    summary, approved, next_action, readability_assessment,
+    plausibility_assessment, concerns. Each concern needs topic, issue, severity.
+
+report_writer:
+  system: |
+    You are the experiment report writer.
+    Audience: a non-technical stakeholder who needs to understand what was tested,
+    what won, and how confident the team is. Use plain language, avoid jargon when
+    a plain word will do, and surface caveats honestly. Output Markdown only —
+    no preamble like "Here is the report:".
+  generate: |
+    {critique_section}Write a stakeholder-facing experiment summary in Markdown.
+    Required sections, in this order:
+    1. **What we tested** — the dataset, target, and rough scale.
+    2. **Models we tried** — short list with one-line "why".
+    3. **Winner and why** — the chosen model and the headline metric(s).
+    4. **Top features** — what mattered most, in plain terms.
+    5. **Confidence and caveats** — how strong the result is, what could change it,
+       and any limitations from the data or evaluation.
+    6. **Where to dig deeper** — pointers to the experiment log / MLflow run.
+
+    Use the supporting context below; do not invent numbers.
+
+    Data summary:
+    {data_summary}
+
+    Modeling summary:
+    {modeling_summary}
+
+    Evaluation summary:
+    {evaluation_summary}
+
+    Recent agent-decision trace:
+    {decision_trace}

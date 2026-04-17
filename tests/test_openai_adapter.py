@@ -5,15 +5,44 @@ from types import SimpleNamespace
 import httpx
 import pytest
 
-from multi_agent_ds.adapters.llm.openai import OpenAIAdapter
-from multi_agent_ds.core import load_settings
+from multi_agent_ds.adapters.llm import ModelConfig, OpenAIAdapter
 from openai import APIConnectionError, RateLimitError
+
+
+def _balanced_config() -> ModelConfig:
+    return ModelConfig(
+        provider="openai",
+        model="gpt-4.1-mini",
+        temperature=0.2,
+        max_tokens=2048,
+        capability="balanced",
+        cost_tier="cheap",
+        profile_label="balanced_cheap",
+    )
+
+
+def _reasoning_config() -> ModelConfig:
+    return ModelConfig(
+        provider="openai",
+        model="o3",
+        temperature=None,
+        max_tokens=8192,
+        capability="reasoning",
+        cost_tier="expensive",
+        profile_label="reasoning_expensive",
+    )
 
 
 @pytest.fixture
 def adapter(monkeypatch: pytest.MonkeyPatch) -> OpenAIAdapter:
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
-    return OpenAIAdapter(load_settings())
+    return OpenAIAdapter(_balanced_config())
+
+
+@pytest.fixture
+def reasoning_adapter(monkeypatch: pytest.MonkeyPatch) -> OpenAIAdapter:
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    return OpenAIAdapter(_reasoning_config())
 
 
 def test_openai_adapter_is_exported_from_llm_package() -> None:
@@ -67,6 +96,34 @@ def test_with_retries_raises_after_exhausting_attempts(
     assert sleep_calls == [1.0, 2.0]
 
 
+def test_balanced_request_kwargs_use_max_tokens_and_include_temperature(
+    adapter: OpenAIAdapter,
+) -> None:
+    """Non-reasoning models MUST use ``max_tokens`` and include ``temperature``."""
+    kwargs = adapter._build_request_kwargs(
+        messages=[{"role": "user", "content": "hi"}],
+    )
+
+    assert kwargs["model"] == "gpt-4.1-mini"
+    assert kwargs["max_tokens"] == 2048
+    assert kwargs["temperature"] == 0.2
+    assert "max_completion_tokens" not in kwargs
+
+
+def test_reasoning_request_kwargs_use_max_completion_tokens_and_omit_temperature(
+    reasoning_adapter: OpenAIAdapter,
+) -> None:
+    """Reasoning models MUST use ``max_completion_tokens`` and OMIT ``temperature``."""
+    kwargs = reasoning_adapter._build_request_kwargs(
+        messages=[{"role": "user", "content": "think"}],
+    )
+
+    assert kwargs["model"] == "o3"
+    assert kwargs["max_completion_tokens"] == 8192
+    assert "max_tokens" not in kwargs
+    assert "temperature" not in kwargs
+
+
 def test_create_chat_completion_uses_shared_request_path(
     adapter: OpenAIAdapter,
     monkeypatch: pytest.MonkeyPatch,
@@ -101,8 +158,8 @@ def test_create_chat_completion_uses_shared_request_path(
     assert captured["kwargs"] == {
         "model": adapter.model,
         "messages": messages,
-        "temperature": adapter.temperature,
-        "max_tokens": adapter.max_tokens,
+        "temperature": adapter.config.temperature,
+        "max_tokens": adapter.config.max_tokens,
         "tools": tools,
         "response_format": response_format,
     }

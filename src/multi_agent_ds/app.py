@@ -28,6 +28,14 @@ import streamlit.components.v1 as components
 
 from multi_agent_ds.core import resolve_tracking_uri
 
+# Read the optional cost-tier override once at module load. The resolver
+# downstream reads settings["llm"]["cost_override"]; stashing it in the
+# in-memory dict from _build_settings() is sufficient for Streamlit-triggered
+# runs. CLI / test runs that use `load_settings()` directly do NOT pick this
+# up — that would require touching core.load_settings, which is intentionally
+# kept pure (no env side-effects).
+_LLM_COST_OVERRIDE = os.getenv("LLM_COST_OVERRIDE")  # None | "cheap" | "moderate" | "expensive"
+
 # ── Page config (must be first Streamlit call) ────────────────────────
 st.set_page_config(
     page_title="ML Pipeline Dashboard",
@@ -404,6 +412,10 @@ def _build_settings() -> dict:
             "experiment_name": experiment_name,
             "tracking_uri": tracking_uri,
         },
+        # Forwarded to resolve_model_config via build_adapter. The rest of the
+        # llm block (routes, model_matrix, capability_settings) comes from
+        # the YAML-loaded settings the pipeline uses internally.
+        "llm": {"cost_override": _LLM_COST_OVERRIDE},
     }
 
 

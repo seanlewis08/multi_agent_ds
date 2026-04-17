@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from multi_agent_ds.adapters.llm import OpenAIAdapter
+from multi_agent_ds.adapters.llm import build_adapter
 from multi_agent_ds.core import load_prompts_config, load_settings
 from multi_agent_ds.core.contracts import PreparationFeedbackOutput
 from multi_agent_ds.orchestration.state import PipelineState
@@ -35,7 +35,7 @@ def data_engineer_node(state: PipelineState, mode: str = "feedback") -> dict[str
 
     if mode == "feedback":
         prompts = load_prompts_config()["data_engineer"]
-        adapter = OpenAIAdapter(settings)
+        adapter = build_adapter(settings, agent="data_engineer", task="feedback")
         response = adapter.structured_output(
             messages=[
                 {"role": "system", "content": prompts["system"]},
