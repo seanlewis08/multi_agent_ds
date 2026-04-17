@@ -27,6 +27,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 from multi_agent_ds.core import resolve_tracking_uri
+from multi_agent_ds.orchestration.demo_viewer_loader import inject_demo_log
 
 # Read the optional cost-tier override once at module load. The resolver
 # downstream reads settings["llm"]["cost_override"]; stashing it in the
@@ -449,7 +450,9 @@ if _is_mlflow_running():
 if st.session_state.mlflow_start_error:
     st.error(st.session_state.mlflow_start_error)
 
-tab_run, tab_results, tab_log = st.tabs(["Run Experiment", "Results", "Experiment Log"])
+tab_run, tab_results, tab_log, tab_demo = st.tabs(
+    ["Run Experiment", "Results", "Experiment Log", "Demo"]
+)
 
 
 # ── Tab 1: Run Experiment ─────────────────────────────────────────────
@@ -682,6 +685,47 @@ with tab_log:
             st.info("No experiment logs found. Run an experiment first.")
     else:
         st.info("No reports directory yet.")
+
+
+# ── Tab 4: Demo (recorded pipeline replay) ────────────────────────────
+# AC2.1 / AC2.2 / AC2.3: embed demo_viewer.html via components.v1.html
+# with height=820 and scrolling=False. Reads the recorded JSON at
+# render time; renders a clear error state if it is missing.
+
+_REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+if not (_REPO_ROOT / "pyproject.toml").exists():
+    raise RuntimeError(f"repo root inference failed at {_REPO_ROOT}")
+
+_VIEWER_HTML_PATH = Path(__file__).parent / "demo_viewer.html"
+_DEMO_LOG_PATH = _REPO_ROOT / "data" / "interim" / "demo_run_latest.json"
+_RECORD_CMD = "uv run python -m multi_agent_ds.orchestration.demo_recorder"
+
+with tab_demo:
+    st.subheader("Recorded pipeline replay")
+    st.caption(
+        "Replays a recorded `eda_analyst → data_engineer` run. "
+        "Pipeline stops after data_engineer; downstream agents are scripted."
+    )
+
+    if not _DEMO_LOG_PATH.exists():
+        st.error(
+            f"No recording found at `{_DEMO_LOG_PATH}`.\n\n"
+            f"Generate one with:\n\n```bash\n{_RECORD_CMD}\n```"
+        )
+    elif not _VIEWER_HTML_PATH.exists():
+        st.error(
+            f"Viewer template missing at `{_VIEWER_HTML_PATH}`. "
+            "This should not happen — check your install."
+        )
+    else:
+        viewer_html = _VIEWER_HTML_PATH.read_text()
+        demo_log_json = _DEMO_LOG_PATH.read_text()
+        try:
+            rendered = inject_demo_log(viewer_html, demo_log_json)
+        except ValueError as exc:
+            st.error(f"Could not prepare demo viewer: {exc}")
+        else:
+            components.html(rendered, height=820, scrolling=False)
 
 
 # ── Footer ────────────────────────────────────────────────────────────
