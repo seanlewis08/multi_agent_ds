@@ -27,9 +27,9 @@ Use this section as the high-level status board for Sean-owned step work. Detail
 | Step 2: LangGraph Orchestration Skeleton | Complete | `sean_step_artifacts/LangGraph_Skeleton_Implementation_Plan.md`, `sean_step_artifacts/LangGraph_Skeleton_Checklist.md` |
 | Step 3: EDA Skills + Agent | Complete | `sean_step_artifacts/EDA_Analyst_Implementation_Plan.md`, `sean_step_artifacts/EDA_Analyst_Checklist.md` |
 | Step 4: Data Engineering Skills + Agent | Complete | `sean_step_artifacts/Data_Engineer_Implementation_Plan.md`, `sean_step_artifacts/Data_Engineer_Checklist.md` |
-| Step 5: ML Modeler + ML Reviewer | In progress (planning only) | `sean_step_artifacts/ML_Modeler_Reviewer_Implementation_Plan.md`, `sean_step_artifacts/ML_Modeler_Reviewer_Checklist.md` |
-| Step 6: Report + Business Stakeholder Review | Planning only (awaiting Step 5 merge) | `sean_step_artifacts/Report_Business_Review_Implementation_Plan.md`, `sean_step_artifacts/Report_Business_Review_Checklist.md` |
-| Step 7: LLM Model Routing | Not started (design captured) | `LLM_MODEL_ROUTING.md` |
+| Step 5: ML Modeler + ML Reviewer | Complete (pushed, awaiting PR) | `sean_step_artifacts/ML_Modeler_Reviewer_Implementation_Plan.md`, `sean_step_artifacts/ML_Modeler_Reviewer_Checklist.md` |
+| Step 6: Report + Business Stakeholder Review | Complete (pushed in 559f105) | `sean_step_artifacts/Report_Business_Review_Implementation_Plan.md`, `sean_step_artifacts/Report_Business_Review_Checklist.md` |
+| Step 7: LLM Model Routing | Complete (Phases a–d shipped; Phase e LangSmith deferred) | `LLM_MODEL_ROUTING.md` |
 
 ---
 
@@ -529,10 +529,11 @@ def report_node(state: PipelineState) -> dict:
 
 ## Step 7: LLM Model Routing
 
-**Design doc:** `project_planning/LLM_MODEL_ROUTING.md` (validated, ready for implementation planning)
+**Status:** Complete — Phases (a)–(d) shipped in commits `559f105` (Step 6 ride-along: `business_stakeholder`, `report_writer` migrations) and `b424231` (routing module, remaining agent migrations, settings schema, app env wiring, tests, review notebook). Phase (e) LangSmith metadata deferred (see `TODO(phase-e)` in `adapters/llm/routing.py`).
+**Design doc:** `project_planning/LLM_MODEL_ROUTING.md`
 **BUILD_PLAN reference:** Cross-cutting refactor of Step 6 (LLM Adapter)
-**Files to edit:** `adapters/llm/openai.py`, all five agent files, `config/settings.yaml`, `src/multi_agent_ds/app.py`
-**Files to add:** `adapters/llm/routing.py`, `tests/unit/adapters/llm/test_routing.py`
+**Files added:** `src/multi_agent_ds/adapters/llm/routing.py`, `tests/test_routing.py`, `notebooks/LLM_Model_Routing_Review.ipynb`
+**Files modified:** `adapters/llm/openai.py`, `adapters/llm/__init__.py`, `agents/{eda_analyst,data_engineer,ml_reviewer,ml_modeler,business_stakeholder,report_writer}.py`, `src/multi_agent_ds/app.py`, `config/settings.yaml`, `tests/{test_openai_adapter,test_eda_analyst,test_pre_modeling_review_agents}.py`, `tests/integration/test_openai_adapter_live.py`
 
 ### What to Build
 
@@ -575,7 +576,7 @@ Phase (a) and a settings.yaml additive (new `model_matrix`, `capability_settings
 | `config/prompts.yaml` | Both edit | Sean prefixes with `eda_`, `data_engineer_`, `sean_ml_modeler_` |
 | `tools/git.py` | Jonathan builds | Sean's agents may use it for experiment PRs |
 | `agents/reviewer.py` | Jonathan builds | Sean's report node runs before reviewer |
-| `OpenAIAdapter` constructor (Step 7) | Sean | Breaking change: `OpenAIAdapter(settings)` → `OpenAIAdapter(config: ModelConfig)`. Jonathan must migrate any call sites he owns when Step 7 lands. |
+| `OpenAIAdapter` constructor (Step 7) | Sean | **Landed 2026-04-16** in `b424231`. Breaking change: `OpenAIAdapter(settings)` → `OpenAIAdapter(config: ModelConfig)`. Jonathan must migrate any call sites he owns when pulling main. |
 
 ### Sequencing
 

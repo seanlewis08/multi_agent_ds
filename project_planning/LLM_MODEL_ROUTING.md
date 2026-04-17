@@ -1,7 +1,7 @@
 # LLM Model Routing — Design Plan
 
 Captured: 2026-04-16
-Status: Validated design, ready for implementation planning
+Status: Complete — Phases (a)–(d) shipped 2026-04-16 in commits `559f105` and `b424231`. Phase (e) LangSmith metadata deferred (see `TODO(phase-e)` in `src/multi_agent_ds/adapters/llm/routing.py`).
 Scope: Per-agent and per-task model selection across the multi-agent pipeline
 
 ---
