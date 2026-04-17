@@ -174,7 +174,34 @@ This step is complete when:
 
 ## Closeout
 
-Not started.
+Implemented in a single coherent slice on `feature/step-10-ml-modeler-reviewer` (commit `559f105`).
+
+What landed:
+
+- Step 1 verified the existing `BusinessReviewOutput` contract and `report_draft` / `experiment_report` / `business_review` state slots; added `should_revise_report` and `report_iteration` for the new router.
+- Step 2 added four pure prompt-context formatters to `tools/reporting.py` and created `agents/report_writer.py` with a `report_writer_node(state, mode='generate')` entrypoint that uses `build_adapter` per the Step 7 LLM routing pattern.
+- Step 3 extended `agents/business_stakeholder.py` with a `report_review` mode; `raw_review` / `processed_review` are unchanged.
+- Step 4 added `report_writer.system` + `report_writer.generate` prompts, replaced the thin `business_stakeholder.report_review` stub with a structured prompt that surfaces report + modeling + evaluation context, added `route_after_business_review` with three sinks and two separate config-driven iteration caps (`workflows.report.max_iterations` newly added in `config/workflows.yaml`).
+- Step 5 added `tests/test_report_business_review.py` (24 focused tests), four human-review notebooks under `notebooks/`, refreshed `PROJECT_TREE.md`, and marked all checklist boxes per user direction.
+
+Focused validation completed:
+
+- `uv run pytest tests/test_report_business_review.py -v` → 24 passed (7 formatter + 5 report_writer + 6 business_stakeholder report_review + 6 router).
+
+Plan deviations from the original brief:
+
+- Built on the Step 5 branch (`feature/step-10-ml-modeler-reviewer`) rather than a fresh branch off `main`, per explicit user override of the pre-implementation gate.
+- The build_adapter migration on `agents/business_stakeholder.py` (originally Step 7 LLM routing work) rides along in the Step 6 commit because the two changes are intertwined and required for the Step 6 tests to run. Other Step 7 build_adapter migrations (`ml_modeler`, `ml_reviewer`, `data_engineer`, `eda_analyst`) live outside this commit.
+
+Remaining limitations:
+
+- Graph wiring in `orchestration/graph.py` is NOT updated by this slice. Adding the `report_writer` node and the new business-review node into the StateGraph is a separate slice.
+- `state['evaluation_result']` is owned by Jonathan Step 2 (BUILD_PLAN Step 9), not yet built. The report writer treats it as optional and prints a caveat block when missing.
+- `tests/test_pre_modeling_review_agents.py` (Step 5 tests) is currently pre-broken on this branch from the build_adapter migration in another session; that test file is intentionally outside the Step 6 commit's scope.
+- The Streamlit `app.py` does not yet surface the experiment report or the business review verdict.
+- No live-OpenAI smoke test was run in this slice; tests use mocked adapters.
+
+Next planned step: graph wiring for the report + business review nodes (or whatever Sean Step 7 work the user prioritizes).
 
 ## Resume Instructions
 
