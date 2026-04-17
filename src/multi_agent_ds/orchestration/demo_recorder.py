@@ -240,3 +240,160 @@ def preflight(*, parquet_path: Path) -> None:
             f"Input parquet not found at {parquet_path.resolve()}. "
             f"Check config/settings.yaml -> data.source or pass --parquet."
         )
+
+
+# --- Async driver ------------------------------------------------------
+
+import asyncio
+import time
+
+import pandas as pd
+
+from multi_agent_ds.core.config import load_settings
+
+
+async def record_run(
+    *,
+    parquet_path: Path,
+    output_path: Path,
+    target_column: str | None = None,
+) -> dict[str, Any]:
+    """Record one eda_raw -> data_engineer run and write the event log.
+
+    Returns the payload dict that was written (handy for tests and the CLI
+    to report a summary).
+
+    Flow:
+      1. preflight() — fail fast on missing env / parquet
+      2. load settings and raw DataFrame
+      3. seed input_df_head / input_df_stats into the initial state
+      4. compile the sub-graph
+      5. async-iterate astream_events(version='v2'), record filtered events
+      6. collect final state, extract artifacts, assemble payload
+      7. atomic_write_json to output_path
+    """
+    preflight(parquet_path=parquet_path)
+
+    settings = load_settings()
+    target = target_column or _resolve_target(settings)
+
+    df = pd.read_parquet(parquet_path)
+    input_df_head = df.head(10).to_dict(orient="records")
+    input_df_stats = _compute_input_stats(df, target=target)
+
+    initial_state: dict[str, Any] = {
+        "data_path": str(parquet_path),
+        # state["data"] expects dict[str, Any] (see PipelineState); DataFrame passes via data_path
+        "settings": settings,
+        "input_df_head": input_df_head,
+        "input_df_stats": input_df_stats,
+    }
+
+    graph = build_demo_subgraph()
+
+    events: list[dict[str, Any]] = []
+    final_state: dict[str, Any] = dict(initial_state)
+    start_monotonic = time.monotonic()
+    start_ts = datetime.now(timezone.utc)
+
+    async for lg_event in graph.astream_events(input=initial_state, version="v2"):
+        if not should_record(lg_event):
+            continue
+        elapsed_ms = int((time.monotonic() - start_monotonic) * 1000)
+        ts = iso_utc(datetime.now(timezone.utc))
+        safe_data = sanitize_payload(lg_event.get("data", {}))
+        normalized = normalize_event({**lg_event, "data": safe_data}, ts=ts, elapsed_ms=elapsed_ms)
+        events.append(normalized.to_dict())
+        # Keep a running copy of the final state by merging end-event outputs.
+        if normalized.kind == NODE_END and isinstance(safe_data.get("output"), dict):
+            final_state.update(safe_data["output"])
+
+    # Read processed parquet and populate processed_df_head / processed_df_stats
+    processed_path = final_state.get("processed_data_path")
+    if processed_path and Path(processed_path).exists():
+        pdf = pd.read_parquet(processed_path)
+        final_state["processed_df_head"] = pdf.head(10).to_dict(orient="records")
+        missing_pct = round(float(pdf.isna().mean().mean()) * 100.0, 3)
+        final_state["processed_df_stats"] = {
+            "rows": int(pdf.shape[0]),
+            "cols": int(pdf.shape[1]),
+            "path": processed_path,
+            "missing_pct_after": missing_pct,
+        }
+
+    duration_ms = int((time.monotonic() - start_monotonic) * 1000)
+    artifacts = extract_artifacts(final_state)
+
+    payload = {
+        "recorded_at": iso_utc(start_ts),
+        "duration_ms": duration_ms,
+        "config": _config_snapshot(settings, parquet_path=str(parquet_path)),
+        "artifacts": artifacts,
+        "events": events,
+    }
+    atomic_write_json(payload, output_path)
+    return payload
+
+
+def _compute_input_stats(df: pd.DataFrame, *, target: str) -> dict[str, Any]:
+    """Tiny stats block consumed by the Input Preview screen."""
+    numeric = df.select_dtypes(include="number").shape[1]
+    categorical = df.shape[1] - numeric
+    missing_pct = float(df.isna().mean().mean()) * 100.0
+    positive_rate: float | None = None
+    if target in df.columns and pd.api.types.is_numeric_dtype(df[target]):
+        positive_rate = float(df[target].astype(float).mean())
+    return {
+        "rows": int(df.shape[0]),
+        "cols": int(df.shape[1]),
+        "target": target,
+        "positive_rate": positive_rate,
+        "numeric": int(numeric),
+        "categorical": int(categorical),
+        "missing_pct": round(missing_pct, 3),
+    }
+
+
+def _resolve_target(settings: dict[str, Any]) -> str:
+    """Resolve the target column name from settings."""
+    data = settings.get("data", {})
+    source_mode = data.get("source", "synthetic")
+    if source_mode == "synthetic":
+        return data.get("synthetic", {}).get("target", {}).get("column_name", "target")
+    else:
+        return data.get("existing", {}).get("target_column", "target")
+
+
+def _config_snapshot(settings: dict[str, Any], *, parquet_path: str) -> dict[str, Any]:
+    """Project settings into the small dict the Config screen shows."""
+    data = settings.get("data", {})
+    source_mode = data.get("source", "synthetic")
+    syn = data.get("synthetic", {})
+    existing = data.get("existing", {})
+    target = (
+        syn.get("target", {}).get("column_name")
+        if source_mode == "synthetic"
+        else existing.get("target_column")
+    )
+    scale = syn.get("scale") if source_mode == "synthetic" else "existing"
+    model = settings.get("model", {})
+    tuning = model.get("tuning", {})
+    return {
+        "source": str(parquet_path),
+        "source_mode": source_mode,
+        "target": target,
+        "scale": scale,
+        "max_trials": tuning.get("max_trials"),
+        "cv_folds": model.get("cv_folds"),
+        "timeout": tuning.get("timeout"),
+        "algorithms": list(model.get("algorithms", [])),
+        "primary_metric": model.get("primary_metric"),
+        "tiebreaker": None,  # not configured in settings.yaml
+        "ml_reviewer": "enabled",  # placeholder; adjust once real routing config is wired
+        "business_stakeholder": "enabled",
+        "report_writer": "enabled",
+        "tracing": settings.get("llm", {}).get("tracing", "disabled"),
+        # no `review` block exists in settings.yaml; omit or set None
+        "review_enabled": None,
+        "review_threshold": None,
+    }
