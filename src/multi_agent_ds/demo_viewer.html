@@ -462,6 +462,12 @@
 
     .tbl th.target { color: var(--orange); }
 
+    /* Runtime page — column state styling */
+    .col.done { border-color: #C7E2C7; }
+    .col.done .head { background: #EEF6EE; color: #2E5B2E; }
+    .col.errored { border-color: #E2A7A7; }
+    .col.errored .head { background: #FBE7E7; color: #8A2323; }
+
     /* single-page navigation */
     html, body { margin: 0; padding: 0; background: var(--ink, #0F1219); }
     .viewer .page { display: none; }
@@ -563,8 +569,117 @@
         <div class="footer">multi_agent_ds <span class="dot">●</span> replay mode <span class="dot">●</span> local only <span style="margin-left:auto;">02 / 04</span></div>
       </div>
 
-      <!-- Page 3: Runtime — placeholder, filled in Phase 4 -->
-      <div class="page p3"><div class="tag">PAGE 3 — RUNTIME</div><div class="body"><h1>Runtime (Phase 4 stub)</h1></div></div>
+      <!-- Page 3: Runtime — replay engine -->
+      <div class="page p3">
+        <div class="tag">PAGE 3 — RUNTIME</div>
+        <div class="topbar">
+          <div class="brand">MULTI-AGENT <span>·</span> DS</div>
+          <div class="crumbs">Config &nbsp;›&nbsp; Input &nbsp;›&nbsp; <b>Runtime</b> &nbsp;›&nbsp; Results</div>
+          <label style="margin-left:auto; font-size:12px; color:var(--slate);">
+            Replay speed
+            <select data-speed style="margin-left:8px;">
+              <option value="0.5">0.5×</option>
+              <option value="1">1×</option>
+              <option value="1.5" selected>1.5×</option>
+              <option value="2">2×</option>
+            </select>
+          </label>
+        </div>
+        <div class="stage">
+          <div class="band orch">
+            <div class="title">ORCHESTRATOR</div>
+            <div>State: <span class="status" data-orch-state>STARTING</span></div>
+            <div style="margin-left:auto; font-family: 'Courier New', monospace; font-size:12px; color: var(--slate);">
+              elapsed <span data-orch-elapsed>00:00</span>
+            </div>
+          </div>
+          <div class="columns">
+            <!-- EDA Analyst column (recorded) -->
+            <div class="col" data-col="eda_raw">
+              <div class="head"><span>EDA Analyst</span><span class="idx">01</span></div>
+              <div class="lanes">
+                <div class="lane input">
+                  <div class="lbl">INPUT</div>
+                  <div class="lane-items" data-lane="input"></div>
+                </div>
+                <div class="lane action">
+                  <div class="lbl">ACTION</div>
+                  <div class="lane-items" data-lane="action"></div>
+                </div>
+                <div class="lane output">
+                  <div class="lbl">OUTPUT</div>
+                  <div class="lane-items" data-lane="output"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Data Engineer column (recorded) -->
+            <div class="col" data-col="data_engineer">
+              <div class="head"><span>Data Engineer</span><span class="idx">02</span></div>
+              <div class="lanes">
+                <div class="lane input">
+                  <div class="lbl">INPUT</div>
+                  <div class="lane-items" data-lane="input"></div>
+                </div>
+                <div class="lane action">
+                  <div class="lbl">ACTION</div>
+                  <div class="lane-items" data-lane="action"></div>
+                </div>
+                <div class="lane output">
+                  <div class="lbl">OUTPUT</div>
+                  <div class="lane-items" data-lane="output"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ML Modeler column (not scheduled) -->
+            <div class="col" data-col="ml_modeler" style="opacity:.45;">
+              <div class="head"><span>ML Modeler</span><span class="idx">03</span></div>
+              <div class="lanes">
+                <div class="lane" style="grid-column: 1 / -1; text-align:center;">
+                  <div class="lbl">SCOPE</div>
+                  <div class="item" style="background:transparent; border:1px dashed var(--div); color:var(--slate);">
+                    not scheduled in demo scope
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ML Reviewer column (not scheduled) -->
+            <div class="col" data-col="ml_reviewer" style="opacity:.45;">
+              <div class="head"><span>ML Reviewer</span><span class="idx">04</span></div>
+              <div class="lanes">
+                <div class="lane" style="grid-column: 1 / -1; text-align:center;">
+                  <div class="lbl">SCOPE</div>
+                  <div class="item" style="background:transparent; border:1px dashed var(--div); color:var(--slate);">
+                    not scheduled in demo scope
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Business Stakeholder column (not scheduled) -->
+            <div class="col" data-col="business_stakeholder" style="opacity:.45;">
+              <div class="head"><span>Business Stakeholder</span><span class="idx">05</span></div>
+              <div class="lanes">
+                <div class="lane" style="grid-column: 1 / -1; text-align:center;">
+                  <div class="lbl">SCOPE</div>
+                  <div class="item" style="background:transparent; border:1px dashed var(--div); color:var(--slate);">
+                    not scheduled in demo scope
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="legend">
+            <div><span class="dot" style="background: var(--orange);"></span>Active agent</div>
+            <div><span class="dot" style="background: #2E7D32;"></span>Completed agent</div>
+            <div><span class="dot" style="background: #E4DCCB;"></span>Idle agent</div>
+          </div>
+        </div>
+        <div class="footer">multi_agent_ds <span class="dot">●</span> replay mode <span class="dot">●</span> local only <span style="margin-left:auto;">03 / 04</span></div>
+      </div>
       <!-- Page 4: Summary — placeholder, filled in Phase 5 -->
       <div class="page p4"><div class="tag">PAGE 4 — SUMMARY</div><div class="body"><h1>Summary (Phase 5 stub)</h1></div></div>
     </div>
@@ -591,7 +706,12 @@
         input_df_head: [],
         input_df_stats: {}
       },
-      events: []
+      events: [
+        { kind: "node_start", node: "eda_raw", elapsed_ms: 100, data: {} },
+        { kind: "node_end", node: "eda_raw", elapsed_ms: 3500, data: {} },
+        { kind: "node_start", node: "data_engineer", elapsed_ms: 3800, data: {} },
+        { kind: "node_end", node: "data_engineer", elapsed_ms: 6200, data: {} }
+      ]
     };
   </script>
 
@@ -604,9 +724,118 @@
       if (page === 'runtime') startRuntimeReplay();
     }
 
+    let _replayStarted = false;
+    let _replayStartTime = null;
+    let _replayElapsedTicker = null;
+
+    function _fmtElapsed(ms) {
+      const total = Math.max(0, Math.floor(ms / 1000));
+      const mm = String(Math.floor(total / 60)).padStart(2, '0');
+      const ss = String(total % 60).padStart(2, '0');
+      return `${mm}:${ss}`;
+    }
+
+    function _setOrchState(text) {
+      const el = document.querySelector('[data-orch-state]');
+      if (el) el.textContent = text;
+    }
+
+    function _addLaneItems(colKey, lane, items) {
+      const host = document.querySelector(`[data-col="${colKey}"] [data-lane="${lane}"]`);
+      if (!host) return;
+      (items || []).forEach((label) => {
+        const d = document.createElement('div');
+        d.className = 'item done';
+        d.textContent = label;
+        host.appendChild(d);
+      });
+    }
+
+    function _markColumn(colKey, cls) {
+      const col = document.querySelector(`[data-col="${colKey}"]`);
+      if (!col) return;
+      col.classList.remove('active', 'done', 'errored');
+      col.classList.add(cls);
+    }
+
+    function _laneItemsFor(event) {
+      // Lane labels are illustrative/cosmetic — not derived from event payloads.
+      // The drawer in Page 4 shows the real recorded payloads (orch / eda / de).
+      const d = event.data || {};
+      const node = event.node;
+      if (node === 'eda_raw') {
+        if (event.kind === 'node_start') return { input: ['raw_df'], action: [], output: [] };
+        if (event.kind === 'node_end')   return { input: [], action: ['profile columns', 'detect leakage'], output: ['raw_eda_insights'] };
+      }
+      if (node === 'data_engineer') {
+        if (event.kind === 'node_start') return { input: ['raw_eda_insights'], action: [], output: [] };
+        if (event.kind === 'node_end')   return { input: [], action: ['impute · encode', 'train/test split'], output: ['prep_plan', 'processed_df'] };
+      }
+      return { input: [], action: [], output: [] };
+    }
+
     function startRuntimeReplay() {
-      // Phase 4 fills this in. Phase 3 stub: no-op.
-      // Do not remove this function — CONTINUE button relies on it.
+      // Pending timeouts are not canceled on Streamlit tab switch. The iframe is not
+      // torn down between tab visits, so this is acceptable. To be safe, auto-advance
+      // handlers check currentPage() before transitioning.
+      if (_replayStarted) return; // AC5.6: do not restart
+      _replayStarted = true;
+
+      const speedSel = document.querySelector('[data-speed]');
+      const speed = speedSel ? parseFloat(speedSel.value) || 1.5 : 1.5;
+
+      const events = (window.DEMO_LOG && Array.isArray(window.DEMO_LOG.events)) ? window.DEMO_LOG.events : [];
+      if (events.length === 0) {
+        _setOrchState('NO RECORDING');
+        return;
+      }
+
+      _replayStartTime = performance.now();
+      _replayElapsedTicker = setInterval(() => {
+        const el = document.querySelector('[data-orch-elapsed]');
+        if (el) el.textContent = _fmtElapsed(performance.now() - _replayStartTime);
+      }, 200);
+
+      _setOrchState('STARTING');
+
+      events.forEach((evt) => {
+        const delayMs = (evt.elapsed_ms || 0) / speed;
+        setTimeout(() => {
+          const lanes = _laneItemsFor(evt);
+          if (evt.kind === 'node_start' && evt.node === 'eda_raw') {
+            _setOrchState('EDA RUNNING');
+            _markColumn('eda_raw', 'active');
+            _addLaneItems('eda_raw', 'input', lanes.input);
+          } else if (evt.kind === 'node_end' && evt.node === 'eda_raw') {
+            _setOrchState('HANDOFF');
+            _markColumn('eda_raw', 'done');
+            _addLaneItems('eda_raw', 'action', lanes.action);
+            _addLaneItems('eda_raw', 'output', lanes.output);
+          } else if (evt.kind === 'node_start' && evt.node === 'data_engineer') {
+            _setOrchState('DATA ENGINEER RUNNING');
+            _markColumn('data_engineer', 'active');
+            _addLaneItems('data_engineer', 'input', lanes.input);
+          } else if (evt.kind === 'node_end' && evt.node === 'data_engineer') {
+            _setOrchState('COMPLETE');
+            _markColumn('data_engineer', 'done');
+            _addLaneItems('data_engineer', 'action', lanes.action);
+            _addLaneItems('data_engineer', 'output', lanes.output);
+          } else if (evt.kind === 'node_error') {
+            _setOrchState(`ERROR: ${evt.node}`);
+            _markColumn(evt.node, 'errored');
+          }
+        }, delayMs);
+      });
+
+      // After the final event, stop the ticker and advance to summary.
+      const finalDelay = (events[events.length - 1].elapsed_ms || 0) / speed;
+      setTimeout(() => {
+        if (_replayElapsedTicker) {
+          clearInterval(_replayElapsedTicker);
+          _replayElapsedTicker = null;
+        }
+        setTimeout(() => goTo('summary'), 600);
+      }, finalDelay + 10);
     }
 
     function fmtPct(value) {
@@ -732,9 +961,24 @@
     renderConfig();
     renderInputPreview();
 
-    // Expose renderers on window for Phase 6 loader.
+    // Expose renderers and replay engine on window for Phase 6 loader.
     window.renderConfig = renderConfig;
     window.renderInputPreview = renderInputPreview;
+    window.startRuntimeReplay = startRuntimeReplay;
+    window.pauseReplay = () => {
+      if (_replayElapsedTicker) {
+        clearInterval(_replayElapsedTicker);
+        _replayElapsedTicker = null;
+      }
+    };
+    window.continueReplay = () => {
+      if (_replayElapsedTicker === null && _replayStartTime !== null) {
+        _replayElapsedTicker = setInterval(() => {
+          const el = document.querySelector('[data-orch-elapsed]');
+          if (el) el.textContent = _fmtElapsed(performance.now() - _replayStartTime);
+        }, 200);
+      }
+    };
   </script>
 </body>
 </html>
