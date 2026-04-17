@@ -8,8 +8,11 @@ without modifying the production graph (src/multi_agent_ds/orchestration/graph.p
 """
 from __future__ import annotations
 
+import json
+import os
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 # Node kinds we expose in the event log. Keep this a closed enum — the viewer
@@ -161,3 +164,20 @@ def sanitize_payload(value: Any, *, max_depth: int = 6) -> Any:
     # Fallback: repr-truncate anything else (DataFrame, ndarray, custom classes).
     r = repr(value)
     return r if len(r) <= 200 else r[:197] + "..."
+
+
+# --- Atomic write (impure, but narrow and well-tested) -----------------
+
+
+def atomic_write_json(payload: dict[str, Any], target: Path) -> None:
+    """Write `payload` as JSON to `target` atomically.
+
+    Writes to `target.with_suffix(target.suffix + '.tmp')` first, then
+    os.replace() to the target path. This guarantees that readers never
+    see a half-written file: either the old JSON (previous demo run) or
+    the new JSON — never a truncated blend.
+    """
+    target.parent.mkdir(parents=True, exist_ok=True)
+    tmp = target.with_suffix(target.suffix + ".tmp")
+    tmp.write_text(json.dumps(payload, indent=2, sort_keys=False, default=str), encoding="utf-8")
+    os.replace(tmp, target)
