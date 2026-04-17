@@ -26,7 +26,9 @@ def _dump_model(model_cls: type[Any], payload: dict[str, Any]) -> dict[str, Any]
 
 
 def _append_decision(state: PipelineState, phase: str, **payload: Any) -> list[dict[str, Any]]:
-    return state.get("agent_decisions", []) + [{"agent": "data_engineer", "phase": phase, **payload}]
+    """Return the delta for `agent_decisions` (reducer concatenates)."""
+    del state  # `PipelineState.agent_decisions` uses operator.add; return delta only
+    return [{"agent": "data_engineer", "phase": phase, **payload}]
 
 
 def data_engineer_node(state: PipelineState, mode: str = "feedback") -> dict[str, Any]:

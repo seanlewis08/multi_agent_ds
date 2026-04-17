@@ -36,7 +36,9 @@ def _dump_model(model_cls: type[Any], payload: dict[str, Any]) -> dict[str, Any]
 
 
 def _append_decision(state: PipelineState, phase: str, **payload: Any) -> list[dict[str, Any]]:
-    return state.get("agent_decisions", []) + [{"agent": "ml_reviewer", "phase": phase, **payload}]
+    """Return the delta for `agent_decisions` (reducer concatenates)."""
+    del state  # `PipelineState.agent_decisions` uses operator.add; return delta only
+    return [{"agent": "ml_reviewer", "phase": phase, **payload}]
 
 
 def _strip_nested(bundle: dict[str, Any], drop_keys: tuple[str, ...]) -> dict[str, Any]:

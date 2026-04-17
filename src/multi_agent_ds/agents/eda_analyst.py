@@ -90,8 +90,14 @@ def _build_processed_approval_messages(state: PipelineState, prompts: dict[str, 
 
 
 def _append_decision(state: PipelineState, phase: str, **payload: Any) -> list[dict[str, Any]]:
-    """Append a structured decision entry to the running graph trace."""
-    return state.get("agent_decisions", []) + [{"agent": "eda_analyst", "phase": phase, **payload}]
+    """Return the delta to append to `agent_decisions`.
+
+    `PipelineState.agent_decisions` uses an `operator.add` reducer, so nodes
+    return only new entries; the reducer concatenates with the current value.
+    Returning the full list here caused exponential duplication across nodes.
+    """
+    del state  # reducer handles accumulation; signature kept for symmetry
+    return [{"agent": "eda_analyst", "phase": phase, **payload}]
 
 
 # Map the agent-local mode string to the routing-table task name. Modes with

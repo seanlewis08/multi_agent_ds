@@ -42,6 +42,11 @@ class PipelineState(TypedDict, total=False):
     business_review: dict[str, Any]
 
     # Control flow
+    # `agent_decisions` is reduced with `operator.add`. Nodes MUST return only
+    # the NEW entries they are contributing (the delta), not the full list —
+    # the reducer concatenates with the current channel value. Returning the
+    # full existing list causes exponential duplication across fan-out and
+    # serial nodes (see LANGGRAPH_DEBUGGING.md / demo recorder bloat).
     agent_decisions: Annotated[list[dict[str, Any]], operator.add]
     current_phase: str
     should_loop: bool
