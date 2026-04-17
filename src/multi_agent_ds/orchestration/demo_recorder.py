@@ -257,13 +257,30 @@ async def record_run(
     parquet_path: Path,
     output_path: Path,
     target_column: str | None = None,
+    local_only: bool = False,
 ) -> dict[str, Any]:
     """Record one eda_raw -> data_engineer run and write the event log.
 
-    Returns the payload dict that was written (handy for tests and the CLI
-    to report a summary).
+    Parameters
+    ----------
+    parquet_path : Path
+        Path to the input parquet file
+    output_path : Path
+        Destination for the JSON event log
+    target_column : str, optional
+        Override target column name (default: from settings)
+    local_only : bool, default False
+        If True, skip S3 upload and write processed parquet locally.
+        Use only for offline demo rehearsal.
 
-    Flow:
+    Returns
+    -------
+    dict
+        The payload dict that was written (handy for tests and the CLI
+        to report a summary).
+
+    Flow
+    ----
       1. preflight() — fail fast on missing env / parquet
       2. load settings and raw DataFrame
       3. seed input_df_head / input_df_stats into the initial state
@@ -287,6 +304,7 @@ async def record_run(
         "settings": settings,
         "input_df_head": input_df_head,
         "input_df_stats": input_df_stats,
+        "local_only": local_only,
     }
 
     graph = build_demo_subgraph()
@@ -421,6 +439,12 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="Override the parquet path (default: config/settings.yaml -> data.source)",
     )
+    parser.add_argument(
+        "--no-upload",
+        action="store_true",
+        dest="no_upload",
+        help="Skip S3 upload; write processed parquet locally. Use only for offline demo rehearsal.",
+    )
     args = parser.parse_args(argv)
 
     # Resolve parquet path from args or settings
@@ -433,7 +457,7 @@ def main(argv: list[str] | None = None) -> int:
             raise ValueError("config/settings.yaml must define data.source or pass --parquet")
         parquet_path = Path(source)
 
-    payload = asyncio.run(record_run(parquet_path=parquet_path, output_path=args.output))
+    payload = asyncio.run(record_run(parquet_path=parquet_path, output_path=args.output, local_only=args.no_upload))
 
     print(
         f"wrote {args.output} — {len(payload['events'])} events, "
