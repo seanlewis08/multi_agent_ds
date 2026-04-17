@@ -17,17 +17,14 @@ import os
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from functools import partial
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
 from dotenv import load_dotenv
-from langgraph.graph import StateGraph, END
 
-from multi_agent_ds.agents.eda_analyst import eda_analyst_node
-from multi_agent_ds.agents.data_engineer import data_engineer_node
 from multi_agent_ds.core.config import load_settings
+from multi_agent_ds.orchestration.graph import build_graph
 from multi_agent_ds.orchestration.state import PipelineState
 from multi_agent_ds.workflows.discovery import resolve_data_path
 
@@ -43,16 +40,28 @@ LG_ON_CHAIN_START = "on_chain_start"
 LG_ON_CHAIN_END = "on_chain_end"
 LG_ON_CHAIN_ERROR = "on_chain_error"
 
-# Nodes we record. The prep_plan_stage is internal and not shown in the viewer
-# (visually simpler — only two recorded agent columns). Other node-level events
-# (if any emerge from sub-runnables) are ignored by the recorder.
-RECORDED_NODES = frozenset({"eda_raw", "data_engineer"})
+# Nodes we record: the 13-node pre-modeling EDA workflow.
+# See EDA_LANGGRAPH_WORKFLOW.md for the full graph specification.
+RECORDED_NODES = frozenset({
+    "eda_raw",
+    "ml_modeler_raw_review",
+    "ml_reviewer_raw_review",
+    "business_stakeholder_raw_review",
+    "eda_prep_plan",
+    "data_engineer_feedback",
+    "data_engineer_execute",
+    "eda_processed",
+    "ml_modeler_processed_review",
+    "ml_reviewer_processed_review",
+    "business_stakeholder_processed_review",
+    "eda_processed_approval",
+    "ml_modeler_handoff",
+})
 
 # All graph nodes whose outputs should be merged into final_state,
 # regardless of whether they appear in the viewer's event log.
-# prep_plan_stage is intentionally excluded from RECORDED_NODES but still
-# contributes the prep_plan artifact to final_state.
-ACCUMULATE_NODES = frozenset({"eda_raw", "prep_plan_stage", "data_engineer"})
+# For the full 13-node workflow, we accumulate all recorded nodes.
+ACCUMULATE_NODES = RECORDED_NODES
 
 # Invariant: every recorded node must also be accumulated so that the viewer's
 # event log and the artifact snapshot agree on per-node output. A recorded node
@@ -245,26 +254,18 @@ def atomic_write_json(payload: dict[str, Any], target: Path) -> None:
 
 
 # pattern: Functional Core
-def build_demo_subgraph():
-    """Compile a minimal StateGraph with optional prep_plan stage.
+def _build_demo_graph():
+    """Delegate to the production graph builder.
 
-    The graph is: eda_raw -> prep_plan_stage -> data_engineer -> END.
-    Node names ('eda_raw', 'data_engineer') match RECORDED_NODES so
-    should_record() filters the event stream. The prep_plan_stage is
-    internal — the viewer only sees eda_raw and data_engineer events
-    (simpler visual presentation) but the sub-graph internally runs
-    all three nodes so data_engineer gets the prep plan it needs.
+    Returns a compiled StateGraph representing the full 13-node pre-modeling
+    EDA workflow. See EDA_LANGGRAPH_WORKFLOW.md for routing and node details.
+
+    The demo recorder filters this graph's event stream to RECORDED_NODES,
+    which are the 13 pre-modeling nodes. Post-modeling nodes are ignored
+    because they are not in RECORDED_NODES, causing the recorder to
+    naturally stop accumulating events after ml_modeler_handoff.
     """
-    g = StateGraph(PipelineState)
-    g.add_node("eda_raw", partial(eda_analyst_node, mode="raw"))
-    # prep_plan_stage runs internally but is not recorded (keep viewer simple)
-    g.add_node("prep_plan_stage", partial(eda_analyst_node, mode="prep_plan"))
-    g.add_node("data_engineer", partial(data_engineer_node, mode="execute"))
-    g.set_entry_point("eda_raw")
-    g.add_edge("eda_raw", "prep_plan_stage")
-    g.add_edge("prep_plan_stage", "data_engineer")
-    g.add_edge("data_engineer", END)
-    return g.compile()
+    return build_graph().compile()
 
 
 # =============================================================================
@@ -357,7 +358,7 @@ async def record_run(
         "local_only": local_only,
     }
 
-    graph = build_demo_subgraph()
+    graph = _build_demo_graph()
 
     events: list[dict[str, Any]] = []
     final_state: dict[str, Any] = dict(initial_state)
@@ -447,7 +448,11 @@ def _resolve_target(settings: dict[str, Any]) -> str:
 
 # pattern: Imperative Shell
 def _config_snapshot(settings: dict[str, Any], *, parquet_path: str) -> dict[str, Any]:
-    """Project settings into the small dict the Config screen shows."""
+    """Project settings into the small dict the Config screen shows.
+
+    Reflects the 13-node pre-modeling workflow with agent labels.
+    See EDA_LANGGRAPH_WORKFLOW.md for node details.
+    """
     data = settings.get("data", {})
     source_mode = data.get("source", "synthetic")
     syn = data.get("synthetic", {})
@@ -474,6 +479,22 @@ def _config_snapshot(settings: dict[str, Any], *, parquet_path: str) -> dict[str
         "timeout": tuning.get("timeout"),
         "algorithms": list(model.get("algorithms", [])),
         "primary_metric": model.get("primary_metric"),
+        # Pre-modeling workflow agents (13 nodes)
+        "workflow_agents": [
+            "eda_analyst (eda_raw)",
+            "ml_modeler (ml_modeler_raw_review)",
+            "ml_reviewer (ml_reviewer_raw_review)",
+            "business_stakeholder (business_stakeholder_raw_review)",
+            "eda_analyst (eda_prep_plan)",
+            "data_engineer (data_engineer_feedback)",
+            "data_engineer (data_engineer_execute)",
+            "eda_analyst (eda_processed)",
+            "ml_modeler (ml_modeler_processed_review)",
+            "ml_reviewer (ml_reviewer_processed_review)",
+            "business_stakeholder (business_stakeholder_processed_review)",
+            "eda_analyst (eda_processed_approval)",
+            "ml_modeler (ml_modeler_handoff)",
+        ],
     }
 
     # Add optional fields from LLM config if present

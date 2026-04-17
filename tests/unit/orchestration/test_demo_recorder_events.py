@@ -37,14 +37,18 @@ def test_langgraph_event_kind_mappings():
 
 def test_should_record_filters_by_event_and_node():
     """should_record returns True only for chain events on recorded nodes."""
-    # Should record: on_chain_start for eda_raw
+    # Should record: on_chain_start for eda_raw (pre-modeling node)
     assert should_record({"event": "on_chain_start", "name": "eda_raw"}) is True
-    # Should record: on_chain_end for data_engineer
-    assert should_record({"event": "on_chain_end", "name": "data_engineer"}) is True
-    # Should not record: chain event but wrong node
+    # Should record: on_chain_end for ml_modeler_handoff (last pre-modeling node)
+    assert should_record({"event": "on_chain_end", "name": "ml_modeler_handoff"}) is True
+    # Should record: on_chain_end for data_engineer_execute (middle pre-modeling node)
+    assert should_record({"event": "on_chain_end", "name": "data_engineer_execute"}) is True
+    # Should not record: chain event but wrong node (not in RECORDED_NODES)
     assert should_record({"event": "on_chain_start", "name": "orchestrator"}) is False
-    # Should not record: correct node but wrong event kind
+    # Should not record: correct pre-modeling node but wrong event kind
     assert should_record({"event": "on_llm_start", "name": "eda_raw"}) is False
+    # Should not record: post-modeling node (not in RECORDED_NODES)
+    assert should_record({"event": "on_chain_start", "name": "ml_modeler_baseline"}) is False
 
 
 def test_normalize_event_shape():
@@ -75,19 +79,19 @@ def test_should_accumulate_eda_raw_on_chain_end():
     assert result is True
 
 
-def test_should_accumulate_prep_plan_stage_on_chain_end():
-    """should_accumulate returns True for prep_plan_stage (key case: not recorded but accumulated)."""
+def test_should_accumulate_ml_modeler_handoff_on_chain_end():
+    """should_accumulate returns True for ml_modeler_handoff (final pre-modeling node)."""
     from multi_agent_ds.orchestration.demo_recorder import should_accumulate
 
-    result = should_accumulate({"event": "on_chain_end", "name": "prep_plan_stage"})
+    result = should_accumulate({"event": "on_chain_end", "name": "ml_modeler_handoff"})
     assert result is True
 
 
-def test_should_accumulate_data_engineer_on_chain_end():
-    """should_accumulate returns True for data_engineer node_end events."""
+def test_should_accumulate_data_engineer_execute_on_chain_end():
+    """should_accumulate returns True for data_engineer_execute node_end events."""
     from multi_agent_ds.orchestration.demo_recorder import should_accumulate
 
-    result = should_accumulate({"event": "on_chain_end", "name": "data_engineer"})
+    result = should_accumulate({"event": "on_chain_end", "name": "data_engineer_execute"})
     assert result is True
 
 
@@ -120,4 +124,13 @@ def test_should_accumulate_rejects_langgraph_internal():
     from multi_agent_ds.orchestration.demo_recorder import should_accumulate
 
     result = should_accumulate({"event": "on_chain_end", "name": "LangGraph"})
+    assert result is False
+
+
+def test_should_accumulate_rejects_post_modeling_nodes():
+    """should_accumulate returns False for post-modeling nodes (not in 13-node pre-modeling set)."""
+    from multi_agent_ds.orchestration.demo_recorder import should_accumulate
+
+    # ml_modeler_baseline is a post-modeling node (not in RECORDED_NODES)
+    result = should_accumulate({"event": "on_chain_end", "name": "ml_modeler_baseline"})
     assert result is False
