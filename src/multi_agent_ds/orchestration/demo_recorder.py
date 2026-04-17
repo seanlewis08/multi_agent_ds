@@ -105,3 +105,59 @@ def normalize_event(
         node=lg_event["name"],
         data=dict(lg_event.get("data", {})),
     )
+
+
+# --- Artifact extraction (pure) ----------------------------------------
+
+# Keys we copy out of PipelineState into the top-level artifacts block.
+# Stay minimal — the viewer only needs these.
+_EDA_ARTIFACT_KEY = "raw_eda_insights"
+_DE_PREP_PLAN_KEY = "prep_plan"
+_DE_PROCESSED_DF_HEAD_KEY = "processed_df_head"   # added by recorder post-run from parquet
+_DE_PROCESSED_DF_STATS_KEY = "processed_df_stats" # added by recorder post-run from parquet
+_INPUT_DF_HEAD_KEY = "input_df_head"              # added by recorder pre-run
+_INPUT_DF_STATS_KEY = "input_df_stats"            # added by recorder pre-run
+
+
+def extract_artifacts(final_state: dict[str, Any]) -> dict[str, Any]:
+    """Pull the viewer-facing artifact dict out of the final PipelineState.
+
+    Missing keys resolve to None (not an error) so the recorder can still
+    produce a JSON even when the graph halted early. The viewer treats
+    None as 'unavailable'.
+    """
+    return {
+        "raw_eda_insights": final_state.get(_EDA_ARTIFACT_KEY),
+        "prep_plan": final_state.get(_DE_PREP_PLAN_KEY),
+        "processed_df_head": final_state.get(_DE_PROCESSED_DF_HEAD_KEY),
+        "processed_df_stats": final_state.get(_DE_PROCESSED_DF_STATS_KEY),
+        "input_df_head": final_state.get(_INPUT_DF_HEAD_KEY),
+        "input_df_stats": final_state.get(_INPUT_DF_STATS_KEY),
+    }
+
+
+# --- Payload sanitization (pure) ---------------------------------------
+
+def sanitize_payload(value: Any, *, max_depth: int = 6) -> Any:
+    """Recursively strip non-JSON-serializable values from an event payload.
+
+    Policy:
+      - primitives pass through
+      - dict / list / tuple recurse
+      - anything else (DataFrame, numpy array, Series, objects) becomes
+        its repr() truncated to 200 chars
+      - depth cap prevents infinite recursion on circular refs
+
+    This runs on every LangGraph event `data` field before we stash it.
+    """
+    if max_depth <= 0:
+        return f"<max-depth: {type(value).__name__}>"
+    if value is None or isinstance(value, (bool, int, float, str)):
+        return value
+    if isinstance(value, dict):
+        return {str(k): sanitize_payload(v, max_depth=max_depth - 1) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [sanitize_payload(v, max_depth=max_depth - 1) for v in value]
+    # Fallback: repr-truncate anything else (DataFrame, ndarray, custom classes).
+    r = repr(value)
+    return r if len(r) <= 200 else r[:197] + "..."
