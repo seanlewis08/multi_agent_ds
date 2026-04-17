@@ -237,4 +237,13 @@ def build_adapter(
         task=task,
         cost_override=cost_override,
     )
-    return OpenAIAdapter(config)
+    adapter = OpenAIAdapter(config)
+
+    from multi_agent_ds.tools.conversation_recorder import (
+        RecordingOpenAIAdapter,
+        get_active_recorder,
+    )
+
+    if get_active_recorder() is not None:
+        return RecordingOpenAIAdapter(adapter, agent=agent, task=task)
+    return adapter
