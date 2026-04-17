@@ -1,0 +1,76 @@
+---
+config:
+  flowchart:
+    curve: linear
+---
+graph TD;
+	__start__([<p>__start__</p>]):::first
+	eda_raw(eda_raw)
+	ml_modeler_raw_review(ml_modeler_raw_review)
+	ml_reviewer_raw_review(ml_reviewer_raw_review)
+	business_stakeholder_raw_review(business_stakeholder_raw_review)
+	eda_prep_plan(eda_prep_plan)
+	data_engineer_feedback(data_engineer_feedback)
+	data_engineer_execute(data_engineer_execute)
+	eda_processed(eda_processed)
+	ml_modeler_processed_review(ml_modeler_processed_review)
+	ml_reviewer_processed_review(ml_reviewer_processed_review)
+	business_stakeholder_processed_review(business_stakeholder_processed_review)
+	eda_processed_approval(eda_processed_approval)
+	ml_modeler_handoff(ml_modeler_handoff)
+	ml_modeler_baseline(ml_modeler_baseline)
+	ml_reviewer_baseline_review(ml_reviewer_baseline_review)
+	ml_modeler_n_estimator_search(ml_modeler_n_estimator_search)
+	ml_modeler_tune(ml_modeler_tune)
+	ml_reviewer_tuning_review(ml_reviewer_tuning_review)
+	ml_modeler_train_tuned(ml_modeler_train_tuned)
+	ml_modeler_adjust_lr(ml_modeler_adjust_lr)
+	ml_reviewer_lr_adjustment_review(ml_reviewer_lr_adjustment_review)
+	ml_modeler_importance_review(ml_modeler_importance_review)
+	ml_modeler_feature_selection(ml_modeler_feature_selection)
+	ml_reviewer_feature_selection_review(ml_reviewer_feature_selection_review)
+	ml_modeler_final_recommendation(ml_modeler_final_recommendation)
+	ml_reviewer_final_recommendation_review(ml_reviewer_final_recommendation_review)
+	__end__([<p>__end__</p>]):::last
+	__start__ --> eda_raw;
+	business_stakeholder_processed_review --> eda_processed_approval;
+	business_stakeholder_raw_review --> eda_prep_plan;
+	data_engineer_execute -.-> eda_processed;
+	data_engineer_feedback -.-> eda_prep_plan;
+	eda_prep_plan -.-> data_engineer_execute;
+	eda_prep_plan -.-> data_engineer_feedback;
+	eda_processed -.-> business_stakeholder_processed_review;
+	eda_processed -.-> ml_modeler_processed_review;
+	eda_processed -.-> ml_reviewer_processed_review;
+	eda_processed_approval -. &nbsp;end&nbsp; .-> __end__;
+	eda_processed_approval -.-> eda_prep_plan;
+	eda_processed_approval -.-> ml_modeler_handoff;
+	eda_raw -.-> business_stakeholder_raw_review;
+	eda_raw -.-> ml_modeler_raw_review;
+	eda_raw -.-> ml_reviewer_raw_review;
+	ml_modeler_adjust_lr --> ml_reviewer_lr_adjustment_review;
+	ml_modeler_baseline --> ml_reviewer_baseline_review;
+	ml_modeler_feature_selection --> ml_reviewer_feature_selection_review;
+	ml_modeler_final_recommendation --> ml_reviewer_final_recommendation_review;
+	ml_modeler_handoff -.-> ml_modeler_baseline;
+	ml_modeler_importance_review --> ml_modeler_feature_selection;
+	ml_modeler_n_estimator_search --> ml_modeler_tune;
+	ml_modeler_processed_review --> eda_processed_approval;
+	ml_modeler_raw_review --> eda_prep_plan;
+	ml_modeler_train_tuned --> ml_modeler_adjust_lr;
+	ml_modeler_tune --> ml_reviewer_tuning_review;
+	ml_reviewer_baseline_review -.-> ml_modeler_baseline;
+	ml_reviewer_baseline_review -.-> ml_modeler_n_estimator_search;
+	ml_reviewer_feature_selection_review -.-> ml_modeler_feature_selection;
+	ml_reviewer_feature_selection_review -.-> ml_modeler_final_recommendation;
+	ml_reviewer_final_recommendation_review -. &nbsp;end&nbsp; .-> __end__;
+	ml_reviewer_final_recommendation_review -.-> ml_modeler_final_recommendation;
+	ml_reviewer_lr_adjustment_review -.-> ml_modeler_adjust_lr;
+	ml_reviewer_lr_adjustment_review -.-> ml_modeler_importance_review;
+	ml_reviewer_processed_review --> eda_processed_approval;
+	ml_reviewer_raw_review --> eda_prep_plan;
+	ml_reviewer_tuning_review -.-> ml_modeler_train_tuned;
+	ml_reviewer_tuning_review -.-> ml_modeler_tune;
+	classDef default fill:#f2f0ff,line-height:1.2
+	classDef first fill-opacity:0
+	classDef last fill:#bfb6fc
