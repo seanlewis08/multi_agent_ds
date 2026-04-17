@@ -179,6 +179,7 @@ model:
     max_trials: 50
     timeout: 36000
     min_improvement: 0.01
+    lr_reduction_factor: 0.5
 
   baseline:
     algorithm: GradientBoostingClassifier
@@ -202,23 +203,58 @@ mlflow:
 # -----------------------------------------------------------------------------
 # LLM Configuration
 # -----------------------------------------------------------------------------
+# Two-axis routing: every (agent, task) pair resolves to a (capability, cost)
+# entry. capability picks the model family (coding / balanced / reasoning) and
+# cost picks the tier (cheap / moderate / expensive). See
+# project_planning/LLM_MODEL_ROUTING.md for the design.
 llm:
   default_provider: openai
-  providers:
-    openai:
-      model: gpt-4o
-      temperature: 0.2          # low temp for deterministic agent behavior
-      max_tokens: 4096
 
-    # Future providers — add key to .env, uncomment here
-    # anthropic:
-    #   model: claude-sonnet-4-20250514
-    #   temperature: 0.2
-    #   max_tokens: 4096
-    # google:
-    #   model: gemini-2.0-pro
-    #   temperature: 0.2
-    #   max_tokens: 4096
+  # (capability, cost) -> model name
+  model_matrix:
+    coding:    { cheap: gpt-4.1-mini, moderate: gpt-4.1, expensive: gpt-4.1 }
+    balanced:  { cheap: gpt-4.1-mini, moderate: gpt-4.1, expensive: gpt-4.1 }
+    reasoning: { cheap: o4-mini,      moderate: o3,      expensive: o3 }
+
+  # Per-capability non-model settings. `temperature: null` means "omit the field"
+  # (o-series reasoning models reject non-1.0 temperatures).
+  capability_settings:
+    coding:    { temperature: 0.1,  max_tokens: 4096 }
+    balanced:  { temperature: 0.2,  max_tokens: 2048 }
+    reasoning: { temperature: null, max_tokens: 8192 }
+
+  # Resolution order:
+  #   routes[agent][task] -> routes[agent][default] -> routes[agent] (shorthand)
+  #   -> routes.default
+  routes:
+    default:              { capability: balanced, cost: cheap }
+    eda_analyst:          { capability: balanced, cost: cheap }
+    ml_reviewer:          { capability: balanced, cost: cheap }
+    business_stakeholder: { capability: balanced, cost: cheap }
+    report_writer:        { capability: balanced, cost: cheap }
+
+    data_engineer:
+      default: { capability: balanced, cost: cheap }
+      execute: { capability: coding,   cost: moderate }
+
+    ml_modeler:
+      default:                    { capability: balanced,  cost: cheap }
+      eda_review:                 { capability: balanced,  cost: cheap }
+      baseline_decision:          { capability: balanced,  cost: cheap }
+      learning_rate_decision:     { capability: reasoning, cost: cheap }
+      feature_selection_decision: { capability: reasoning, cost: cheap }
+      tuning_decision:            { capability: reasoning, cost: expensive }
+      modeling_verdict:           { capability: reasoning, cost: expensive }
+      modeling_handoff:           { capability: balanced,  cost: cheap }
+
+  # Populated at startup from the LLM_COST_OVERRIDE env var (see app.py).
+  # When set, forces every route's cost tier to the override value while
+  # preserving the route's capability.
+  cost_override: null
+
+  # Future providers — uncomment and add the adapter per FUTURE_WORK.md §2.5.
+  # anthropic: { model: claude-sonnet-4-20250514 }
+  # google:    { model: gemini-2.0-pro }
 
 # -----------------------------------------------------------------------------
 # Debug / Observability

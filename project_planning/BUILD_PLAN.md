@@ -404,6 +404,8 @@ mlflow:
 - The adapter doesn't need to know about the ML pipeline — it just sends prompts and returns structured responses
 - Use function calling / tool use format so agents can express decisions as structured actions
 
+**Follow-up refactor (Sean's Step 7 — ✅ LANDED 2026-04-16 in commits `559f105` and `b424231`):** The single-model `OpenAIAdapter(settings)` was replaced by a two-axis `(capability, cost)` routing layer that lets every `(agent, task)` pair resolve to its own `ModelConfig`. See `project_planning/LLM_MODEL_ROUTING.md` for the design and `src/multi_agent_ds/adapters/llm/routing.py` for the resolver + `build_adapter` factory. The `OpenAIAdapter` constructor now takes `ModelConfig` directly. Phase (e) LangSmith metadata propagation is the only remaining piece, deferred until `langsmith` is added as a project dependency.
+
 ---
 
 ### Step 7: LangGraph Orchestration ⬜ NOT YET BUILT

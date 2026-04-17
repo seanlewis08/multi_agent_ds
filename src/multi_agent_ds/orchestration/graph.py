@@ -14,6 +14,7 @@ from multi_agent_ds.orchestration.router import (
     route_after_data_engineer_execute,
     route_after_data_engineer_feedback,
     route_after_modeling_handoff,
+    route_after_modeling_review,
     route_after_prep_plan,
     route_after_processed_approval,
     route_after_processed_eda,
@@ -68,6 +69,51 @@ def build_graph() -> StateGraph:
     graph.add_node(
         "ml_modeler_handoff",
         lambda state: ml_modeler_node(state, mode="modeling_handoff"),
+    )
+
+    # --- modeling loop: 5 reviewed modeler modes + 3 non-reviewed bridges + 5 reviewer verdicts ---
+    graph.add_node("ml_modeler_baseline", lambda state: ml_modeler_node(state, mode="baseline"))
+    graph.add_node(
+        "ml_reviewer_baseline_review",
+        lambda state: ml_reviewer_node(state, mode="baseline_review"),
+    )
+    graph.add_node(
+        "ml_modeler_n_estimator_search",
+        lambda state: ml_modeler_node(state, mode="n_estimator_search"),
+    )
+    graph.add_node("ml_modeler_tune", lambda state: ml_modeler_node(state, mode="tune"))
+    graph.add_node(
+        "ml_reviewer_tuning_review",
+        lambda state: ml_reviewer_node(state, mode="tuning_review"),
+    )
+    graph.add_node(
+        "ml_modeler_train_tuned",
+        lambda state: ml_modeler_node(state, mode="train_tuned"),
+    )
+    graph.add_node("ml_modeler_adjust_lr", lambda state: ml_modeler_node(state, mode="adjust_lr"))
+    graph.add_node(
+        "ml_reviewer_lr_adjustment_review",
+        lambda state: ml_reviewer_node(state, mode="lr_adjustment_review"),
+    )
+    graph.add_node(
+        "ml_modeler_importance_review",
+        lambda state: ml_modeler_node(state, mode="importance_review"),
+    )
+    graph.add_node(
+        "ml_modeler_feature_selection",
+        lambda state: ml_modeler_node(state, mode="feature_selection"),
+    )
+    graph.add_node(
+        "ml_reviewer_feature_selection_review",
+        lambda state: ml_reviewer_node(state, mode="feature_selection_review"),
+    )
+    graph.add_node(
+        "ml_modeler_final_recommendation",
+        lambda state: ml_modeler_node(state, mode="final_recommendation"),
+    )
+    graph.add_node(
+        "ml_reviewer_final_recommendation_review",
+        lambda state: ml_reviewer_node(state, mode="final_recommendation_review"),
     )
 
     graph.set_entry_point("eda_raw")
@@ -135,7 +181,60 @@ def build_graph() -> StateGraph:
     graph.add_conditional_edges(
         "ml_modeler_handoff",
         route_after_modeling_handoff,
-        {"end": END},
+        {"ml_modeler_baseline": "ml_modeler_baseline"},
+    )
+
+    # Modeling loop edges: each reviewed modeler phase flows into its reviewer,
+    # whose verdict drives route_after_modeling_review (loop back or advance).
+    # Non-reviewed bridges (n_estimator_search, train_tuned, importance_review)
+    # use direct edges — no decision at those nodes.
+    graph.add_edge("ml_modeler_baseline", "ml_reviewer_baseline_review")
+    graph.add_conditional_edges(
+        "ml_reviewer_baseline_review",
+        route_after_modeling_review,
+        {
+            "ml_modeler_baseline": "ml_modeler_baseline",
+            "ml_modeler_n_estimator_search": "ml_modeler_n_estimator_search",
+        },
+    )
+    graph.add_edge("ml_modeler_n_estimator_search", "ml_modeler_tune")
+    graph.add_edge("ml_modeler_tune", "ml_reviewer_tuning_review")
+    graph.add_conditional_edges(
+        "ml_reviewer_tuning_review",
+        route_after_modeling_review,
+        {
+            "ml_modeler_tune": "ml_modeler_tune",
+            "ml_modeler_train_tuned": "ml_modeler_train_tuned",
+        },
+    )
+    graph.add_edge("ml_modeler_train_tuned", "ml_modeler_adjust_lr")
+    graph.add_edge("ml_modeler_adjust_lr", "ml_reviewer_lr_adjustment_review")
+    graph.add_conditional_edges(
+        "ml_reviewer_lr_adjustment_review",
+        route_after_modeling_review,
+        {
+            "ml_modeler_adjust_lr": "ml_modeler_adjust_lr",
+            "ml_modeler_importance_review": "ml_modeler_importance_review",
+        },
+    )
+    graph.add_edge("ml_modeler_importance_review", "ml_modeler_feature_selection")
+    graph.add_edge("ml_modeler_feature_selection", "ml_reviewer_feature_selection_review")
+    graph.add_conditional_edges(
+        "ml_reviewer_feature_selection_review",
+        route_after_modeling_review,
+        {
+            "ml_modeler_feature_selection": "ml_modeler_feature_selection",
+            "ml_modeler_final_recommendation": "ml_modeler_final_recommendation",
+        },
+    )
+    graph.add_edge("ml_modeler_final_recommendation", "ml_reviewer_final_recommendation_review")
+    graph.add_conditional_edges(
+        "ml_reviewer_final_recommendation_review",
+        route_after_modeling_review,
+        {
+            "ml_modeler_final_recommendation": "ml_modeler_final_recommendation",
+            "end": END,
+        },
     )
 
     return graph

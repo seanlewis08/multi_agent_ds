@@ -29,3 +29,19 @@ workflows:
       - ml_modeler
       - ml_reviewer
       - business_stakeholder
+  modeling:
+    description: "ML modeler + ML reviewer phased loop with per-phase revision cap."
+    max_iterations: 3
+    review_phases:
+      - baseline
+      - tune
+      - adjust_lr
+      - feature_selection
+      - final_recommendation
+  report:
+    description: "Report writer + business stakeholder revision loop."
+    max_iterations: 2
+    sinks:
+      accept: end
+      revise_report: report_writer
+      revise_modeling: ml_modeler_baseline

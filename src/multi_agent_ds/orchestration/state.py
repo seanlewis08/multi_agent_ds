@@ -34,6 +34,7 @@ class PipelineState(TypedDict, total=False):
     processed_eda_approved: bool
     modeling_context: dict[str, Any]
     modeling_results: dict[str, Any]
+    modeling_verdict: dict[str, Any]
     ml_review: dict[str, Any]
     evaluation_result: dict[str, Any]
     report_draft: str
@@ -44,4 +45,8 @@ class PipelineState(TypedDict, total=False):
     agent_decisions: Annotated[list[dict[str, Any]], operator.add]
     current_phase: str
     should_loop: bool
+    should_revise_modeling: bool
+    should_revise_report: bool
     iteration: int
+    modeling_iteration: int
+    report_iteration: int
