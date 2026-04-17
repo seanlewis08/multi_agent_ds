@@ -1,6 +1,6 @@
 # Project Tree — multi_agent_ds
 
-_Last updated: 2026-04-16 (added demo_viewer.html, demo_recorder.py, demo_viewer_loader.py, design_plans/, implementation_plans/)_
+_Last updated: 2026-04-16 (demo-runtime-viewer branch: demo_viewer.html, demo_recorder.py, demo_viewer_loader.py landed)_
 
 Captured: 2026-04-16
 
@@ -48,7 +48,7 @@ Captured: 2026-04-16
 │       │   ├── orchestrator.py
 │       │   └── report_writer.py
 │       ├── app.py
-│       ├── demo_viewer.html (planned)
+│       ├── demo_viewer.html
 │       ├── core
 │       │   ├── __init__.py
 │       │   ├── context.py
@@ -56,8 +56,8 @@ Captured: 2026-04-16
 │       │   └── registry.py
 │       ├── orchestration
 │       │   ├── __init__.py
-│       │   ├── demo_recorder.py (planned)
-│       │   ├── demo_viewer_loader.py (planned)
+│       │   ├── demo_recorder.py
+│       │   ├── demo_viewer_loader.py
 │       │   ├── graph.py
 │       │   ├── router.py
 │       │   └── state.py
