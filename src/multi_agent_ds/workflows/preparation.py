@@ -15,6 +15,7 @@ from multi_agent_ds.skills.cleaning import apply_cleaning_actions
 from multi_agent_ds.skills.feature_engineering import apply_feature_actions
 from multi_agent_ds.workflows.discovery import load_dataframe
 from multi_agent_ds.tools.io import upload_to_s3
+from multi_agent_ds.tools.skill_recorder import record_workflow_call
 
 
 def _source_stem(source_path: str) -> str:
@@ -44,6 +45,7 @@ def _resolve_target_column(settings: dict[str, Any]) -> str:
     return data_cfg.get("synthetic", {}).get("target", {}).get("column_name", "target")
 
 
+@record_workflow_call
 def run_preparation_workflow(
     data_path: str,
     prep_plan: dict[str, Any],

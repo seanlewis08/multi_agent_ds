@@ -7,6 +7,8 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from multi_agent_ds.tools.skill_recorder import record_skill_call
+
 
 def _new_summary(action_name: str, params: dict[str, Any]) -> dict[str, Any]:
     """Build a consistent summary payload for one feature action."""
@@ -26,6 +28,7 @@ def _mark_skipped(summary: dict[str, Any], reason: str, **details: Any) -> None:
     summary["skipped"].append({"reason": reason, **details})
 
 
+@record_skill_call
 def apply_feature_actions(
     df: pd.DataFrame,
     actions: list[dict[str, Any]] | None,

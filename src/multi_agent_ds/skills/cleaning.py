@@ -6,6 +6,8 @@ from typing import Any
 
 import pandas as pd
 
+from multi_agent_ds.tools.skill_recorder import record_skill_call
+
 
 def _new_summary(action_name: str, params: dict[str, Any]) -> dict[str, Any]:
     """Build a consistent summary payload for one cleaning action."""
@@ -22,6 +24,7 @@ def _mark_skipped(summary: dict[str, Any], column: str, reason: str) -> None:
     summary["skipped_columns"].append({"column": column, "reason": reason})
 
 
+@record_skill_call
 def apply_cleaning_actions(
     df: pd.DataFrame,
     actions: list[dict[str, Any]] | None,

@@ -52,8 +52,14 @@ class _FakeCompiledGraph:
     final state via the last ``on_chain_end`` payload.
     """
 
-    def __init__(self, record_calls: list[dict[str, Any]]) -> None:
+    def __init__(
+        self,
+        record_calls: list[dict[str, Any]],
+        *,
+        emit_router_callable: bool = False,
+    ) -> None:
         self._record_calls = record_calls
+        self._emit_router_callable = emit_router_callable
 
     async def astream_events(
         self, initial_state: dict[str, Any], version: str = "v2"
@@ -89,22 +95,48 @@ class _FakeCompiledGraph:
             ],
         }
         yield {"event": "on_chain_end", "name": "eda_raw", "data": {"output": partial_state}}
+        if self._emit_router_callable:
+            # LangGraph emits on_chain_start/end for conditional-edge router
+            # callables themselves — these are NOT real nodes and must be
+            # filtered by the recorder's boundary gate.
+            yield {
+                "event": "on_chain_start",
+                "name": "route_after_raw_eda",
+                "data": {"input": partial_state},
+            }
+            yield {
+                "event": "on_chain_end",
+                "name": "route_after_raw_eda",
+                "data": {"output": partial_state},
+            }
         # Internal LangGraph wrapper events should be ignored by the boundary
         # filter — include one to make sure.
         yield {"event": "on_chain_end", "name": "LangGraph", "data": {"output": partial_state}}
 
 
 class _FakeGraphBuilder:
-    def __init__(self, record_calls: list[dict[str, Any]]) -> None:
+    def __init__(
+        self,
+        record_calls: list[dict[str, Any]],
+        *,
+        emit_router_callable: bool = False,
+    ) -> None:
         self._record_calls = record_calls
+        self._emit_router_callable = emit_router_callable
 
     def compile(self) -> _FakeCompiledGraph:
-        return _FakeCompiledGraph(self._record_calls)
+        return _FakeCompiledGraph(
+            self._record_calls, emit_router_callable=self._emit_router_callable
+        )
 
 
-def _fake_build_graph_factory(record_calls: list[dict[str, Any]]):
+def _fake_build_graph_factory(
+    record_calls: list[dict[str, Any]], *, emit_router_callable: bool = False
+):
     def _fake_build_graph(entry_node: str = "eda_raw") -> _FakeGraphBuilder:
-        return _FakeGraphBuilder(record_calls)
+        return _FakeGraphBuilder(
+            record_calls, emit_router_callable=emit_router_callable
+        )
 
     return _fake_build_graph
 
@@ -151,6 +183,86 @@ def test_run_full_pipeline_writes_html_and_records_turns(
     assert get_active_recorder() is None
     # Initial state was passed through to the compiled graph.
     assert record_calls and record_calls[0]["data_path"] == "data/raw/synthetic_dataset.parquet"
+
+
+def test_router_callable_events_filtered_out(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Bug A: LangGraph emits events for ``route_after_*`` router callables.
+
+    These are conditional-edge routing functions, not real graph nodes, and
+    must be rejected by the recorder's boundary gate so they don't appear as
+    spurious ``unknown``-agent states in the HTML report.
+    """
+    record_calls: list[dict[str, Any]] = []
+    monkeypatch.setattr(
+        full_pipeline_module,
+        "build_graph",
+        _fake_build_graph_factory(record_calls, emit_router_callable=True),
+    )
+
+    html_path = tmp_path / "router_filtered.html"
+    asyncio.run(
+        full_pipeline_module.run_full_pipeline(
+            data_path=None,
+            settings={"llm": {}, "data": {}},
+            entry_node="eda_raw",
+            html_output=html_path,
+            record=True,
+        )
+    )
+
+    assert html_path.exists()
+    content = html_path.read_text(encoding="utf-8")
+    # The router callable name must NOT appear as a state node in the
+    # embedded DATA payload (it may appear elsewhere, e.g. as a router-chip
+    # label, which is fine — we only care about the states list).
+    import json as _json
+    import re as _re
+
+    match = _re.search(r"const DATA = (\{.*?\});\s*\n", content, _re.DOTALL)
+    assert match, "Embedded DATA blob not found"
+    data = _json.loads(match.group(1))
+    state_nodes = [s["node"] for s in data["states"]]
+    assert "route_after_raw_eda" not in state_nodes, (
+        f"router callable leaked into states: {state_nodes}"
+    )
+
+
+def test_run_full_pipeline_emits_metadata_box(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The end-to-end run wires the skill recorder and emits the metadata box.
+
+    The fake graph drives a ``RecordingOpenAIAdapter`` so turns are captured;
+    we don't need a real skill call to assert the metadata box wrapper is
+    present in the rendered HTML — it renders for every turn unconditionally
+    and shows ``(none recorded)`` when the state has no skill calls.
+    """
+    record_calls: list[dict[str, Any]] = []
+    monkeypatch.setattr(
+        full_pipeline_module,
+        "build_graph",
+        _fake_build_graph_factory(record_calls),
+    )
+
+    html_path = tmp_path / "metadata_box.html"
+    asyncio.run(
+        full_pipeline_module.run_full_pipeline(
+            data_path=None,
+            settings={"llm": {}, "data": {}},
+            entry_node="eda_raw",
+            html_output=html_path,
+            record=True,
+        )
+    )
+
+    content = html_path.read_text(encoding="utf-8")
+    # The new metadata-box CSS / JS / classes are embedded.
+    assert ".turn-metadata" in content
+    assert "function renderTurnMetadataBox" in content
 
 
 def test_run_full_pipeline_without_recording_skips_html(

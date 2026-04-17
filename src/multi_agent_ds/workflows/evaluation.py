@@ -23,6 +23,7 @@ import numpy as np
 from multi_agent_ds.core import load_settings
 from multi_agent_ds.orchestration.state import PipelineState
 from multi_agent_ds.skills.modeling import prepare_data
+from multi_agent_ds.tools.skill_recorder import record_workflow_call
 from multi_agent_ds.workflows.discovery import load_dataframe
 
 _DESCENDING_METRICS = {
@@ -756,6 +757,7 @@ def _build_mlflow_payload(
     }
 
 
+@record_workflow_call
 def run_evaluation_workflow(
     results: dict[str, dict[str, Any]],
     data: dict[str, Any],
@@ -906,6 +908,7 @@ def _extract_latest_fitted_results(
     return flattened
 
 
+@record_workflow_call
 def run_evaluation_from_state(state: PipelineState) -> dict[str, Any]:
     """Graph-facing evaluation wrapper that reconstructs workflow inputs from state."""
     settings = state.get("settings") or load_settings()

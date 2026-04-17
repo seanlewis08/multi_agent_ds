@@ -19,6 +19,7 @@ from multi_agent_ds.tools.conversation_recorder import (
     conversation_recording,
 )
 from multi_agent_ds.tools.html_report import write_conversation_html
+from multi_agent_ds.tools.skill_recorder import skill_recording
 
 logger = logging.getLogger(__name__)
 
@@ -39,12 +40,25 @@ _PIPELINE_STATE_KEYS: frozenset[str] = frozenset(
 
 
 def _is_graph_node_name(name: Any) -> bool:
-    """True if ``name`` looks like a real graph node (not LangGraph internals)."""
+    """True if ``name`` looks like a real graph node (not LangGraph internals).
+
+    Rejects:
+    - Non-strings.
+    - LangGraph framework sentinels (``LangGraph``, ``__start__``, ``__end__``).
+    - Anything prefixed with ``__`` (reserved for framework internals).
+    - Conditional-edge router callables (``route_after_*``). These are the
+      routing functions registered via ``add_conditional_edges`` and are
+      emitted by ``astream_events`` as ``on_chain_start``/``on_chain_end``
+      even though they are not real graph nodes — recording them as
+      boundaries would produce spurious "unknown"-lane states in the report.
+    """
     if not isinstance(name, str):
         return False
     if name in _GRAPH_INTERNAL_NAMES:
         return False
     if name.startswith("__"):
+        return False
+    if name.startswith("route_after_"):
         return False
     return True
 
@@ -148,14 +162,16 @@ async def run_full_pipeline(
     error: str | None = None
     final_state: dict[str, Any] = {}
     recorder = None
+    skill_rec = None
     html_path: Path | None = None
 
     try:
         if record:
             with conversation_recording() as recorder:
-                final_state = await _astream_and_record(
-                    compiled, initial_state, recorder, t0
-                )
+                with skill_recording() as skill_rec:
+                    final_state = await _astream_and_record(
+                        compiled, initial_state, recorder, t0
+                    )
         else:
             final_state = await _astream_and_record(compiled, initial_state, None, t0)
     except Exception as exc:  # noqa: BLE001
@@ -181,6 +197,7 @@ async def run_full_pipeline(
                     meta=meta,
                     path=Path(html_output) if html_output else None,
                     node_boundaries=recorder.flush_boundaries(),
+                    skill_calls=skill_rec.flush() if skill_rec is not None else None,
                 )
             except Exception:
                 logger.exception("Failed to write conversation HTML report")

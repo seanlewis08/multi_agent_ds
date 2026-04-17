@@ -8,6 +8,8 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import roc_auc_score
 
+from multi_agent_ds.tools.skill_recorder import record_skill_call
+
 
 def _excluded_feature_columns(df: pd.DataFrame, target_col: str) -> list[str]:
     """Return internal columns that should not appear in EDA feature summaries."""
@@ -287,6 +289,7 @@ def detect_outliers(df: pd.DataFrame, numerical_cols: list[str]) -> dict[str, An
     }
 
 
+@record_skill_call
 def profile_dataset(df: pd.DataFrame, target_col: str) -> dict[str, Any]:
     """Return a compact structured EDA profile for downstream agent use."""
     features = _feature_frame(df, target_col)

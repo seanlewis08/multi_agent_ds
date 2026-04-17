@@ -11,6 +11,7 @@ from sdv.metadata import Metadata
 from sdv.single_table import GaussianCopulaSynthesizer
 
 from multi_agent_ds.core import get_active_scale, load_settings
+from multi_agent_ds.tools.skill_recorder import record_tool_call
 
 logger = logging.getLogger(__name__)
 
@@ -94,6 +95,7 @@ def sigmoid(x: np.ndarray) -> np.ndarray:
     )
 
 
+@record_tool_call
 def true_probability(df: pd.DataFrame) -> np.ndarray:
     """Compute P(target=1) from the known ground truth function.
 
@@ -121,6 +123,7 @@ def true_probability(df: pd.DataFrame) -> np.ndarray:
     return sigmoid(logit)
 
 
+@record_tool_call
 def apply_ground_truth(
     df: pd.DataFrame, seed: int = 42, target_col: str = "target",
 ) -> pd.DataFrame:
@@ -205,6 +208,7 @@ def _build_metadata(seed_df: pd.DataFrame, settings: dict) -> Metadata:
     return metadata
 
 
+@record_tool_call
 def generate_synthetic_data(settings: dict | None = None) -> pd.DataFrame:
     """Generate synthetic data with SDV, optionally applying deterministic target.
 
@@ -258,6 +262,7 @@ def generate_synthetic_data(settings: dict | None = None) -> pd.DataFrame:
     return df
 
 
+@record_tool_call
 def save_local(df: pd.DataFrame, path: str | Path = "data/raw/synthetic_dataset.parquet") -> Path:
     """Write DataFrame to parquet."""
     path = Path(path)

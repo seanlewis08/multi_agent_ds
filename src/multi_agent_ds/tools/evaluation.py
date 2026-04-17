@@ -14,6 +14,8 @@ from sklearn.metrics import (
     roc_auc_score,
 )
 
+from multi_agent_ds.tools.skill_recorder import record_tool_call
+
 
 # ── Custom metric functions ────────────────────────────────────────────
 
@@ -94,6 +96,7 @@ def resolve_scorers(metric_names: list[str]) -> dict[str, Any]:
     return scorers
 
 
+@record_tool_call
 def evaluate_on_test(
     model,
     X_test,

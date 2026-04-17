@@ -5,6 +5,8 @@ import logging
 import subprocess
 from pathlib import Path
 
+from multi_agent_ds.tools.skill_recorder import record_tool_call
+
 logger = logging.getLogger(__name__)
 
 
@@ -30,6 +32,7 @@ def _run_command(command: list[str], cwd: str | Path | None = None) -> subproces
         ) from exc
 
 
+@record_tool_call
 def get_current_branch(cwd: str | Path | None = None) -> str:
     """Return the name of the current git branch."""
 
@@ -37,6 +40,7 @@ def get_current_branch(cwd: str | Path | None = None) -> str:
     return result.stdout.strip()
 
 
+@record_tool_call
 def create_branch(branch_name: str, from_branch: str = "main", cwd: str | Path | None = None) -> str:
     """Create and check out a git branch from another branch."""
 
@@ -63,6 +67,7 @@ def stage_all_changes(cwd: str | Path | None = None) -> list[str]:
     return [line for line in result.stdout.splitlines() if line]
 
 
+@record_tool_call
 def commit(message: str, cwd: str | Path | None = None) -> str:
     """Create a git commit and return its hash."""
 
@@ -71,6 +76,7 @@ def commit(message: str, cwd: str | Path | None = None) -> str:
     return result.stdout.strip()
 
 
+@record_tool_call
 def push_branch(branch_name: str, force: bool = False, cwd: str | Path | None = None) -> None:
     """Push a git branch to origin, optionally forcing the update."""
 
@@ -95,6 +101,7 @@ def get_changed_files(base: str = "main", cwd: str | Path | None = None) -> list
     return [line for line in result.stdout.splitlines() if line]
 
 
+@record_tool_call
 def create_pull_request(
     title: str,
     body: str,

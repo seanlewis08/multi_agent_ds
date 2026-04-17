@@ -13,6 +13,7 @@ from multi_agent_ds.core import load_settings
 from multi_agent_ds.skills.profiling import profile_dataset
 from multi_agent_ds.tools.data_generator import generate_synthetic_data
 from multi_agent_ds.tools.io import get_s3_client
+from multi_agent_ds.tools.skill_recorder import record_workflow_call
 
 
 def _resolve_target_column(settings: dict[str, Any]) -> str:
@@ -83,6 +84,7 @@ def load_dataframe(data_path: str | None, settings: dict[str, Any]) -> tuple[pd.
     return pd.read_parquet(local_path), str(local_path)
 
 
+@record_workflow_call
 def run_discovery_workflow(
     data_path: str | None = None,
     settings: dict[str, Any] | None = None,

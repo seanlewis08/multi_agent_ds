@@ -31,6 +31,8 @@ from sklearn.metrics import (
     roc_curve,
 )
 
+from multi_agent_ds.tools.skill_recorder import record_tool_call
+
 logger = logging.getLogger(__name__)
 
 
@@ -47,6 +49,7 @@ def _fig_to_png_bytes(fig: plt.Figure) -> bytes:
 
 # ── 1. ROC Curve ──────────────────────────────────────────────────────
 
+@record_tool_call
 def roc_curve_artifact(
     y_test: np.ndarray,
     y_prob: np.ndarray,
@@ -114,6 +117,7 @@ def roc_curve_artifact(
 
 # ── 2. Confusion Matrix ──────────────────────────────────────────────
 
+@record_tool_call
 def confusion_matrix_artifact(
     y_test: np.ndarray,
     y_pred: np.ndarray,
@@ -159,6 +163,7 @@ def confusion_matrix_artifact(
 
 # ── 3. Calibration Curve ─────────────────────────────────────────────
 
+@record_tool_call
 def calibration_artifact(
     y_test: np.ndarray,
     y_prob: np.ndarray,
@@ -238,6 +243,7 @@ def calibration_artifact(
 
 # ── 4. Feature Importance ────────────────────────────────────────────
 
+@record_tool_call
 def feature_importance_artifact(
     model,
     feature_names: list[str],
@@ -336,6 +342,7 @@ def feature_importance_artifact(
 
 # ── 5. Probability Distribution ──────────────────────────────────────
 
+@record_tool_call
 def probability_distribution_artifact(
     y_test: np.ndarray,
     y_prob: np.ndarray,
@@ -412,6 +419,7 @@ def probability_distribution_artifact(
 
 # ── 6. Classification Report ─────────────────────────────────────────
 
+@record_tool_call
 def classification_report_artifact(
     y_test: np.ndarray,
     y_pred: np.ndarray,
@@ -444,6 +452,7 @@ def classification_report_artifact(
 
 # ── 7. Ground Truth Comparison (conditional) ─────────────────────────
 
+@record_tool_call
 def ground_truth_artifact(
     y_prob: np.ndarray,
     true_prob: np.ndarray,
@@ -526,6 +535,7 @@ def ground_truth_artifact(
     }
 
 
+@record_tool_call
 def learning_curve_artifact(
     training_history: dict[str, Any],
     algo_name: str,

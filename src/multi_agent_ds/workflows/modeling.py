@@ -33,6 +33,7 @@ from multi_agent_ds.skills.modeling import prepare_data, train_with_defaults
 from multi_agent_ds.tools.artifacts import generate_run_artifacts
 from multi_agent_ds.tools.io import write_json
 from multi_agent_ds.tools.reporting import ExperimentLogger
+from multi_agent_ds.tools.skill_recorder import record_workflow_call
 
 logger = logging.getLogger(__name__)
 _MLFLOW_OUTPUT_DIR = Path(__file__).resolve().parents[3] / "mlruns" / "output"
@@ -253,6 +254,7 @@ def _export_mlflow_run_bundle(
     )
 
 
+@record_workflow_call
 def run_modeling_workflow(
     data_path: str = "data/raw/synthetic_dataset.parquet",
     settings: dict | None = None,

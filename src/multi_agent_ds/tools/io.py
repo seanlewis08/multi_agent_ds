@@ -11,6 +11,7 @@ import boto3
 from botocore.exceptions import ClientError, NoCredentialsError
 
 from multi_agent_ds.core import build_s3_uri, load_settings
+from multi_agent_ds.tools.skill_recorder import record_tool_call
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +49,7 @@ def get_s3_client(settings: dict | None = None):
     return client
 
 
+@record_tool_call
 def upload_to_s3(
     local_path: str | Path,
     path_key: str,
@@ -85,6 +87,7 @@ def upload_to_s3(
     return s3_uri
 
 
+@record_tool_call
 def download_from_s3(
     path_key: str,
     filename: str,

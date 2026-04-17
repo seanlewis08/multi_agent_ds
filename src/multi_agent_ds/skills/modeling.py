@@ -31,6 +31,7 @@ from tqdm import tqdm
 
 from multi_agent_ds.core import load_settings
 from multi_agent_ds.tools.evaluation import evaluate_on_test, resolve_scorers
+from multi_agent_ds.tools.skill_recorder import record_skill_call
 
 logger = logging.getLogger(__name__)
 
@@ -206,6 +207,7 @@ def _fit_model_and_capture_history(
 
 # ── Data preparation ───────────────────────────────────────────────────
 
+@record_skill_call
 def prepare_data(
     df: pd.DataFrame,
     target_col: str = "target",
@@ -319,6 +321,7 @@ def _encode_for_algorithm(
 
 # ── Phase 1: Baseline with defaults ───────────────────────────────────
 
+@record_skill_call
 def train_with_defaults(
     data: dict[str, Any],
     settings: dict | None = None,
@@ -425,6 +428,7 @@ def train_with_defaults(
 
 # ── Phase 1b: Find optimal n_estimators ────────────────────────────────
 
+@record_skill_call
 def find_optimal_estimators(
     algo_name: str,
     X_train: pd.DataFrame,
@@ -518,6 +522,7 @@ def find_optimal_estimators(
 
 # ── Phase 2: Optuna tuning (tree/regularization params) ───────────────
 
+@record_skill_call
 def tune_algorithm(
     algo_name: str,
     X_train: pd.DataFrame,
@@ -648,6 +653,7 @@ def tune_algorithm(
 
 # ── Phase 3: Train with specific params ───────────────────────────────
 
+@record_skill_call
 def train_with_params(
     algo_name: str,
     params: dict,
@@ -724,6 +730,7 @@ def train_with_params(
 
 # ── Phase 3b: Agent-driven learning rate adjustment ────────────────────
 
+@record_skill_call
 def adjust_learning_rate(
     algo_name: str,
     current_params: dict,
@@ -791,6 +798,7 @@ def adjust_learning_rate(
 
 # ── Feature importance and selection ───────────────────────────────────
 
+@record_skill_call
 def get_feature_importances(
     model,
     feature_names: list[str],
@@ -873,6 +881,7 @@ def get_feature_importances(
     }
 
 
+@record_skill_call
 def get_permutation_importances(
     model,
     X_test: pd.DataFrame,
@@ -1032,6 +1041,7 @@ def get_permutation_importances(
     }
 
 
+@record_skill_call
 def train_with_feature_subset(
     algo_name: str,
     params: dict,
