@@ -1620,47 +1620,50 @@
       return mapping[node] || null;
     }
 
-    // Determine orchestrator state label based on which nodes are active
+    // Determine orchestrator state label based on which nodes are active.
+    // Checks run in reverse-chronological workflow order so the deepest
+    // active stage wins when fan-out or transient overlap occurs.
+    // Each guard inspects activeNodes directly (no reliance on Set iteration
+    // order) — previous versions checked `first === 'data_engineer'` and
+    // `first === 'eda_raw'`, both of which were dead branches because the
+    // active set stores full node names like `data_engineer_execute`.
     function _updateOrchState(activeNodes) {
       if (activeNodes.size === 0) {
         _setOrchState('STARTING');
         return;
       }
 
-      // Check the workflow stage from the first/dominant active node
-      const first = Array.from(activeNodes)[0];
-
-      // Raw EDA phase
-      if (first === 'eda_raw' && !activeNodes.has('eda_prep_plan')) {
-        _setOrchState('RAW EDA');
-      }
-      // Raw review phase (fan-out reviewers)
-      else if (activeNodes.has('ml_modeler_raw_review') || activeNodes.has('ml_reviewer_raw_review') || activeNodes.has('business_stakeholder_raw_review')) {
-        _setOrchState('RAW REVIEW (3 agents)');
-      }
-      // Prep loop phase
-      else if (activeNodes.has('eda_prep_plan') || activeNodes.has('data_engineer_feedback')) {
-        _setOrchState('PREP PLAN & FEEDBACK');
-      }
-      // Data engineer execute phase
-      else if (first === 'data_engineer' && activeNodes.has('data_engineer_execute')) {
-        _setOrchState('DATA ENGINEER EXECUTE');
-      }
-      // Processed EDA phase
-      else if (first === 'eda_raw' && !activeNodes.has('eda_prep_plan') && activeNodes.has('eda_processed') && !activeNodes.has('ml_modeler_processed_review')) {
-        _setOrchState('PROCESSED EDA');
-      }
-      // Processed review phase
-      else if (activeNodes.has('ml_modeler_processed_review') || activeNodes.has('ml_reviewer_processed_review') || activeNodes.has('business_stakeholder_processed_review')) {
-        _setOrchState('PROCESSED REVIEW (3 agents)');
+      // Handoff phase (deepest stage, check first)
+      if (activeNodes.has('ml_modeler_handoff')) {
+        _setOrchState('HANDOFF → MODELING');
       }
       // Final approval phase
       else if (activeNodes.has('eda_processed_approval')) {
         _setOrchState('FINAL APPROVAL');
       }
-      // Handoff phase
-      else if (activeNodes.has('ml_modeler_handoff')) {
-        _setOrchState('HANDOFF → MODELING');
+      // Processed review phase (fan-out reviewers)
+      else if (activeNodes.has('ml_modeler_processed_review') || activeNodes.has('ml_reviewer_processed_review') || activeNodes.has('business_stakeholder_processed_review')) {
+        _setOrchState('PROCESSED REVIEW (3 agents)');
+      }
+      // Processed EDA phase
+      else if (activeNodes.has('eda_processed')) {
+        _setOrchState('PROCESSED EDA');
+      }
+      // Data engineer execute phase
+      else if (activeNodes.has('data_engineer_execute')) {
+        _setOrchState('DATA ENGINEER EXECUTE');
+      }
+      // Prep loop phase (plan + feasibility feedback)
+      else if (activeNodes.has('eda_prep_plan') || activeNodes.has('data_engineer_feedback')) {
+        _setOrchState('PREP PLAN & FEEDBACK');
+      }
+      // Raw review phase (fan-out reviewers)
+      else if (activeNodes.has('ml_modeler_raw_review') || activeNodes.has('ml_reviewer_raw_review') || activeNodes.has('business_stakeholder_raw_review')) {
+        _setOrchState('RAW REVIEW (3 agents)');
+      }
+      // Raw EDA phase (earliest stage, check last)
+      else if (activeNodes.has('eda_raw')) {
+        _setOrchState('RAW EDA');
       }
       else {
         _setOrchState('RUNNING');
