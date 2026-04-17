@@ -48,8 +48,22 @@ def run_preparation_workflow(
     data_path: str,
     prep_plan: dict[str, Any],
     settings: dict[str, Any] | None = None,
+    local_only: bool = False,
 ) -> dict[str, Any]:
-    """Execute an approved preparation plan and persist the processed parquet artifact."""
+    """Execute an approved preparation plan and persist the processed parquet artifact.
+
+    Parameters
+    ----------
+    data_path : str
+        Path to the input dataset
+    prep_plan : dict
+        Preparation plan with cleaning and feature-engineering actions
+    settings : dict, optional
+        Settings dictionary; if None, loads from config
+    local_only : bool, default False
+        If True, write processed parquet to local data/processed/ directory
+        and skip S3 upload. Use only for offline demo rehearsal.
+    """
     settings = settings or load_settings()
     df, source_path = load_dataframe(data_path, settings)
     target_col = _resolve_target_column(settings)
@@ -75,18 +89,28 @@ def run_preparation_workflow(
     )
 
     filename = build_processed_filename(source_path)
-    processed_path = build_s3_uri(settings, "processed", filename)
     processed_n_rows = int(len(engineered_df))
     processed_n_features = int(max(engineered_df.shape[1] - 1, 0))
-    with TemporaryDirectory() as tmp_dir:
-        local_path = Path(tmp_dir) / filename
+
+    if local_only:
+        # Write directly to local data/processed/ directory
+        processed_dir = Path(settings.get("data", {}).get("processed_dir", "data/processed"))
+        processed_dir.mkdir(parents=True, exist_ok=True)
+        local_path = processed_dir / filename
         engineered_df.to_parquet(local_path)
-        upload_to_s3(
-            local_path=local_path,
-            path_key="processed",
-            filename=filename,
-            settings=settings,
-        )
+        processed_path = str(local_path.resolve())
+    else:
+        # Upload to S3 as usual
+        processed_path = build_s3_uri(settings, "processed", filename)
+        with TemporaryDirectory() as tmp_dir:
+            local_path = Path(tmp_dir) / filename
+            engineered_df.to_parquet(local_path)
+            upload_to_s3(
+                local_path=local_path,
+                path_key="processed",
+                filename=filename,
+                settings=settings,
+            )
 
     return {
         "source_data_path": source_path,

@@ -29,8 +29,16 @@ def _resolve_target_column(settings: dict[str, Any]) -> str:
     return data_cfg.get("synthetic", {}).get("target", {}).get("column_name", "target")
 
 
-def _resolve_data_path(data_path: str | None, settings: dict[str, Any]) -> str | None:
-    """Resolve the input dataset location for discovery."""
+def resolve_data_path(data_path: str | None, settings: dict[str, Any]) -> str | None:
+    """Resolve the input dataset location from explicit path or settings.
+
+    If data_path is provided, use it directly. Otherwise, resolve based on the
+    data.source mode:
+      - "existing": use data.existing.uri (user's S3/remote path)
+      - "synthetic": use data/raw/synthetic_dataset.parquet if it exists, else None
+
+    Used by discovery workflow and demo_recorder CLI.
+    """
     if data_path is not None:
         return data_path
 
@@ -43,6 +51,10 @@ def _resolve_data_path(data_path: str | None, settings: dict[str, Any]) -> str |
         return str(default_local)
 
     return None
+
+
+# Backward-compat alias for internal callers (will be removed once they migrate)
+_resolve_data_path = resolve_data_path
 
 
 def _load_parquet_from_s3(uri: str, settings: dict[str, Any]) -> pd.DataFrame:

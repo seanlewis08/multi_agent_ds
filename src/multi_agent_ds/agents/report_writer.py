@@ -18,9 +18,9 @@ _GENERATE_MODES = {"generate"}
 
 
 def _append_decision(state: PipelineState, phase: str, **payload: Any) -> list[dict[str, Any]]:
-    return state.get("agent_decisions", []) + [
-        {"agent": "report_writer", "phase": phase, **payload}
-    ]
+    """Return the delta for `agent_decisions` (reducer concatenates)."""
+    del state  # `PipelineState.agent_decisions` uses operator.add; return delta only
+    return [{"agent": "report_writer", "phase": phase, **payload}]
 
 
 def _next_report_iteration(state: PipelineState) -> int:

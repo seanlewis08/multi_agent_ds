@@ -1,6 +1,8 @@
 # Project Tree — multi_agent_ds
 
-Captured: 2026-04-16
+_Last updated: 2026-04-17 (demo-runtime-viewer branch: demo_app.py standalone entry point added)_
+
+Captured: 2026-04-17
 
 ```
 ├── LICENSE
@@ -17,6 +19,8 @@ Captured: 2026-04-16
 │   └── raw
 ├── notebooks
 ├── project_planning
+│   ├── design_plans
+│   ├── implementation_plans
 │   ├── Multi_Agent_Framework_Research_Paper.docx
 │   └── Multi_Agent_Framework_Technical_Brief.docx
 ├── pyproject.toml
@@ -44,6 +48,8 @@ Captured: 2026-04-16
 │       │   ├── orchestrator.py
 │       │   └── report_writer.py
 │       ├── app.py
+│       ├── demo_app.py
+│       ├── demo_viewer.html
 │       ├── core
 │       │   ├── __init__.py
 │       │   ├── context.py
@@ -51,6 +57,8 @@ Captured: 2026-04-16
 │       │   └── registry.py
 │       ├── orchestration
 │       │   ├── __init__.py
+│       │   ├── demo_recorder.py
+│       │   ├── demo_viewer_loader.py
 │       │   ├── graph.py
 │       │   ├── router.py
 │       │   └── state.py

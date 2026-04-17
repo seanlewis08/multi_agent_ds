@@ -26,7 +26,9 @@ def _dump_model(model_cls: type[Any], payload: dict[str, Any]) -> dict[str, Any]
 
 
 def _append_decision(state: PipelineState, phase: str, **payload: Any) -> list[dict[str, Any]]:
-    return state.get("agent_decisions", []) + [{"agent": "data_engineer", "phase": phase, **payload}]
+    """Return the delta for `agent_decisions` (reducer concatenates)."""
+    del state  # `PipelineState.agent_decisions` uses operator.add; return delta only
+    return [{"agent": "data_engineer", "phase": phase, **payload}]
 
 
 def data_engineer_node(state: PipelineState, mode: str = "feedback") -> dict[str, Any]:
@@ -63,10 +65,12 @@ def data_engineer_node(state: PipelineState, mode: str = "feedback") -> dict[str
         }
 
     if mode == "execute":
+        local_only = state.get("local_only", False)
         prep_result = run_preparation_workflow(
             data_path=state["data_path"],
             prep_plan=state["prep_plan"],
             settings=settings,
+            local_only=local_only,
         )
         return {
             "processed_data_path": prep_result["processed_data_path"],

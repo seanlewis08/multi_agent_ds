@@ -1,0 +1,2219 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>multi_agent_ds — demo runtime</title>
+  <style>
+    /* ==== BEGIN COPIED FROM demo_mockup.html — DO NOT EDIT BY HAND ==== */
+  :root {
+    --orange: #FF5A00;
+    --orange-lt: #FFE7D6;
+    --black: #111111;
+    --charcoal: #1F1F1F;
+    --slate: #3A3A3A;
+    --cream: #FBF6EE;
+    --sand: #EFE7D7;
+    --div: #E4DCCB;
+    --good: #2E7D32;
+    --warn: #F29B2E;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #777; font-family: "Calibri", "Helvetica Neue", Arial, sans-serif; color: var(--black); }
+
+  .book { display: flex; flex-direction: column; align-items: center; gap: 36px; padding: 40px; }
+
+  /* Every page is a 1280x800 canvas */
+  .page {
+    width: 1280px; height: 800px;
+    background: var(--cream);
+    border-radius: 10px;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+    position: relative; overflow: hidden;
+  }
+
+  .tag {
+    position: absolute; top: -28px; left: 0;
+    font-family: "Arial Black", Arial, sans-serif;
+    font-size: 14px; letter-spacing: 1.5px;
+    color: white; text-transform: uppercase;
+  }
+
+  /* ============ Shared chrome ============ */
+  .topbar {
+    height: 56px; background: var(--black); color: white;
+    display: flex; align-items: center; padding: 0 24px;
+    font-family: "Arial Black", Arial, sans-serif;
+    letter-spacing: 1px;
+  }
+  .topbar .brand { font-size: 18px; }
+  .topbar .brand span { color: var(--orange); }
+  .topbar .crumbs { margin-left: auto; font-family: Calibri, sans-serif; font-weight: normal; font-size: 13px; letter-spacing: 0.5px; color: #bbb; }
+  .topbar .crumbs b { color: white; }
+
+  .footer {
+    position: absolute; bottom: 0; left: 0; right: 0; height: 28px;
+    background: var(--black); color: #ccc;
+    font-size: 11px; font-family: Calibri, sans-serif;
+    display: flex; align-items: center; padding: 0 16px;
+    letter-spacing: 0.4px;
+  }
+  .footer .dot { color: var(--orange); margin: 0 10px; }
+
+  .btn {
+    background: var(--orange); color: white; border: none;
+    font-family: "Arial Black", Arial, sans-serif;
+    letter-spacing: 1px; cursor: pointer;
+    padding: 14px 26px; border-radius: 6px;
+    box-shadow: 0 4px 0 #c24500;
+  }
+  .btn.ghost { background: white; color: var(--black); border: 2px solid var(--black); box-shadow: none; }
+
+  /* ============ PAGE 1 — Config ============ */
+  .p1 .body { padding: 32px 40px 0 40px; }
+  .p1 h1 {
+    font-family: "Arial Black", Arial, sans-serif;
+    margin: 0 0 4px 0; font-size: 32px;
+  }
+  .p1 .sub { color: var(--slate); margin-bottom: 20px; font-size: 14px; }
+
+  .cfg-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+  .cfg-card {
+    background: white; border-radius: 10px;
+    border: 1px solid var(--div);
+    padding: 18px 20px; position: relative;
+  }
+  .cfg-card:before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0;
+    width: 5px; background: var(--orange); border-radius: 10px 0 0 10px;
+  }
+  .cfg-card h3 {
+    font-family: "Arial Black", Arial, sans-serif;
+    margin: 0 0 10px 0; font-size: 14px; letter-spacing: 1px;
+    text-transform: uppercase; color: var(--black);
+  }
+  .kv { display: flex; justify-content: space-between; font-size: 14px; padding: 6px 0; border-bottom: 1px dashed var(--div); }
+  .kv:last-child { border-bottom: none; }
+  .kv .k { color: var(--slate); }
+  .kv .v { font-family: "Courier New", monospace; color: var(--black); }
+
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+  .chip {
+    background: var(--orange-lt); color: #8a3100;
+    font-family: "Courier New", monospace; font-size: 12px;
+    padding: 4px 10px; border-radius: 999px;
+    border: 1px solid #F5C8A8;
+  }
+
+  .run-row {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 22px;
+    background: var(--black); color: white;
+    padding: 16px 20px; border-radius: 10px;
+  }
+  .run-row .hint { font-size: 13px; color: #ccc; }
+  .run-row b { color: var(--orange); font-family: "Arial Black"; letter-spacing: 0.5px; }
+
+  /* ============ PAGE 2 — Input Preview ============ */
+  .p2 .body { padding: 28px 40px 0 40px; }
+  .p2 h1 {
+    font-family: "Arial Black", Arial, sans-serif;
+    margin: 0 0 4px 0; font-size: 28px;
+  }
+  .p2 .sub { color: var(--slate); margin-bottom: 14px; font-size: 13px; }
+
+  .pillstrip { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+  .pill {
+    background: white; border: 1px solid var(--div);
+    border-radius: 999px; padding: 6px 14px;
+    font-size: 13px; color: var(--slate);
+  }
+  .pill b { color: var(--black); font-family: "Arial Black"; }
+  .pill.accent { background: var(--orange); color: white; border-color: var(--orange); }
+  .pill.accent b { color: white; }
+
+  .tbl {
+    width: 100%; background: white; border-radius: 8px;
+    border: 1px solid var(--div); overflow: hidden;
+    font-size: 12px; font-family: "Courier New", monospace;
+  }
+  .tbl table { width: 100%; border-collapse: collapse; }
+  .tbl th {
+    background: var(--black); color: white; text-align: left;
+    padding: 8px 10px; font-weight: normal;
+    letter-spacing: 0.5px; font-family: "Arial Black"; font-size: 11px;
+    border-right: 1px solid #333;
+  }
+  .tbl td {
+    padding: 6px 10px; border-top: 1px solid var(--div);
+    border-right: 1px solid var(--div);
+    color: var(--charcoal);
+  }
+  .tbl tr:nth-child(odd) td { background: #FAF5EB; }
+  .tbl td.target { color: var(--orange); font-weight: bold; }
+
+  .p2-footer-row {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-top: 16px;
+  }
+  .p2-note { color: var(--slate); font-size: 13px; max-width: 680px; line-height: 1.45; }
+
+  /* ============ PAGE 3 — Runtime ============ */
+  .p3 .stage {
+    position: absolute; top: 56px; left: 0; right: 0; bottom: 28px;
+    padding: 14px 20px 18px 20px;
+    display: flex; flex-direction: column;
+  }
+
+  .band {
+    background: white; border: 1px solid var(--div);
+    border-radius: 10px; padding: 10px 16px;
+    display: flex; align-items: center; gap: 14px;
+    font-size: 13px;
+  }
+  .band .title {
+    font-family: "Arial Black"; letter-spacing: 1px; font-size: 12px;
+    color: white; background: var(--black); padding: 4px 10px; border-radius: 4px;
+  }
+  .band.orch .status { color: var(--orange); font-family: "Arial Black"; letter-spacing: 0.5px; }
+  .band.report { margin-top: 10px; opacity: 0.55; }
+  .band.report .status { color: var(--slate); }
+
+  .columns {
+    flex: 1; display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px; margin-top: 12px;
+  }
+
+  .col {
+    background: white; border: 1px solid var(--div); border-radius: 10px;
+    display: flex; flex-direction: column; overflow: hidden;
+    position: relative;
+  }
+  .col .head {
+    background: var(--black); color: white;
+    padding: 10px 12px;
+    font-family: "Arial Black"; font-size: 13px;
+    letter-spacing: 0.5px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .col .head .idx {
+    color: var(--orange); font-size: 11px;
+  }
+  .col.active .head { background: var(--orange); }
+  .col.active .head .idx { color: white; }
+
+  .lanes { display: flex; flex-direction: column; flex: 1; }
+  .lane {
+    flex: 1; padding: 8px 10px;
+    border-top: 1px solid var(--div);
+    display: flex; flex-direction: column; gap: 6px;
+    min-height: 0;
+  }
+  .lane:first-child { border-top: none; }
+  .lane .lbl {
+    font-family: "Arial Black"; font-size: 10px; letter-spacing: 1px;
+    color: var(--slate);
+  }
+  .lane.input .lbl { color: #4a6aa8; }
+  .lane.action .lbl { color: var(--orange); }
+  .lane.output .lbl { color: #2E7D32; }
+
+  .chiprow { display: flex; gap: 4px; flex-wrap: wrap; }
+  .item {
+    background: #F7F1E5; border: 1px solid var(--div);
+    border-radius: 6px; padding: 5px 7px; font-size: 11px;
+    font-family: "Courier New", monospace; color: var(--charcoal);
+    line-height: 1.2;
+  }
+  .item.live {
+    background: var(--orange); color: white; border-color: var(--orange);
+    box-shadow: 0 0 0 3px rgba(255,90,0,0.15);
+  }
+  .item.done { background: #EEF6EE; border-color: #C7E2C7; color: #1F5A1F; }
+
+  /* moving message token illustration */
+  .token {
+    position: absolute;
+    background: var(--orange); color: white;
+    font-family: "Courier New", monospace; font-size: 10px;
+    padding: 3px 8px; border-radius: 999px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+  }
+  .arrow {
+    position: absolute;
+    height: 2px; background: var(--orange);
+    border-radius: 2px;
+  }
+  .arrow:after {
+    content: ""; position: absolute; right: -6px; top: -4px;
+    border-left: 8px solid var(--orange);
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+  }
+  .fan {
+    position: absolute;
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--orange);
+    box-shadow: 0 0 0 5px rgba(255,90,0,0.18);
+  }
+
+  .orch-legend {
+    display: flex; gap: 12px; margin-left: 18px;
+    font-size: 11px; color: var(--slate);
+  }
+  .orch-legend .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 4px; vertical-align: -1px; }
+
+  /* ============ PAGE 4 — Output & Summary ============ */
+  .p4 .body { padding: 28px 40px 0 40px; }
+  .p4 h1 {
+    font-family: "Arial Black"; margin: 0 0 4px 0; font-size: 28px;
+  }
+  .p4 .sub { color: var(--slate); margin-bottom: 14px; font-size: 13px; }
+
+  .split { display: grid; grid-template-columns: 1.35fr 1fr; gap: 18px; }
+
+  .delta-row { display: flex; gap: 10px; margin-bottom: 14px; }
+  .delta {
+    flex: 1;
+    background: white; border: 1px solid var(--div); border-radius: 10px;
+    padding: 10px 14px; position: relative;
+  }
+  .delta:before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0;
+    width: 5px; background: var(--orange); border-radius: 10px 0 0 10px;
+  }
+  .delta .num {
+    font-family: "Arial Black"; font-size: 22px; color: var(--black); line-height: 1;
+  }
+  .delta .lbl {
+    font-size: 11px; letter-spacing: 1px; text-transform: uppercase;
+    color: var(--slate); margin-top: 2px;
+  }
+  .delta.good .num { color: var(--good); }
+
+  .summary-card {
+    background: white; border: 1px solid var(--div);
+    border-radius: 10px; padding: 14px 16px; margin-bottom: 12px;
+  }
+  .summary-card h4 {
+    font-family: "Arial Black"; font-size: 13px; letter-spacing: 1px;
+    margin: 0 0 8px 0; text-transform: uppercase;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .summary-card h4 .tagdot {
+    width: 10px; height: 10px; border-radius: 2px; background: var(--orange);
+  }
+  .summary-card ul { margin: 0; padding-left: 18px; color: var(--charcoal); font-size: 13px; line-height: 1.55; }
+  .summary-card ul li { margin-bottom: 3px; }
+
+  .stamp {
+    position: absolute; right: 40px; top: 72px;
+    background: var(--black); color: white;
+    font-family: "Arial Black"; font-size: 11px;
+    letter-spacing: 1.5px;
+    padding: 6px 10px; border-radius: 4px;
+    z-index: 5;
+  }
+  .stamp b { color: var(--orange); }
+
+  /* ============ PAGE 4 Drawer / Slider ============ */
+  .p4-stage {
+    position: absolute; top: 56px; left: 0; right: 0; bottom: 28px;
+    overflow: hidden;
+  }
+  .p4-slider {
+    display: flex; height: 100%;
+    width: 2240px;                       /* 1280 main + 960 detail */
+    transition: transform 520ms cubic-bezier(.22,.61,.36,1);
+    will-change: transform;
+  }
+  .p4-slider.open-orch,
+  .p4-slider.open-eda,
+  .p4-slider.open-de,
+  .p4-slider.open-mlm,
+  .p4-slider.open-mlr,
+  .p4-slider.open-biz { transform: translateX(-960px); }
+
+  .p4-main {
+    width: 1280px; flex: none;
+    padding: 24px 40px 16px 40px;
+    position: relative;
+  }
+  .p4-detail {
+    width: 960px; flex: none;
+    background: var(--black); color: white;
+    display: flex; flex-direction: column;
+    position: relative;
+  }
+  .p4-detail:before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0;
+    width: 6px; background: var(--orange);
+  }
+
+  .detail-head {
+    display: flex; align-items: center; gap: 14px;
+    padding: 18px 26px 14px 26px;
+    border-bottom: 1px solid #2a2a2a;
+  }
+  .detail-back {
+    background: transparent; color: white;
+    border: 1px solid #555; border-radius: 6px;
+    padding: 6px 12px; font-family: "Arial Black";
+    font-size: 11px; letter-spacing: 1px; cursor: pointer;
+  }
+  .detail-back:hover { background: #222; border-color: var(--orange); color: var(--orange); }
+  .detail-title {
+    font-family: "Arial Black"; font-size: 16px; letter-spacing: 1.5px;
+  }
+  .detail-title b { color: var(--orange); }
+
+  .detail-body {
+    padding: 22px 26px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 22px;
+    flex: 1;
+    min-height: 0;        /* allow flex-shrink so scroll works in column flex */
+    overflow-y: auto;     /* scroll tall drawers instead of clipping at the page edge */
+  }
+  .detail-body::-webkit-scrollbar { width: 10px; }
+  .detail-body::-webkit-scrollbar-track { background: #0a0a0a; }
+  .detail-body::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 5px; }
+  .detail-body::-webkit-scrollbar-thumb:hover { background: var(--orange); }
+  .detail-pane { display: none; grid-column: 1 / -1; grid-template-columns: 1fr 1fr; gap: 22px; }
+  .p4-slider.open-orch .detail-pane.orch,
+  .p4-slider.open-eda  .detail-pane.eda,
+  .p4-slider.open-de   .detail-pane.de,
+  .p4-slider.open-mlm  .detail-pane.mlm,
+  .p4-slider.open-mlr  .detail-pane.mlr,
+  .p4-slider.open-biz  .detail-pane.biz { display: grid; }
+
+  .dcard {
+    background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 10px;
+    padding: 16px 18px;
+  }
+  .dcard h5 {
+    margin: 0 0 10px 0; font-family: "Arial Black";
+    font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--orange);
+  }
+  .dcard ul { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.55; color: #eee; }
+  .dcard ul li { margin-bottom: 3px; }
+  .dcard .code {
+    background: #000; color: #ffb680;
+    font-family: "Courier New", monospace; font-size: 12px;
+    padding: 8px 10px; border-radius: 6px; border: 1px solid #333;
+    margin-top: 8px; white-space: pre;
+  }
+  .dcard .stat-row { display: flex; gap: 14px; margin-top: 8px; }
+  .dcard .stat-row .s {
+    flex: 1; background: #000; border: 1px solid #333; border-radius: 6px;
+    padding: 8px 10px;
+  }
+  .dcard .stat-row .s .n { font-family: "Arial Black"; font-size: 18px; color: white; }
+  .dcard .stat-row .s .l { font-size: 10px; color: #aaa; letter-spacing: 1px; text-transform: uppercase; }
+
+  /* Agent click-cards on main */
+  .agent-rail { display: flex; flex-direction: column; gap: 5px; }
+  .agent-rail .group-lbl {
+    font-family: "Arial Black"; font-size: 9px;
+    letter-spacing: 1.5px; color: var(--slate);
+    text-transform: uppercase;
+    margin: 4px 0 1px 2px;
+  }
+  .agent-rail .group-lbl:first-child { margin-top: 0; }
+  .agent-card {
+    background: white; border: 1px solid var(--div);
+    border-radius: 8px; padding: 6px 10px;
+    cursor: pointer; transition: transform .12s, box-shadow .12s, border-color .12s;
+    display: flex; align-items: center; gap: 10px;
+    position: relative;
+  }
+  .agent-card:hover {
+    border-color: var(--orange);
+    transform: translateX(-3px);
+    box-shadow: 4px 4px 0 var(--orange);
+  }
+  .agent-card .avatar {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--black); color: var(--orange);
+    display: flex; align-items: center; justify-content: center;
+    font-family: "Arial Black"; font-size: 10px; letter-spacing: 0.3px;
+    flex: none;
+  }
+  .agent-card .meta { flex: 1; min-width: 0; }
+  .agent-card .meta .name {
+    font-family: "Arial Black"; font-size: 12px; letter-spacing: 0.3px;
+    line-height: 1.15;
+  }
+  .agent-card .meta .role {
+    font-size: 10px; color: var(--slate); margin-top: 1px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .agent-card .chev {
+    color: var(--orange); font-family: "Arial Black"; font-size: 16px;
+  }
+  .agent-card.crew { background: #F6F0E2; border-color: #E0D4BA; }
+  .agent-card.crew .avatar { background: var(--slate); }
+
+  .hint-ribbon {
+    margin-top: 3px; font-size: 10px; color: var(--slate);
+    font-style: italic;
+  }
+    /* ==== END COPIED FROM demo_mockup.html ==== */
+
+    /* ==== viewer-only additions ==== */
+    :root {
+      --ink: #0F1219;
+    }
+
+    /* Page 4 — prevent the processed-data table from forcing the split
+       grid's left track wider than its fractional share. Without
+       minmax(0, ...), the default min-width:auto lets the table's
+       min-content size (11 monospace columns ~= 1300px) push the right
+       track (agent rail) past the 1280px canvas, where .p4-stage's
+       overflow:hidden then clips it. */
+    .p4 .split {
+      grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+    }
+    /* Keep the processed-data preview bounded so it fits inside the
+       716px stage without pushing later elements off-canvas. Overrides
+       the base .tbl { overflow: hidden } — rounded corners still clip
+       because the wrapper itself remains the scroll container. */
+    .p4 .tbl {
+      max-height: 280px;
+      overflow: auto;
+    }
+
+    .tbl th.target { color: var(--orange); }
+
+    /* Runtime page — column state styling */
+    .col.done { border-color: #C7E2C7; }
+    .col.done .head { background: #EEF6EE; color: #2E5B2E; }
+    .col.errored { border-color: #E2A7A7; }
+    .col.errored .head { background: #FBE7E7; color: #8A2323; }
+
+    /* single-page navigation */
+    html, body { margin: 0; padding: 0; background: var(--ink, #0F1219); }
+    .viewer .page { display: none; }
+    /* flex-direction: column is LOAD-BEARING — without it the page's
+       .topbar / .body / .footer arrange as flex-row (default), pushing
+       the body content to the right of the topbar and creating a
+       "phantom left sidebar". The outer .book already uses column, but
+       these page-level overrides must repeat it. */
+    .viewer[data-page="config"]  .page.p1 { display: flex; flex-direction: column; }
+    .viewer[data-page="input"]   .page.p2 { display: flex; flex-direction: column; }
+    .viewer[data-page="runtime"] .page.p3 { display: flex; flex-direction: column; }
+    .viewer[data-page="summary"] .page.p4 { display: flex; flex-direction: column; }
+    .viewer .book { padding: 0; gap: 0; }
+
+    /* Clickable breadcrumbs — global click delegation on [data-goto]
+       already routes to goTo(); these rules just make them look clickable. */
+    .topbar .crumbs [data-goto] {
+      cursor: pointer;
+      padding: 2px 6px; border-radius: 4px;
+      transition: color 120ms, background 120ms;
+    }
+    .topbar .crumbs [data-goto]:hover {
+      color: var(--orange); background: rgba(255,90,0,0.12);
+    }
+    .topbar .crumbs [data-goto].active {
+      color: white; font-weight: bold;
+    }
+    .topbar .crumbs .sep { color: #555; margin: 0 4px; }
+
+    /* Lane-item blink on append — draws the eye to newly-streamed chips. */
+    @keyframes lane-blink-pulse {
+      0%   { background: var(--orange); color: white; border-color: var(--orange);
+             box-shadow: 0 0 0 3px rgba(255,90,0,0.35); transform: translateY(-1px); }
+      70%  { background: var(--orange); color: white; border-color: var(--orange);
+             box-shadow: 0 0 0 3px rgba(255,90,0,0.15); transform: translateY(0); }
+      100% { /* revert to resting .item styles */ }
+    }
+    .item.blink-new { animation: lane-blink-pulse 900ms ease-out 1; }
+
+    /* Page 3 runtime controls (Pause / Resume / Restart / View Results). */
+    .p3-ctrls { display: flex; gap: 8px; align-items: center; margin-left: 16px; }
+    .p3-ctrls button {
+      background: transparent; color: #ddd;
+      border: 1px solid #555; border-radius: 6px;
+      padding: 5px 11px; font-family: "Arial Black", Arial, sans-serif;
+      font-size: 10px; letter-spacing: 1px; cursor: pointer;
+      transition: background 120ms, color 120ms, border-color 120ms;
+    }
+    .p3-ctrls button:hover {
+      background: var(--orange); color: white; border-color: var(--orange);
+    }
+    .p3-ctrls .view-results {
+      background: var(--orange); color: white; border-color: var(--orange);
+      display: none;
+    }
+    .p3-ctrls .view-results:hover { background: #e04d00; border-color: #e04d00; }
+    .p3-ctrls.complete .view-results { display: inline-block; }
+
+    /* override mockup's book padding so the iframe fills height=820 */
+  </style>
+</head>
+<body>
+  <div class="viewer" data-page="config">
+    <div class="book">
+      <!-- Page 1: Config (populated by renderConfig from window.DEMO_LOG.config and .artifacts.input_df_stats) -->
+      <div class="page p1">
+        <div class="tag">PAGE 1 — CONFIG</div>
+        <div class="topbar">
+          <div class="brand">MULTI-AGENT <span>·</span> DS</div>
+          <div class="crumbs">
+            <span data-goto="config" class="active"><b>Config</b></span><span class="sep">›</span><span data-goto="input">Input</span><span class="sep">›</span><span data-goto="runtime">Runtime</span><span class="sep">›</span><span data-goto="summary">Results</span>
+          </div>
+        </div>
+        <div class="body">
+          <h1>Configure the run</h1>
+          <div class="sub">Values pulled from <code>config/settings.yaml</code>. Edit in-place to override for this demo.</div>
+
+          <div class="cfg-grid">
+            <div class="cfg-card">
+              <h3>Data</h3>
+              <div class="kv"><span class="k">Source</span><span class="v" data-cfg="source">—</span></div>
+              <div class="kv"><span class="k">Target</span><span class="v" data-cfg="target">—</span></div>
+              <div class="kv"><span class="k">Rows × cols</span><span class="v" data-cfg="rows_cols">—</span></div>
+              <div class="kv"><span class="k">Positive rate</span><span class="v" data-cfg="positive_rate_pct">—</span></div>
+            </div>
+
+            <div class="cfg-card">
+              <h3>Scale & Budget</h3>
+              <div class="kv"><span class="k">Scale</span><span class="v" data-cfg="scale">—</span></div>
+              <div class="kv"><span class="k">Max trials</span><span class="v" data-cfg="max_trials">—</span></div>
+              <div class="kv"><span class="k">CV folds</span><span class="v" data-cfg="cv_folds">—</span></div>
+              <div class="kv"><span class="k">Timeout (s)</span><span class="v" data-cfg="timeout">—</span></div>
+            </div>
+
+            <div class="cfg-card">
+              <h3>Algorithms</h3>
+              <div class="chips" data-cfg-chips="algorithms">
+              </div>
+              <div class="kv" style="margin-top:10px;"><span class="k">Primary metric</span><span class="v" data-cfg="primary_metric">—</span></div>
+              <div class="kv"><span class="k">Tracing</span><span class="v" data-cfg="tracing">—</span></div>
+            </div>
+
+            <div class="cfg-card">
+              <h3>Cost</h3>
+              <div class="kv"><span class="k">Cost override</span><span class="v" data-cfg="cost_override">—</span></div>
+              <div class="kv"><span class="k">Source mode</span><span class="v" data-cfg="source_mode">—</span></div>
+            </div>
+          </div>
+
+          <div class="run-row">
+            <div class="hint">Press <b>RUN</b> to stream events from a cached LangGraph event log — no API calls required.</div>
+            <button type="button" class="btn" data-goto="input">RUN ▶</button>
+          </div>
+        </div>
+        <div class="footer">multi_agent_ds <span class="dot">●</span> replay mode <span class="dot">●</span> local only <span style="margin-left:auto;">01 / 04</span></div>
+      </div>
+
+      <!-- Page 2: Input Preview (populated by renderInputPreview from window.DEMO_LOG.artifacts) -->
+      <div class="page p2">
+        <div class="tag">PAGE 2 — INPUT PREVIEW</div>
+        <div class="topbar">
+          <div class="brand">MULTI-AGENT <span>·</span> DS</div>
+          <div class="crumbs">
+            <span data-goto="config">Config</span><span class="sep">›</span><span data-goto="input" class="active"><b>Input</b></span><span class="sep">›</span><span data-goto="runtime">Runtime</span><span class="sep">›</span><span data-goto="summary">Results</span>
+          </div>
+        </div>
+        <div class="body">
+          <h1>Input preview</h1>
+          <div class="sub">First 10 rows of the input dataset, with summary statistics.</div>
+
+          <div class="pillstrip" data-input-pills>
+            <div class="pill"><b data-pill="rows">—</b> rows</div>
+            <div class="pill"><b data-pill="cols">—</b> columns</div>
+            <div class="pill accent">target = <b data-pill="target">—</b></div>
+            <div class="pill">positive rate <b data-pill="positive_rate_pct">—</b></div>
+            <div class="pill">numeric <b data-pill="numeric">—</b></div>
+            <div class="pill">categorical <b data-pill="categorical">—</b></div>
+            <div class="pill">missing cells <b data-pill="missing_pct">—</b></div>
+          </div>
+
+          <div class="tbl">
+            <table>
+              <thead data-input-head></thead>
+              <tbody data-input-body></tbody>
+            </table>
+          </div>
+
+          <div class="p2-footer-row">
+            <div class="p2-note">Ready to proceed to the runtime replay. Click <b>CONTINUE</b> to stream the event log and visualize the agent orchestration.</div>
+            <button type="button" class="btn" data-goto="runtime">CONTINUE ▶</button>
+          </div>
+        </div>
+        <div class="footer">multi_agent_ds <span class="dot">●</span> replay mode <span class="dot">●</span> local only <span style="margin-left:auto;">02 / 04</span></div>
+      </div>
+
+      <!-- Page 3: Runtime — replay engine -->
+      <div class="page p3">
+        <div class="tag">PAGE 3 — RUNTIME</div>
+        <div class="topbar">
+          <div class="brand">MULTI-AGENT <span>·</span> DS</div>
+          <div class="crumbs">
+            <span data-goto="config">Config</span><span class="sep">›</span><span data-goto="input">Input</span><span class="sep">›</span><span data-goto="runtime" class="active"><b>Runtime</b></span><span class="sep">›</span><span data-goto="summary">Results</span>
+          </div>
+          <div class="p3-ctrls" data-p3-ctrls>
+            <button type="button" data-replay-pause>PAUSE</button>
+            <button type="button" data-replay-restart>RESTART</button>
+            <button type="button" class="view-results" data-goto="summary">VIEW RESULTS ▶</button>
+            <label style="font-size:11px; color:#bbb; font-family: Calibri, sans-serif; letter-spacing: 0.3px;">
+              speed
+              <select data-speed style="margin-left:6px;">
+                <option value="0.5">0.5×</option>
+                <option value="1">1×</option>
+                <option value="1.5">1.5×</option>
+                <option value="2" selected>2×</option>
+              </select>
+            </label>
+          </div>
+        </div>
+        <div class="stage">
+          <div class="band orch">
+            <div class="title">ORCHESTRATOR</div>
+            <div>State: <span class="status" data-orch-state>STARTING</span></div>
+            <div class="orch-legend">
+              <div><span class="dot" style="background: var(--orange);"></span>Active agent</div>
+              <div><span class="dot" style="background: #2E7D32;"></span>Completed agent</div>
+              <div><span class="dot" style="background: #E4DCCB;"></span>Idle agent</div>
+            </div>
+            <div style="margin-left:auto; font-family: 'Courier New', monospace; font-size:12px; color: var(--slate);">
+              elapsed <span data-orch-elapsed>00:00</span>
+            </div>
+          </div>
+          <div class="columns">
+            <!-- EDA Analyst column (recorded) -->
+            <div class="col" data-col="eda_raw">
+              <div class="head"><span>EDA Analyst</span><span class="idx">01</span></div>
+              <div class="lanes">
+                <div class="lane input">
+                  <div class="lbl">INPUT</div>
+                  <div class="lane-items" data-lane="input"></div>
+                </div>
+                <div class="lane action">
+                  <div class="lbl">ACTION</div>
+                  <div class="lane-items" data-lane="action"></div>
+                </div>
+                <div class="lane output">
+                  <div class="lbl">OUTPUT</div>
+                  <div class="lane-items" data-lane="output"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Data Engineer column (recorded) -->
+            <div class="col" data-col="data_engineer">
+              <div class="head"><span>Data Engineer</span><span class="idx">02</span></div>
+              <div class="lanes">
+                <div class="lane input">
+                  <div class="lbl">INPUT</div>
+                  <div class="lane-items" data-lane="input"></div>
+                </div>
+                <div class="lane action">
+                  <div class="lbl">ACTION</div>
+                  <div class="lane-items" data-lane="action"></div>
+                </div>
+                <div class="lane output">
+                  <div class="lbl">OUTPUT</div>
+                  <div class="lane-items" data-lane="output"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ML Modeler column (recorded) -->
+            <div class="col" data-col="ml_modeler">
+              <div class="head"><span>ML Modeler</span><span class="idx">03</span></div>
+              <div class="lanes">
+                <div class="lane input">
+                  <div class="lbl">INPUT</div>
+                  <div class="lane-items" data-lane="input"></div>
+                </div>
+                <div class="lane action">
+                  <div class="lbl">ACTION</div>
+                  <div class="lane-items" data-lane="action"></div>
+                </div>
+                <div class="lane output">
+                  <div class="lbl">OUTPUT</div>
+                  <div class="lane-items" data-lane="output"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ML Reviewer column (recorded) -->
+            <div class="col" data-col="ml_reviewer">
+              <div class="head"><span>ML Reviewer</span><span class="idx">04</span></div>
+              <div class="lanes">
+                <div class="lane input">
+                  <div class="lbl">INPUT</div>
+                  <div class="lane-items" data-lane="input"></div>
+                </div>
+                <div class="lane action">
+                  <div class="lbl">ACTION</div>
+                  <div class="lane-items" data-lane="action"></div>
+                </div>
+                <div class="lane output">
+                  <div class="lbl">OUTPUT</div>
+                  <div class="lane-items" data-lane="output"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Business Stakeholder column (recorded) -->
+            <div class="col" data-col="business_stakeholder">
+              <div class="head"><span>Business Stakeholder</span><span class="idx">05</span></div>
+              <div class="lanes">
+                <div class="lane input">
+                  <div class="lbl">INPUT</div>
+                  <div class="lane-items" data-lane="input"></div>
+                </div>
+                <div class="lane action">
+                  <div class="lbl">ACTION</div>
+                  <div class="lane-items" data-lane="action"></div>
+                </div>
+                <div class="lane output">
+                  <div class="lbl">OUTPUT</div>
+                  <div class="lane-items" data-lane="output"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="footer">multi_agent_ds <span class="dot">●</span> replay mode <span class="dot">●</span> local only <span style="margin-left:auto;">03 / 04</span></div>
+      </div>
+      <!-- Page 4: Summary — output drawer with agent rail -->
+      <div class="page p4">
+        <div class="tag">PAGE 4 — SUMMARY</div>
+        <div class="topbar">
+          <div class="brand">MULTI-AGENT <span>·</span> DS</div>
+          <div class="crumbs">
+            <span data-goto="config">Config</span><span class="sep">›</span><span data-goto="input">Input</span><span class="sep">›</span><span data-goto="runtime">Runtime</span><span class="sep">›</span><span data-goto="summary" class="active"><b>Results</b></span>
+          </div>
+        </div>
+        <div class="p4-stage">
+          <div class="p4-slider">
+            <div class="p4-main">
+              <h1>Results & Agent Review</h1>
+              <div class="sub">Processed data and feedback from downstream agents.</div>
+              <div class="stamp" data-run-stamp>RUN —</div>
+              <div class="split">
+                <div>
+                  <h4 style="margin: 16px 0 8px 0; font-family: 'Arial Black'; font-size: 13px; letter-spacing: 0.5px; text-transform: uppercase; color: var(--slate);">Delta: Before → After</h4>
+                  <div class="delta-row">
+                    <div class="delta"><div class="num" data-delta="feature_delta">n/a</div><div class="lbl">features after encoding</div></div>
+                    <div class="delta"><div class="num" data-delta="missing_delta">n/a</div><div class="lbl">missing cells</div></div>
+                    <div class="delta"><div class="num" data-delta="runtime">n/a</div><div class="lbl">end-to-end runtime</div></div>
+                  </div>
+                  <h4 style="margin: 16px 0 8px 0; font-family: 'Arial Black'; font-size: 13px; letter-spacing: 0.5px; text-transform: uppercase; color: var(--slate);">Processed Data Preview</h4>
+                  <div class="tbl">
+                    <table>
+                      <thead data-out-head></thead>
+                      <tbody data-out-body></tbody>
+                    </table>
+                  </div>
+                  <div style="font-size:11px; color: var(--slate); margin-top:6px; font-family:'Courier New', monospace;" data-out-caption>—</div>
+                </div>
+                <div>
+                  <h4 style="margin: 0 0 8px 0; font-family: 'Arial Black'; font-size: 13px; letter-spacing: 0.5px; text-transform: uppercase; color: var(--slate);">Agent Review</h4>
+                  <div class="agent-rail">
+                    <div class="group-lbl">Orchestration</div>
+                    <div class="agent-card crew" onclick="openAgent('orch')">
+                      <div class="avatar">Cr</div>
+                      <div class="meta">
+                        <div class="name">Orchestrator</div>
+                        <div class="role" data-role="orch">loading…</div>
+                      </div>
+                      <div class="chev">›</div>
+                    </div>
+                    <div class="group-lbl">Data Preparation</div>
+                    <div class="agent-card" onclick="openAgent('eda')">
+                      <div class="avatar">EA</div>
+                      <div class="meta">
+                        <div class="name">EDA Analyst</div>
+                        <div class="role" data-role="eda">loading…</div>
+                      </div>
+                      <div class="chev">›</div>
+                    </div>
+                    <div class="agent-card" onclick="openAgent('de')">
+                      <div class="avatar">DE</div>
+                      <div class="meta">
+                        <div class="name">Data Engineer</div>
+                        <div class="role" data-role="de">loading…</div>
+                      </div>
+                      <div class="chev">›</div>
+                    </div>
+                    <div class="group-lbl">Review Council</div>
+                    <div class="agent-card" onclick="openAgent('mlm')">
+                      <div class="avatar">MM</div>
+                      <div class="meta">
+                        <div class="name">ML Modeler</div>
+                        <div class="role" data-role="mlm">loading…</div>
+                      </div>
+                      <div class="chev">›</div>
+                    </div>
+                    <div class="agent-card" onclick="openAgent('mlr')">
+                      <div class="avatar">MR</div>
+                      <div class="meta">
+                        <div class="name">ML Reviewer</div>
+                        <div class="role" data-role="mlr">loading…</div>
+                      </div>
+                      <div class="chev">›</div>
+                    </div>
+                    <div class="agent-card" onclick="openAgent('biz')">
+                      <div class="avatar">BS</div>
+                      <div class="meta">
+                        <div class="name">Business Stakeholder</div>
+                        <div class="role" data-role="biz">loading…</div>
+                      </div>
+                      <div class="chev">›</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="p4-detail">
+              <div class="detail-head">
+                <button class="detail-back" onclick="closeAgent()">BACK</button>
+                <div class="detail-title">Agent <b data-detail-title>Review</b></div>
+              </div>
+              <div class="detail-body">
+                <!-- Recorded panes: dynamic population -->
+                <div class="detail-pane orch" data-pane-body="orch">rendering…</div>
+                <div class="detail-pane eda" data-pane-body="eda">rendering…</div>
+                <div class="detail-pane de" data-pane-body="de">rendering…</div>
+                <div class="detail-pane mlm" data-pane-body="mlm">rendering…</div>
+                <div class="detail-pane mlr" data-pane-body="mlr">rendering…</div>
+                <div class="detail-pane biz" data-pane-body="biz">rendering…</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="footer">multi_agent_ds <span class="dot">●</span> replay mode <span class="dot">●</span> local only <span style="margin-left:auto;">04 / 04</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TEST STUB: replaced by runtime loader in Phase 6 -->
+  <!-- Test stub matches post-M4 _config_snapshot output (src/multi_agent_ds/orchestration/demo_recorder.py:449). Stale on-disk data/interim/demo_run_latest.json must be regenerated before Phase 3 Task 4. -->
+  <script>
+    window.DEMO_LOG = window.DEMO_LOG || {
+      recorded_at: "2026-04-17T04:27:26.416Z",
+      duration_ms: 19436,
+      config: {
+        source: "data/raw/synthetic_dataset.parquet",
+        source_mode: "synthetic",
+        target: "binary_target",
+        scale: "large",
+        max_trials: 50,
+        cv_folds: 5,
+        timeout: 36000,
+        algorithms: ["lightgbm", "logistic_regression"],
+        primary_metric: "ase",
+        cost_override: null,
+        tracing: "disabled"
+      },
+      artifacts: {
+        input_df_head: [],
+        input_df_stats: {
+          rows: 500000,
+          cols: 17,
+          target: "binary_target",
+          positive_rate: 0.273272,
+          numeric: 14,
+          categorical: 3,
+          missing_pct: 0.031
+        },
+        processed_df_head: [
+          {
+            age: 45,
+            annual_income: 75000,
+            credit_score: 720,
+            vehicle_value: 25000,
+            annual_premium: 1200,
+            claim_amount_avg: 8500,
+            miles_driven_annual: 12000,
+            distance_to_work: 15,
+            num_prior_claims: 2,
+            policy_tenure_months: 36,
+            num_drivers_on_policy: 2,
+            num_vehicles: 2,
+            "vehicle_value_normalized": 0.5,
+            "income_bin": "mid",
+            "age_bin": "adult",
+            "credit_score_normalized": 0.72,
+            "binary_target": 1,
+            "encoded_vehicle_class": 1,
+            "encoded_region": 2
+          },
+          {
+            age: 32,
+            annual_income: 65000,
+            credit_score: 680,
+            vehicle_value: 18000,
+            annual_premium: 950,
+            claim_amount_avg: 4200,
+            miles_driven_annual: 10000,
+            distance_to_work: 12,
+            num_prior_claims: 0,
+            policy_tenure_months: 24,
+            num_drivers_on_policy: 1,
+            num_vehicles: 1,
+            "vehicle_value_normalized": 0.36,
+            "income_bin": "mid",
+            "age_bin": "adult",
+            "credit_score_normalized": 0.68,
+            "binary_target": 0,
+            "encoded_vehicle_class": 0,
+            "encoded_region": 1
+          },
+          {
+            age: 58,
+            annual_income: 95000,
+            credit_score: 750,
+            vehicle_value: 35000,
+            annual_premium: 1800,
+            claim_amount_avg: 12000,
+            miles_driven_annual: 18000,
+            distance_to_work: 25,
+            num_prior_claims: 3,
+            policy_tenure_months: 60,
+            num_drivers_on_policy: 3,
+            num_vehicles: 3,
+            "vehicle_value_normalized": 0.7,
+            "income_bin": "high",
+            "age_bin": "senior",
+            "credit_score_normalized": 0.75,
+            "binary_target": 1,
+            "encoded_vehicle_class": 2,
+            "encoded_region": 2
+          },
+          {
+            age: 28,
+            annual_income: 45000,
+            credit_score: 620,
+            vehicle_value: 15000,
+            annual_premium: 800,
+            claim_amount_avg: 3500,
+            miles_driven_annual: 8000,
+            distance_to_work: 8,
+            num_prior_claims: 1,
+            policy_tenure_months: 12,
+            num_drivers_on_policy: 1,
+            num_vehicles: 1,
+            "vehicle_value_normalized": 0.3,
+            "income_bin": "low",
+            "age_bin": "adult",
+            "credit_score_normalized": 0.62,
+            "binary_target": 0,
+            "encoded_vehicle_class": 0,
+            "encoded_region": 0
+          },
+          {
+            age: 51,
+            annual_income: 110000,
+            credit_score: 780,
+            vehicle_value: 45000,
+            annual_premium: 2100,
+            claim_amount_avg: 15000,
+            miles_driven_annual: 20000,
+            distance_to_work: 30,
+            num_prior_claims: 4,
+            policy_tenure_months: 84,
+            num_drivers_on_policy: 4,
+            num_vehicles: 2,
+            "vehicle_value_normalized": 0.9,
+            "income_bin": "high",
+            "age_bin": "senior",
+            "credit_score_normalized": 0.78,
+            "binary_target": 1,
+            "encoded_vehicle_class": 2,
+            "encoded_region": 3
+          },
+          {
+            age: 35,
+            annual_income: 70000,
+            credit_score: 700,
+            vehicle_value: 22000,
+            annual_premium: 1100,
+            claim_amount_avg: 6500,
+            miles_driven_annual: 11000,
+            distance_to_work: 18,
+            num_prior_claims: 1,
+            policy_tenure_months: 48,
+            num_drivers_on_policy: 2,
+            num_vehicles: 2,
+            "vehicle_value_normalized": 0.44,
+            "income_bin": "mid",
+            "age_bin": "adult",
+            "credit_score_normalized": 0.7,
+            "binary_target": 0,
+            "encoded_vehicle_class": 1,
+            "encoded_region": 1
+          },
+          {
+            age: 42,
+            annual_income: 85000,
+            credit_score: 740,
+            vehicle_value: 28000,
+            annual_premium: 1400,
+            claim_amount_avg: 9500,
+            miles_driven_annual: 13000,
+            distance_to_work: 20,
+            num_prior_claims: 2,
+            policy_tenure_months: 36,
+            num_drivers_on_policy: 2,
+            num_vehicles: 2,
+            "vehicle_value_normalized": 0.56,
+            "income_bin": "mid",
+            "age_bin": "adult",
+            "credit_score_normalized": 0.74,
+            "binary_target": 1,
+            "encoded_vehicle_class": 1,
+            "encoded_region": 2
+          },
+          {
+            age: 26,
+            annual_income: 48000,
+            credit_score: 640,
+            vehicle_value: 16000,
+            annual_premium: 900,
+            claim_amount_avg: 4000,
+            miles_driven_annual: 9000,
+            distance_to_work: 10,
+            num_prior_claims: 0,
+            policy_tenure_months: 6,
+            num_drivers_on_policy: 1,
+            num_vehicles: 1,
+            "vehicle_value_normalized": 0.32,
+            "income_bin": "low",
+            "age_bin": "adult",
+            "credit_score_normalized": 0.64,
+            "binary_target": 0,
+            "encoded_vehicle_class": 0,
+            "encoded_region": 0
+          },
+          {
+            age: 55,
+            annual_income: 105000,
+            credit_score: 770,
+            vehicle_value: 38000,
+            annual_premium: 1900,
+            claim_amount_avg: 13500,
+            miles_driven_annual: 19000,
+            distance_to_work: 28,
+            num_prior_claims: 3,
+            policy_tenure_months: 72,
+            num_drivers_on_policy: 3,
+            num_vehicles: 3,
+            "vehicle_value_normalized": 0.76,
+            "income_bin": "high",
+            "age_bin": "senior",
+            "credit_score_normalized": 0.77,
+            "binary_target": 1,
+            "encoded_vehicle_class": 2,
+            "encoded_region": 2
+          },
+          {
+            age: 38,
+            annual_income: 72000,
+            credit_score: 710,
+            vehicle_value: 24000,
+            annual_premium: 1250,
+            claim_amount_avg: 7500,
+            miles_driven_annual: 12000,
+            distance_to_work: 16,
+            num_prior_claims: 1,
+            policy_tenure_months: 30,
+            num_drivers_on_policy: 2,
+            num_vehicles: 2,
+            "vehicle_value_normalized": 0.48,
+            "income_bin": "mid",
+            "age_bin": "adult",
+            "credit_score_normalized": 0.71,
+            "binary_target": 0,
+            "encoded_vehicle_class": 1,
+            "encoded_region": 1
+          }
+        ],
+        processed_df_stats: {
+          rows: 500000,
+          cols: 19,
+          path: "data/processed/synthetic_dataset_processed_20260417T042743Z.parquet",
+          missing_pct_after: 0.0
+        },
+        raw_eda_insights: {
+          n_rows: 500000,
+          n_features: 17,
+          target_rate: 0.273272,
+          needs_cleaning: false,
+          feature_summaries: [
+            { feature: "claim_amount_avg", type: "numeric", auc: 0.602 },
+            { feature: "credit_score", type: "numeric", auc: 0.591 },
+            { feature: "num_prior_claims", type: "numeric", auc: 0.584 },
+            { feature: "annual_income", type: "numeric", auc: 0.576 },
+            { feature: "annual_premium", type: "numeric", auc: 0.568 },
+            { feature: "vehicle_value", type: "numeric", auc: 0.557 },
+            { feature: "miles_driven_annual", type: "numeric", auc: 0.53 }
+          ]
+        },
+        prep_plan: {
+          summary: "Impute missing values using median; encode categorical features; normalize numeric features to [0,1]",
+          approved: true,
+          cleaning_actions: [
+            "Impute annual_income (missing: 0.031)",
+            "Remove 3 rows with extreme outliers in claim_amount_avg"
+          ],
+          feature_actions: [
+            "Encode categorical: vehicle_class, region",
+            "Normalize numeric: all numeric features to [0,1]",
+            "Bin age: young, adult, senior"
+          ],
+          handoff_notes: "19 features ready for modeling. Target rate: 27.3%. No leakage detected."
+        }
+      },
+      events: [
+        // RAW EDA: eda_raw profiles the raw dataset
+        { kind: "node_start", node: "eda_raw", elapsed_ms: 100, data: {} },
+        { kind: "node_end", node: "eda_raw", elapsed_ms: 4000, data: {} },
+
+        // RAW REVIEW: Three reviewers fan-out in parallel from eda_raw output
+        { kind: "node_start", node: "ml_modeler_raw_review", elapsed_ms: 4100, data: {} },
+        { kind: "node_start", node: "ml_reviewer_raw_review", elapsed_ms: 4150, data: {} },
+        { kind: "node_start", node: "business_stakeholder_raw_review", elapsed_ms: 4200, data: {} },
+        { kind: "node_end", node: "ml_modeler_raw_review", elapsed_ms: 6500, data: {} },
+        { kind: "node_end", node: "ml_reviewer_raw_review", elapsed_ms: 6800, data: {} },
+        { kind: "node_end", node: "business_stakeholder_raw_review", elapsed_ms: 7200, data: {} },
+
+        // PREP PLAN: eda_analyst synthesizes from raw review inputs
+        { kind: "node_start", node: "eda_prep_plan", elapsed_ms: 7300, data: {} },
+        { kind: "node_end", node: "eda_prep_plan", elapsed_ms: 8200, data: {} },
+
+        // FEEDBACK LOOP: data_engineer reviews feasibility
+        { kind: "node_start", node: "data_engineer_feedback", elapsed_ms: 8300, data: {} },
+        { kind: "node_end", node: "data_engineer_feedback", elapsed_ms: 8900, data: {} },
+
+        // LOOP ITERATION: prep_plan revised, feedback again, then approved
+        { kind: "node_start", node: "eda_prep_plan", elapsed_ms: 9000, data: {} },
+        { kind: "node_end", node: "eda_prep_plan", elapsed_ms: 9800, data: {} },
+        { kind: "node_start", node: "data_engineer_feedback", elapsed_ms: 9900, data: {} },
+        { kind: "node_end", node: "data_engineer_feedback", elapsed_ms: 10500, data: {} },
+
+        // EXECUTE: data_engineer runs the approved preparation plan
+        { kind: "node_start", node: "data_engineer_execute", elapsed_ms: 10600, data: {} },
+        { kind: "node_end", node: "data_engineer_execute", elapsed_ms: 13000, data: {} },
+
+        // PROCESSED EDA: eda_analyst profiles the processed dataset
+        { kind: "node_start", node: "eda_processed", elapsed_ms: 13100, data: {} },
+        { kind: "node_end", node: "eda_processed", elapsed_ms: 14500, data: {} },
+
+        // PROCESSED REVIEW: Three reviewers fan-out on processed data
+        { kind: "node_start", node: "ml_modeler_processed_review", elapsed_ms: 14600, data: {} },
+        { kind: "node_start", node: "ml_reviewer_processed_review", elapsed_ms: 14650, data: {} },
+        { kind: "node_start", node: "business_stakeholder_processed_review", elapsed_ms: 14700, data: {} },
+        { kind: "node_end", node: "ml_modeler_processed_review", elapsed_ms: 16200, data: {} },
+        { kind: "node_end", node: "ml_reviewer_processed_review", elapsed_ms: 16300, data: {} },
+        { kind: "node_end", node: "business_stakeholder_processed_review", elapsed_ms: 16500, data: {} },
+
+        // FINAL APPROVAL: eda_analyst approves and clears for handoff
+        { kind: "node_start", node: "eda_processed_approval", elapsed_ms: 16600, data: {} },
+        { kind: "node_end", node: "eda_processed_approval", elapsed_ms: 17200, data: {} },
+
+        // HANDOFF: ml_modeler prepares the modeling context
+        { kind: "node_start", node: "ml_modeler_handoff", elapsed_ms: 17300, data: {} },
+        { kind: "node_end", node: "ml_modeler_handoff", elapsed_ms: 17800, data: {} }
+      ]
+    };
+  </script>
+
+  <script>
+    // ============ AGENT RAIL & DRAWER HELPERS ============
+    const AGENT_LABELS = {
+      'orch': 'Orchestrator',
+      'eda': 'EDA Analyst',
+      'de': 'Data Engineer',
+      'mlm': 'ML Modeler',
+      'mlr': 'ML Reviewer',
+      'biz': 'Business Stakeholder',
+    };
+
+    const ALL_CLASSES = ['orch', 'eda', 'de', 'mlm', 'mlr', 'biz'];
+
+    // Maps short drawer keys to the full agent names used in event node prefixes.
+    const REVIEWER_NODE_PREFIX = {
+      'mlm': 'ml_modeler',
+      'mlr': 'ml_reviewer',
+      'biz': 'business_stakeholder',
+    };
+
+    // Per-reviewer narrative for the "WHAT THIS AGENT DID" card.
+    const REVIEWER_NARRATIVE = {
+      'mlm': {
+        lens: 'predictive-power lens',
+        focus: 'feature strength, modeling feasibility, and signal coverage',
+        raw_hint: 'checked whether the raw features carry enough signal to model at all',
+        processed_hint: 'confirmed the processed features preserve the predictive signal (no lost lift from encoding/binning)',
+        signoff: 'cleared the feature set for modeling',
+      },
+      'mlr': {
+        lens: 'statistical-rigor lens',
+        focus: 'leakage risk, sampling bias, and methodological soundness',
+        raw_hint: 'flagged leakage candidates and questioned imputation/outlier choices on the raw data',
+        processed_hint: 're-checked the processed dataset for any leakage reintroduced by feature engineering',
+        signoff: 'endorsed the statistical integrity of the prep plan',
+      },
+      'biz': {
+        lens: 'business-interpretability lens',
+        focus: 'feature interpretability, business fit, and downstream usability',
+        raw_hint: 'mapped raw features to business meaning and flagged anything hard to act on',
+        processed_hint: 'verified the processed features still tell a story a business partner would accept',
+        signoff: 'signed off on interpretability and business fit',
+      },
+    };
+
+    function openAgent(which) {
+      if (!ALL_CLASSES.includes(which)) return;
+      const slider = document.querySelector('.p4-slider');
+      const title = document.querySelector('[data-detail-title]');
+      if (slider) {
+        // Remove all open-* classes
+        ALL_CLASSES.forEach((cls) => slider.classList.remove(`open-${cls}`));
+        // Add the new one
+        slider.classList.add(`open-${which}`);
+      }
+      if (title) {
+        title.textContent = AGENT_LABELS[which] || which;
+      }
+    }
+
+    function closeAgent() {
+      const slider = document.querySelector('.p4-slider');
+      if (slider) {
+        ALL_CLASSES.forEach((cls) => slider.classList.remove(`open-${cls}`));
+      }
+    }
+
+    // ============ PAGE 4 RENDERERS ============
+
+    function _runStampText(log) {
+      if (!log || !log.recorded_at) return 'RUN —';
+      // recorded_at is ISO-8601; extract HHMM-X style from the time part for a demo-style stamp.
+      const d = new Date(log.recorded_at);
+      if (Number.isNaN(d.getTime())) return 'RUN —';
+      const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+      const dd = String(d.getUTCDate()).padStart(2, '0');
+      const hh = String(d.getUTCHours()).padStart(2, '0');
+      const mi = String(d.getUTCMinutes()).padStart(2, '0');
+      return `RUN #${mm}${dd}-${hh}${mi}`;
+    }
+
+    function _fmtRuntime(ms) {
+      if (ms == null) return 'n/a';
+      const total = Math.floor(ms / 1000);
+      const mm = String(Math.floor(total / 60)).padStart(2, '0');
+      const ss = String(total % 60).padStart(2, '0');
+      return `${mm}:${ss}`;
+    }
+
+    function _escapeHtml(text) {
+      return String(text)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function renderSummary() {
+      const log = window.DEMO_LOG || {};
+      const artifacts = log.artifacts || {};
+      const inputStats = artifacts.input_df_stats || {};
+      const outStats   = artifacts.processed_df_stats || {};
+      const outRows    = artifacts.processed_df_head || [];
+
+      // --- Run stamp ---
+      const stamp = document.querySelector('[data-run-stamp]');
+      if (stamp) stamp.innerHTML = _runStampText(log).replace(/RUN (#.+)/, 'RUN <b>$1</b>');
+
+      // --- Delta cards ---
+      const setDelta = (key, text) => {
+        const el = document.querySelector(`[data-delta="${key}"]`);
+        if (el) el.textContent = text;
+      };
+      const toggleDeltaGood = (key, good) => {
+        const card = document.querySelector(`[data-delta="${key}"]`).parentElement;
+        if (card) card.classList.toggle('good', good);
+      };
+      const featuresPresent = inputStats.cols != null && outStats.cols != null;
+      if (featuresPresent) {
+        setDelta('feature_delta', `${inputStats.cols} → ${outStats.cols}`);
+      } else {
+        setDelta('feature_delta', 'n/a');
+      }
+      toggleDeltaGood('feature_delta', featuresPresent && outStats.cols !== inputStats.cols);
+      const missingImproved = inputStats.missing_pct != null && outStats.missing_pct_after != null
+        && outStats.missing_pct_after < inputStats.missing_pct;
+      if (inputStats.missing_pct != null && outStats.missing_pct_after != null) {
+        setDelta('missing_delta', `${fmtPct(inputStats.missing_pct)} → ${fmtPct(outStats.missing_pct_after)}`);
+      } else if (inputStats.missing_pct != null) {
+        setDelta('missing_delta', `${fmtPct(inputStats.missing_pct)} → n/a`);
+      } else {
+        setDelta('missing_delta', 'n/a');
+      }
+      toggleDeltaGood('missing_delta', missingImproved);
+      setDelta('runtime', _fmtRuntime(log.duration_ms));
+      toggleDeltaGood('runtime', log.duration_ms != null);
+
+      // --- Processed df table ---
+      const outHead = document.querySelector('[data-out-head]');
+      const outBody = document.querySelector('[data-out-body]');
+      const caption = document.querySelector('[data-out-caption]');
+      if (outHead && outBody) {
+        outHead.innerHTML = '';
+        outBody.innerHTML = '';
+        if (outRows.length === 0) {
+          outBody.innerHTML = '<tr><td style="text-align:center;color:var(--slate);padding:16px;">(not recorded)</td></tr>';
+        } else {
+          const targetCol = inputStats.target;
+          let cols = Object.keys(outRows[0]).slice(0, 11);
+          if (targetCol && cols.includes(targetCol)) {
+            cols = cols.filter((c) => c !== targetCol).concat([targetCol]);
+          }
+          const tr = document.createElement('tr');
+          cols.forEach((col) => {
+            const th = document.createElement('th');
+            th.textContent = col;
+            if (col === targetCol) { th.classList.add('target'); th.style.color = '#FFB680'; }
+            tr.appendChild(th);
+          });
+          outHead.appendChild(tr);
+          outRows.slice(0, 10).forEach((row) => {
+            const rtr = document.createElement('tr');
+            cols.forEach((col) => {
+              const td = document.createElement('td');
+              td.textContent = fmtCell(col, row[col]);
+              if (col === targetCol) td.classList.add('target');
+              rtr.appendChild(td);
+            });
+            outBody.appendChild(rtr);
+          });
+        }
+      }
+      if (caption) {
+        const path = outStats.path || 'data/interim/processed_df.parquet';
+        const shape = (outStats.rows != null && outStats.cols != null)
+          ? `${fmtNum(outStats.rows)} × ${outStats.cols}` : 'shape unknown';
+        caption.textContent = `${path} · ${shape}`;
+      }
+
+      // --- Rail subtitles ---
+      const setRole = (key, text) => {
+        const el = document.querySelector(`[data-role="${key}"]`);
+        if (el) el.textContent = text;
+      };
+      const eventCount = (Array.isArray(log.events) ? log.events.length : 0);
+      const edaInsights = artifacts.raw_eda_insights || {};
+      const edaBullets = Array.isArray(edaInsights.feature_summaries) ? edaInsights.feature_summaries.length
+                       : Object.keys(edaInsights).length;
+      const prepPlan = artifacts.prep_plan || {};
+      const transformCount = Object.keys(prepPlan).length;
+      setRole('orch', `routed ${eventCount} events across recorded nodes`);
+      setRole('eda', edaBullets > 0 ? `profiled ${edaBullets} features · ranked by AUC` : 'profiled raw & processed data');
+      setRole('de',  transformCount > 0 ? `prep-plan feedback · cleaning + feature engineering` : 'executed cleaning & encoding');
+
+      // Reviewer rail subtitles — count review passes from the event log.
+      const countPasses = (prefix) => {
+        const evts = Array.isArray(log.events) ? log.events : [];
+        return evts.filter((e) => e && e.kind === 'node_end' && typeof e.node === 'string'
+          && e.node.startsWith(prefix + '_')
+          && (e.node.endsWith('_raw_review') || e.node.endsWith('_processed_review'))).length;
+      };
+      const mlmPasses = countPasses('ml_modeler');
+      const mlrPasses = countPasses('ml_reviewer');
+      const bizPasses = countPasses('business_stakeholder');
+      setRole('mlm', mlmPasses > 0 ? `${mlmPasses} review pass${mlmPasses === 1 ? '' : 'es'} · predictive-power lens` : 'predictive-power lens');
+      setRole('mlr', mlrPasses > 0 ? `${mlrPasses} review pass${mlrPasses === 1 ? '' : 'es'} · statistical-rigor lens` : 'statistical-rigor lens');
+      setRole('biz', bizPasses > 0 ? `${bizPasses} review pass${bizPasses === 1 ? '' : 'es'} · interpretability lens` : 'interpretability lens');
+
+      // --- Recorded agent panes ---
+      _renderOrchPane(log);
+      _renderEdaPane(artifacts);
+      _renderDePane(artifacts);
+      _renderReviewerPane('mlm', log);
+      _renderReviewerPane('mlr', log);
+      _renderReviewerPane('biz', log);
+    }
+
+    function _renderOrchPane(log) {
+      const host = document.querySelector('[data-pane-body="orch"]');
+      if (!host) return;
+      const events = Array.isArray(log.events) ? log.events : [];
+      const nodes = Array.from(new Set(events.map((e) => e.node))).filter(Boolean);
+      const transitions = events.filter((e) => e.kind === 'node_start' || e.kind === 'node_end').length;
+      host.innerHTML = `
+        <div class="dcard" style="grid-column: 1 / -1;">
+          <h5>WHAT THIS AGENT DID</h5>
+          <ul>
+            <li>Routed the run through ${nodes.length} recorded node${nodes.length === 1 ? '' : 's'}, tracking ${transitions} start/end transitions across ${_fmtRuntime(log.duration_ms)}</li>
+            <li>Fanned the EDA Analyst's raw findings out to three reviewers in parallel, then gathered their responses</li>
+            <li>Drove the prep-plan ↔ Data Engineer feedback loop until the plan was approved</li>
+            <li>Handed control back to the EDA Analyst for final sign-off on the processed dataset</li>
+          </ul>
+        </div>
+        <div class="dcard">
+          <h5>RECORDED PATH</h5>
+          <div style="color:#ddd; font-size:12px; line-height:1.55;">${nodes.map((n) => `<code>${_escapeHtml(n)}</code>`).join(' → ')}</div>
+        </div>
+        <div class="dcard">
+          <h5>RUN STATS</h5>
+          <div class="stat-row">
+            <div class="s"><div class="n">${events.length}</div><div class="l">events</div></div>
+            <div class="s"><div class="n">${nodes.length}</div><div class="l">nodes</div></div>
+          </div>
+          <div class="stat-row" style="margin-top:8px;">
+            <div class="s"><div class="n">${_fmtRuntime(log.duration_ms)}</div><div class="l">duration</div></div>
+            <div class="s"><div class="n">${transitions}</div><div class="l">transitions</div></div>
+          </div>
+        </div>
+      `;
+    }
+
+    function _renderEdaPane(artifacts) {
+      const host = document.querySelector('[data-pane-body="eda"]');
+      if (!host) return;
+      const insights = artifacts.raw_eda_insights || {};
+      const features = Array.isArray(insights.feature_summaries) ? insights.feature_summaries : [];
+      const topFeatures = features.slice().sort((a, b) => (b.auc || 0) - (a.auc || 0)).slice(0, 5);
+      const fmtPctStr = (n) => (n == null ? '—' : `${(n * 100).toFixed(1)}%`);
+      const fmtNum = (n) => (n == null ? '—' : Number(n).toLocaleString());
+      const leakageLine = insights.needs_cleaning
+        ? 'Flagged potential issues — Data Engineer to review'
+        : 'No leakage or severe quality issues detected';
+      host.innerHTML = `
+        <div class="dcard" style="grid-column: 1 / -1;">
+          <h5>WHAT THIS AGENT DID</h5>
+          <ul>
+            <li>Profiled the raw dataset (${fmtNum(insights.n_rows)} rows × ${fmtNum(insights.n_features)} features)</li>
+            <li>Measured target balance — positive class ran at ${fmtPctStr(insights.target_rate)}</li>
+            <li>Ranked every feature by univariate predictive power (AUC vs. target)</li>
+            <li>Screened for leakage and data-quality issues — ${leakageLine.toLowerCase()}</li>
+            <li>Synthesized a prep plan from the three reviewer responses, revised once after Data Engineer feedback, then signed off on the processed dataset</li>
+          </ul>
+        </div>
+        <div class="dcard">
+          <h5>DATASET SNAPSHOT</h5>
+          <div class="stat-row">
+            <div class="s"><div class="n">${fmtNum(insights.n_rows)}</div><div class="l">rows</div></div>
+            <div class="s"><div class="n">${fmtNum(insights.n_features)}</div><div class="l">features</div></div>
+          </div>
+          <div class="stat-row" style="margin-top:8px;">
+            <div class="s"><div class="n">${fmtPctStr(insights.target_rate)}</div><div class="l">positive rate</div></div>
+            <div class="s"><div class="n">${insights.needs_cleaning ? 'yes' : 'clean'}</div><div class="l">leakage check</div></div>
+          </div>
+        </div>
+        <div class="dcard">
+          <h5>TOP PREDICTIVE FEATURES</h5>
+          <ul>
+            ${topFeatures.length
+              ? topFeatures.map((f) => `<li><code>${_escapeHtml(f.feature || '?')}</code> · AUC ${Number(f.auc || 0).toFixed(3)}</li>`).join('')
+              : '<li>—</li>'}
+          </ul>
+        </div>
+      `;
+    }
+
+    // Accepts either a bare string (DEMO_LOG stub) or the real runtime shape
+    // ({ area, action, rationale, params }) and renders a readable list item.
+    function _fmtPlanAction(item) {
+      if (item == null) return '';
+      if (typeof item === 'string') {
+        return `<li>${_escapeHtml(item)}</li>`;
+      }
+      if (typeof item === 'object') {
+        const main = item.action || item.summary || item.description || item.name;
+        const rationale = item.rationale || item.reason;
+        if (!main && !rationale) {
+          // Fallback: show whatever string-ish fields exist.
+          const fallback = Object.entries(item)
+            .filter(([k, v]) => typeof v === 'string' && k !== 'area')
+            .map(([, v]) => v)
+            .join(' — ');
+          return fallback ? `<li>${_escapeHtml(fallback)}</li>` : '';
+        }
+        const mainHtml = main ? _escapeHtml(main) : '';
+        const rationaleHtml = rationale
+          ? `<div style="color:#aaa; font-size:12px; margin-top:3px; line-height:1.45;">${_escapeHtml(rationale)}</div>`
+          : '';
+        return `<li>${mainHtml}${rationaleHtml}</li>`;
+      }
+      return `<li>${_escapeHtml(String(item))}</li>`;
+    }
+
+    // Accepts scalar string (stub) or array of strings (real runtime). Renders
+    // notes as bulleted paragraphs so a multi-string array doesn't collapse
+    // into a comma-run-on line.
+    function _fmtNotes(notes) {
+      if (!notes) return '';
+      const list = Array.isArray(notes) ? notes.filter(Boolean) : [notes];
+      if (list.length === 0) return '';
+      if (list.length === 1) {
+        return `<div style="margin-top:10px; color:#ddd; font-size:12px; line-height:1.5;">${_escapeHtml(list[0])}</div>`;
+      }
+      const lis = list.map((n) => `<li style="margin-bottom:5px;">${_escapeHtml(n)}</li>`).join('');
+      return `<ul style="margin:10px 0 0 0; padding-left:18px; color:#ddd; font-size:12px; line-height:1.5;">${lis}</ul>`;
+    }
+
+    function _renderDePane(artifacts) {
+      const host = document.querySelector('[data-pane-body="de"]');
+      if (!host) return;
+      const plan = artifacts.prep_plan || {};
+      const inputStats = artifacts.input_df_stats || {};
+      const outStats = artifacts.processed_df_stats || {};
+      const cleaning = Array.isArray(plan.cleaning_actions) ? plan.cleaning_actions : [];
+      const features = Array.isArray(plan.feature_actions) ? plan.feature_actions : [];
+      const fmtPctStr = (n) => (n == null ? '—' : `${(n * 100).toFixed(1)}%`);
+      const fmtNum = (n) => (n == null ? '—' : Number(n).toLocaleString());
+      const verdict = plan.approved
+        ? '<b style="color:#2E7D32;">APPROVED</b>'
+        : '<b style="color:#FFB680;">PENDING</b>';
+      const featureDelta = (inputStats.cols != null && outStats.cols != null)
+        ? `${inputStats.cols} → ${outStats.cols}` : '—';
+      host.innerHTML = `
+        <div class="dcard" style="grid-column: 1 / -1;">
+          <h5>WHAT THIS AGENT DID</h5>
+          <ul>
+            <li>Reviewed the EDA Analyst's prep plan for feasibility and gave feedback during the planning loop</li>
+            <li>Executed ${cleaning.length} cleaning action${cleaning.length === 1 ? '' : 's'} on the raw dataset</li>
+            <li>Executed ${features.length} feature-engineering action${features.length === 1 ? '' : 's'} (encoding, normalization, binning)</li>
+            <li>Produced the processed dataset (${fmtNum(outStats.rows)} rows × ${fmtNum(outStats.cols)} features, ${fmtPctStr(outStats.missing_pct_after)} missing)</li>
+            <li>Handed the processed data back to the EDA Analyst for sign-off — verdict: ${verdict}</li>
+          </ul>
+        </div>
+        <div class="dcard">
+          <h5>CLEANING ACTIONS</h5>
+          <ul>
+            ${cleaning.length
+              ? cleaning.map(_fmtPlanAction).join('')
+              : '<li>None required</li>'}
+          </ul>
+        </div>
+        <div class="dcard">
+          <h5>FEATURE ENGINEERING</h5>
+          <ul>
+            ${features.length
+              ? features.map(_fmtPlanAction).join('')
+              : '<li>None</li>'}
+          </ul>
+        </div>
+        <div class="dcard" style="grid-column: 1 / -1;">
+          <h5>HANDOFF SUMMARY</h5>
+          <div class="stat-row">
+            <div class="s"><div class="n">${featureDelta}</div><div class="l">features (before → after)</div></div>
+            <div class="s"><div class="n">${fmtPctStr(inputStats.missing_pct)} → ${fmtPctStr(outStats.missing_pct_after)}</div><div class="l">missing cells</div></div>
+          </div>
+          ${_fmtNotes(plan.handoff_notes)}
+        </div>
+      `;
+    }
+
+    // Summarizes one reviewer agent (mlm / mlr / biz) from the event log.
+    // Real runtime emits two passes per reviewer: *_raw_review (on raw EDA
+    // findings) and *_processed_review (on the processed dataset). The
+    // DEMO_LOG stub includes both.
+    function _renderReviewerPane(agentKey, log) {
+      const host = document.querySelector(`[data-pane-body="${agentKey}"]`);
+      if (!host) return;
+      const prefix = REVIEWER_NODE_PREFIX[agentKey];
+      const narrative = REVIEWER_NARRATIVE[agentKey] || {};
+      const events = Array.isArray(log.events) ? log.events : [];
+
+      const passDurations = (suffix) => {
+        const starts = new Map();
+        const durations = [];
+        events.forEach((e) => {
+          if (!e || !e.node) return;
+          if (!e.node.startsWith(prefix + '_')) return;
+          if (!e.node.endsWith(suffix)) return;
+          if (e.kind === 'node_start') {
+            starts.set(e.node, e.elapsed_ms);
+          } else if (e.kind === 'node_end' && starts.has(e.node)) {
+            durations.push(e.elapsed_ms - starts.get(e.node));
+            starts.delete(e.node);
+          }
+        });
+        return durations;
+      };
+      const rawDurations = passDurations('raw_review');
+      const processedDurations = passDurations('processed_review');
+      const totalPasses = rawDurations.length + processedDurations.length;
+      const sumMs = [...rawDurations, ...processedDurations].reduce((a, b) => a + b, 0);
+      const avgMs = totalPasses > 0 ? Math.round(sumMs / totalPasses) : 0;
+      const fmtMs = (ms) => (ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms}ms`);
+
+      const didBullets = [];
+      didBullets.push(`Reviewed the run through a ${narrative.lens || 'review lens'} — ${narrative.focus || 'independent cross-check'}`);
+      if (rawDurations.length > 0) {
+        didBullets.push(`${narrative.raw_hint || 'Completed the raw-data review pass'} (${rawDurations.length} pass${rawDurations.length === 1 ? '' : 'es'})`);
+      }
+      if (processedDurations.length > 0) {
+        didBullets.push(`${narrative.processed_hint || 'Completed the processed-data review pass'} (${processedDurations.length} pass${processedDurations.length === 1 ? '' : 'es'})`);
+      }
+      if (totalPasses > 0) {
+        didBullets.push(narrative.signoff || 'Returned feedback to the EDA Analyst for prep-plan synthesis');
+      } else {
+        didBullets.push('Did not execute in this run (no recorded review passes)');
+      }
+
+      host.innerHTML = `
+        <div class="dcard" style="grid-column: 1 / -1;">
+          <h5>WHAT THIS AGENT DID</h5>
+          <ul>
+            ${didBullets.map((b) => `<li>${_escapeHtml(b)}</li>`).join('')}
+          </ul>
+        </div>
+        <div class="dcard">
+          <h5>REVIEW PASSES</h5>
+          <div class="stat-row">
+            <div class="s"><div class="n">${rawDurations.length}</div><div class="l">raw passes</div></div>
+            <div class="s"><div class="n">${processedDurations.length}</div><div class="l">processed passes</div></div>
+          </div>
+          <div class="stat-row" style="margin-top:8px;">
+            <div class="s"><div class="n">${totalPasses}</div><div class="l">total passes</div></div>
+            <div class="s"><div class="n">${totalPasses > 0 ? fmtMs(avgMs) : '—'}</div><div class="l">avg pass</div></div>
+          </div>
+        </div>
+        <div class="dcard">
+          <h5>ROLE IN THE RUN</h5>
+          <ul>
+            <li>Fires in parallel with the other two reviewers after each EDA pass</li>
+            <li>Feedback fans back in to the EDA Analyst for prep-plan synthesis</li>
+            <li>Independent of Data Engineer's feasibility pass — catches different risks</li>
+          </ul>
+        </div>
+      `;
+    }
+
+    const viewer = document.querySelector('.viewer');
+
+    function goTo(page) {
+      if (!['config', 'input', 'runtime', 'summary'].includes(page)) return;
+      viewer.setAttribute('data-page', page);
+      if (page === 'runtime') startRuntimeReplay();
+      if (page === 'summary') {
+        // Auto-open the Orchestrator drawer so the Results page never lands
+        // with an empty black panel. Users can still click any other rail card.
+        const slider = document.querySelector('.p4-slider');
+        const anyOpen = slider && ALL_CLASSES.some((c) => slider.classList.contains(`open-${c}`));
+        if (!anyOpen) openAgent('orch');
+      }
+    }
+
+    // Driver-loop replay engine. Events fire when the virtual cursor crosses
+    // their recorded elapsed_ms. Using a single setInterval (rather than one
+    // setTimeout per event) is what makes pause/resume/restart work: pausing
+    // just stops advancing the cursor. Restart cancels the interval and
+    // resets all DOM state so a fresh run is indistinguishable from first entry.
+    let _replayStarted = false;
+    let _replayStartTime = null;
+    let _replayElapsedTicker = null;
+    let _replayDriver = null;
+    let _replayCursorMs = 0;      // virtual elapsed inside the recording
+    let _replayLastTick = null;   // wall clock (ms) of last driver tick
+    let _replayNextIdx = 0;       // next event index to fire
+    let _replayPaused = false;
+    let _replayActiveNodes = null;
+
+    function _fmtElapsed(ms) {
+      const total = Math.max(0, Math.floor(ms / 1000));
+      const mm = String(Math.floor(total / 60)).padStart(2, '0');
+      const ss = String(total % 60).padStart(2, '0');
+      return `${mm}:${ss}`;
+    }
+
+    // Track the previous orchestrator state so we can clear stale lane items
+    // when the pipeline transitions from one logical phase to the next
+    // (e.g. RAW EDA → PREP PLAN). This prevents the runtime page from
+    // accumulating chips from every prior state.
+    //
+    // STARTING and COMPLETE are transitional/terminal sentinels — we don't
+    // clear on transitions INTO them, because: (a) STARTING briefly re-fires
+    // between phases whenever activeNodes momentarily empties, and clearing
+    // on each bounce would strobe the viewport; (b) COMPLETE should preserve
+    // the final phase's chips so the user can read them.
+    // _setOrchState just writes the status label. Lane clearing happens
+    // per-agent on node_start (see _clearAgentLanes below), not on orchestrator
+    // state transitions. Phase-transition clearing wiped each completed
+    // agent's action/output chips the instant the next agent started — an EDA
+    // Analyst column would end up green (completed) with empty lanes while
+    // the reviewers ran, because the phase-change clear fired before the user
+    // could read what EDA did. Per-agent clearing keeps each agent's last
+    // output visible until that agent moves on to its own next node.
+    function _setOrchState(text) {
+      const el = document.querySelector('[data-orch-state]');
+      if (el) el.textContent = text;
+    }
+
+    function _clearAgentLanes(agent) {
+      document.querySelectorAll(`[data-col="${agent}"] [data-lane]`).forEach((host) => {
+        host.innerHTML = '';
+      });
+    }
+
+    function _addLaneItems(colKey, lane, items) {
+      const host = document.querySelector(`[data-col="${colKey}"] [data-lane="${lane}"]`);
+      if (!host) return;
+      (items || []).forEach((label) => {
+        const d = document.createElement('div');
+        d.className = 'item done blink-new';
+        d.textContent = label;
+        host.appendChild(d);
+        // Drop the blink class once the animation completes so re-renders
+        // don't re-trigger it (e.g. when the browser decides to recompute).
+        setTimeout(() => d.classList.remove('blink-new'), 950);
+      });
+    }
+
+    function _markColumn(colKey, cls) {
+      const col = document.querySelector(`[data-col="${colKey}"]`);
+      if (!col) return;
+      col.classList.remove('active', 'done', 'errored');
+      col.classList.add(cls);
+    }
+
+    function _laneItemsFor(event) {
+      // Lane labels are illustrative/cosmetic — not derived from event payloads.
+      // The drawer in Page 4 shows the real recorded payloads (orch / eda / de).
+      const node = event.node;
+      const kind = event.kind;
+
+      // === EDA Analyst nodes ===
+      if (node === 'eda_raw') {
+        if (kind === 'node_start') return { input: ['raw_df'], action: [], output: [] };
+        if (kind === 'node_end')   return { input: [], action: ['profile columns', 'detect leakage'], output: ['raw_eda_insights'] };
+      }
+      if (node === 'eda_prep_plan') {
+        if (kind === 'node_start') return { input: ['raw_reviews'], action: [], output: [] };
+        if (kind === 'node_end')   return { input: [], action: ['synthesize plan', 'validate assumptions'], output: ['prep_plan'] };
+      }
+      if (node === 'eda_processed') {
+        if (kind === 'node_start') return { input: ['processed_df'], action: [], output: [] };
+        if (kind === 'node_end')   return { input: [], action: ['profile features', 'compare raw'], output: ['processed_eda_insights'] };
+      }
+      if (node === 'eda_processed_approval') {
+        if (kind === 'node_start') return { input: ['processed_reviews'], action: [], output: [] };
+        if (kind === 'node_end')   return { input: [], action: ['approve ready', 'sign off'], output: ['approved'] };
+      }
+
+      // === ML Modeler nodes ===
+      if (node === 'ml_modeler_raw_review') {
+        if (kind === 'node_start') return { input: ['raw_eda'], action: [], output: [] };
+        if (kind === 'node_end')   return { input: [], action: ['assess modeling fit', 'flag risks'], output: ['modeling_insights'] };
+      }
+      if (node === 'ml_modeler_processed_review') {
+        if (kind === 'node_start') return { input: ['processed_eda'], action: [], output: [] };
+        if (kind === 'node_end')   return { input: [], action: ['validate features', 'confirm ready'], output: ['feature_ok'] };
+      }
+      if (node === 'ml_modeler_handoff') {
+        if (kind === 'node_start') return { input: ['approved_eda'], action: [], output: [] };
+        if (kind === 'node_end')   return { input: [], action: ['prepare context', 'load artifacts'], output: ['modeling_context'] };
+      }
+
+      // === ML Reviewer nodes ===
+      if (node === 'ml_reviewer_raw_review') {
+        if (kind === 'node_start') return { input: ['raw_eda'], action: [], output: [] };
+        if (kind === 'node_end')   return { input: [], action: ['math critique', 'validate stats'], output: ['review_notes'] };
+      }
+      if (node === 'ml_reviewer_processed_review') {
+        if (kind === 'node_start') return { input: ['processed_eda'], action: [], output: [] };
+        if (kind === 'node_end')   return { input: [], action: ['check assumptions', 'validate dist'], output: ['validation'] };
+      }
+
+      // === Business Stakeholder nodes ===
+      if (node === 'business_stakeholder_raw_review') {
+        if (kind === 'node_start') return { input: ['raw_eda'], action: [], output: [] };
+        if (kind === 'node_end')   return { input: [], action: ['reality check', 'business fit'], output: ['stakeholder_ok'] };
+      }
+      if (node === 'business_stakeholder_processed_review') {
+        if (kind === 'node_start') return { input: ['processed_eda'], action: [], output: [] };
+        if (kind === 'node_end')   return { input: [], action: ['confirm usefulness', 'sign off'], output: ['stakeholder_approved'] };
+      }
+
+      // === Data Engineer nodes ===
+      if (node === 'data_engineer_feedback') {
+        if (kind === 'node_start') return { input: ['prep_plan'], action: [], output: [] };
+        if (kind === 'node_end')   return { input: [], action: ['feasibility check', 'estimate cost'], output: ['feedback'] };
+      }
+      if (node === 'data_engineer_execute') {
+        if (kind === 'node_start') return { input: ['approved_plan'], action: [], output: [] };
+        if (kind === 'node_end')   return { input: [], action: ['impute · encode', 'split · scale'], output: ['processed_df'] };
+      }
+
+      return { input: [], action: [], output: [] };
+    }
+
+    // Map node names to their agent column keys (eda_raw, ml_modeler, etc.)
+    function _agentForNode(node) {
+      const mapping = {
+        'eda_raw': 'eda_raw',
+        'eda_prep_plan': 'eda_raw',
+        'eda_processed': 'eda_raw',
+        'eda_processed_approval': 'eda_raw',
+        'ml_modeler_raw_review': 'ml_modeler',
+        'ml_modeler_processed_review': 'ml_modeler',
+        'ml_modeler_handoff': 'ml_modeler',
+        'ml_reviewer_raw_review': 'ml_reviewer',
+        'ml_reviewer_processed_review': 'ml_reviewer',
+        'business_stakeholder_raw_review': 'business_stakeholder',
+        'business_stakeholder_processed_review': 'business_stakeholder',
+        'data_engineer_feedback': 'data_engineer',
+        'data_engineer_execute': 'data_engineer',
+      };
+      return mapping[node] || null;
+    }
+
+    // Determine orchestrator state label based on which nodes are active.
+    // Checks run in reverse-chronological workflow order so the deepest
+    // active stage wins when fan-out or transient overlap occurs.
+    // Each guard inspects activeNodes directly (no reliance on Set iteration
+    // order) — previous versions checked `first === 'data_engineer'` and
+    // `first === 'eda_raw'`, both of which were dead branches because the
+    // active set stores full node names like `data_engineer_execute`.
+    function _updateOrchState(activeNodes) {
+      if (activeNodes.size === 0) {
+        _setOrchState('STARTING');
+        return;
+      }
+
+      // Handoff phase (deepest stage, check first)
+      if (activeNodes.has('ml_modeler_handoff')) {
+        _setOrchState('HANDOFF → MODELING');
+      }
+      // Final approval phase
+      else if (activeNodes.has('eda_processed_approval')) {
+        _setOrchState('FINAL APPROVAL');
+      }
+      // Processed review phase (fan-out reviewers)
+      else if (activeNodes.has('ml_modeler_processed_review') || activeNodes.has('ml_reviewer_processed_review') || activeNodes.has('business_stakeholder_processed_review')) {
+        _setOrchState('PROCESSED REVIEW (3 agents)');
+      }
+      // Processed EDA phase
+      else if (activeNodes.has('eda_processed')) {
+        _setOrchState('PROCESSED EDA');
+      }
+      // Data engineer execute phase
+      else if (activeNodes.has('data_engineer_execute')) {
+        _setOrchState('DATA ENGINEER EXECUTE');
+      }
+      // Prep loop phase (plan + feasibility feedback)
+      else if (activeNodes.has('eda_prep_plan') || activeNodes.has('data_engineer_feedback')) {
+        _setOrchState('PREP PLAN & FEEDBACK');
+      }
+      // Raw review phase (fan-out reviewers)
+      else if (activeNodes.has('ml_modeler_raw_review') || activeNodes.has('ml_reviewer_raw_review') || activeNodes.has('business_stakeholder_raw_review')) {
+        _setOrchState('RAW REVIEW (3 agents)');
+      }
+      // Raw EDA phase (earliest stage, check last)
+      else if (activeNodes.has('eda_raw')) {
+        _setOrchState('RAW EDA');
+      }
+      else {
+        _setOrchState('RUNNING');
+      }
+    }
+
+    function _currentReplaySpeed() {
+      const speedSel = document.querySelector('[data-speed]');
+      return speedSel ? parseFloat(speedSel.value) || 2 : 2;
+    }
+
+    function _stopReplayDriver() {
+      if (_replayDriver) { clearInterval(_replayDriver); _replayDriver = null; }
+      if (_replayElapsedTicker) { clearInterval(_replayElapsedTicker); _replayElapsedTicker = null; }
+    }
+
+    function _applyEvent(evt) {
+      const agent = _agentForNode(evt.node);
+      if (!agent) return;
+      const lanes = _laneItemsFor(evt);
+
+      // On node_start we clear ONLY this agent's column before writing new
+      // chips. This means when the EDA Analyst starts `eda_prep_plan`, its
+      // prior `eda_raw` input/action/output chips get replaced by the new
+      // node's chips — but while a DIFFERENT agent (e.g. a reviewer) is
+      // running, EDA's chips stay visible so the user can read what EDA
+      // actually did.
+      if (evt.kind === 'node_start') {
+        _replayActiveNodes.add(evt.node);
+        _updateOrchState(_replayActiveNodes);
+        _clearAgentLanes(agent);
+        _markColumn(agent, 'active');
+        _addLaneItems(agent, 'input', lanes.input);
+      } else if (evt.kind === 'node_end') {
+        _replayActiveNodes.delete(evt.node);
+        _updateOrchState(_replayActiveNodes);
+        const stillActive = Array.from(_replayActiveNodes).some((n) => _agentForNode(n) === agent);
+        _markColumn(agent, stillActive ? 'active' : 'done');
+        _addLaneItems(agent, 'action', lanes.action);
+        _addLaneItems(agent, 'output', lanes.output);
+      } else if (evt.kind === 'node_error') {
+        _replayActiveNodes.delete(evt.node);
+        _setOrchState(`ERROR: ${evt.node}`);
+        _markColumn(agent, 'errored');
+      }
+    }
+
+    function _resetReplayDom() {
+      // Clear all lane chips and column state classes. Used by Restart.
+      document.querySelectorAll('[data-lane]').forEach((host) => { host.innerHTML = ''; });
+      document.querySelectorAll('.col').forEach((col) => {
+        col.classList.remove('active', 'done', 'errored');
+      });
+      const elapsedEl = document.querySelector('[data-orch-elapsed]');
+      if (elapsedEl) elapsedEl.textContent = '00:00';
+      const ctrls = document.querySelector('[data-p3-ctrls]');
+      if (ctrls) ctrls.classList.remove('complete');
+      const pauseBtn = document.querySelector('[data-replay-pause]');
+      if (pauseBtn) pauseBtn.textContent = 'PAUSE';
+    }
+
+    function startRuntimeReplay() {
+      if (_replayStarted) return; // AC5.6: don't auto-restart on tab revisit; use RESTART
+      _replayStarted = true;
+
+      const events = (window.DEMO_LOG && Array.isArray(window.DEMO_LOG.events)) ? window.DEMO_LOG.events : [];
+      if (events.length === 0) {
+        _setOrchState('NO RECORDING');
+        return;
+      }
+
+      _replayCursorMs = 0;
+      _replayNextIdx = 0;
+      _replayPaused = false;
+      _replayActiveNodes = new Set();
+      _replayLastTick = performance.now();
+      _replayStartTime = performance.now();
+
+      _setOrchState('STARTING');
+
+      _replayElapsedTicker = setInterval(() => {
+        const el = document.querySelector('[data-orch-elapsed]');
+        if (el) el.textContent = _fmtElapsed(_replayCursorMs);
+      }, 200);
+
+      const finalMs = events[events.length - 1].elapsed_ms || 0;
+
+      _replayDriver = setInterval(() => {
+        const now = performance.now();
+        const dt = now - _replayLastTick;
+        _replayLastTick = now;
+        if (_replayPaused) return;
+
+        _replayCursorMs += dt * _currentReplaySpeed();
+
+        while (_replayNextIdx < events.length &&
+               (events[_replayNextIdx].elapsed_ms || 0) <= _replayCursorMs) {
+          _applyEvent(events[_replayNextIdx]);
+          _replayNextIdx += 1;
+        }
+
+        if (_replayNextIdx >= events.length && _replayCursorMs >= finalMs) {
+          _setOrchState('COMPLETE');
+          _stopReplayDriver();
+          const ctrls = document.querySelector('[data-p3-ctrls]');
+          if (ctrls) ctrls.classList.add('complete');
+          // Do NOT auto-advance to summary — users can click the VIEW RESULTS
+          // button (or the Results breadcrumb) when they're ready.
+        }
+      }, 40); // ~25fps driver tick
+    }
+
+    function restartRuntimeReplay() {
+      _stopReplayDriver();
+      _replayStarted = false;
+      _resetReplayDom();
+      startRuntimeReplay();
+    }
+
+    function fmtPct(value) {
+      if (value == null || Number.isNaN(value)) return '—';
+      return (value * 100).toFixed(1) + '%';
+    }
+
+    function fmtNum(value) {
+      if (value == null || Number.isNaN(value)) return '—';
+      return value.toLocaleString('en-US');
+    }
+
+    // Column-aware cell formatter for the input-preview table.
+    // The raw input_df_head emits Python floats verbatim, so cells render as
+    // "79.38659733570398" for what is semantically an age. This formatter
+    // uses the column name to pick a sensible presentation: money columns
+    // get a $ prefix, counts/scores get rounded integers, probabilities
+    // get 3 decimals, and everything else falls back to 2 decimals.
+    function fmtCell(col, v) {
+      if (v == null) return '—';
+      if (typeof v === 'boolean') return v ? 'true' : 'false';
+      if (typeof v === 'string')  return v;
+      if (typeof v !== 'number' || Number.isNaN(v)) return String(v);
+
+      const name = String(col).toLowerCase();
+
+      // Probabilities / rates → 3 decimals (no grouping, these are < 1 typically).
+      if (/(^|_)prob|(^|_)rate$|_pct$|percent/.test(name)) {
+        return v.toFixed(3);
+      }
+
+      // Count / age / score / mileage / tenure → rounded integer with grouping.
+      // MUST run before the money regex, because names like "num_prior_claims"
+      // would otherwise match /claim/ and render as "$5".
+      if (/^age$|score|miles|^num_|_count$|_months?$|_years?$|tenure|_drivers?$|_vehicles?$/.test(name)) {
+        return Math.round(v).toLocaleString('en-US');
+      }
+
+      // Money-like columns → rounded integer with $ prefix and thousands grouping.
+      if (/(income|premium|amount|price|cost|revenue|claim|value)/.test(name)) {
+        return '$' + Math.round(v).toLocaleString('en-US');
+      }
+
+      // Already an integer → grouped.
+      if (Number.isInteger(v)) return v.toLocaleString('en-US');
+
+      // Default float → 2 decimals, grouped.
+      return v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function renderConfig() {
+      const cfg = window.DEMO_LOG.config || {};
+      const stats = (window.DEMO_LOG.artifacts && window.DEMO_LOG.artifacts.input_df_stats) || {};
+      const setText = (sel, text) => {
+        const el = document.querySelector(sel);
+        if (el) el.textContent = text;
+      };
+
+      setText('[data-cfg="source"]',            cfg.source            ?? '—');
+      setText('[data-cfg="source_mode"]',       cfg.source_mode       ?? '—');
+      setText('[data-cfg="target"]',            cfg.target            ?? '—');
+      setText('[data-cfg="scale"]',             cfg.scale             ?? '—');
+      setText('[data-cfg="max_trials"]',        cfg.max_trials        ?? '—');
+      setText('[data-cfg="cv_folds"]',          cfg.cv_folds          ?? '—');
+      setText('[data-cfg="timeout"]',           cfg.timeout           ?? '—');
+      setText('[data-cfg="primary_metric"]',    cfg.primary_metric    ?? '—');
+      setText('[data-cfg="cost_override"]',
+        cfg.cost_override ? `fn=${cfg.cost_override.fn_cost}, fp=${cfg.cost_override.fp_cost}` : '—');
+      setText('[data-cfg="tracing"]',           cfg.tracing           ?? '—');
+      setText('[data-cfg="rows_cols"]',
+        (stats.rows != null && stats.cols != null) ? `${fmtNum(stats.rows)} × ${fmtNum(stats.cols)}` : '—');
+      setText('[data-cfg="positive_rate_pct"]', stats.positive_rate != null ? fmtPct(stats.positive_rate) : '—');
+
+      const chipBox = document.querySelector('[data-cfg-chips="algorithms"]');
+      if (chipBox) {
+        chipBox.innerHTML = '';
+        const algos = Array.isArray(cfg.algorithms) ? cfg.algorithms : [];
+        if (algos.length === 0) {
+          chipBox.textContent = '—';
+        } else {
+          algos.forEach((name) => {
+            const s = document.createElement('span');
+            s.className = 'chip';
+            s.textContent = name;
+            chipBox.appendChild(s);
+          });
+        }
+      }
+    }
+
+    function renderInputPreview() {
+      const stats = (window.DEMO_LOG.artifacts && window.DEMO_LOG.artifacts.input_df_stats) || {};
+      const rows  = (window.DEMO_LOG.artifacts && window.DEMO_LOG.artifacts.input_df_head) || [];
+
+      // --- Pill strip ---
+      const setPill = (key, text) => {
+        const el = document.querySelector(`[data-pill="${key}"]`);
+        if (el) el.textContent = text;
+      };
+      setPill('rows',               fmtNum(stats.rows));
+      setPill('cols',               stats.cols ?? '—');
+      setPill('target',             stats.target ?? '—');
+      setPill('positive_rate_pct',  fmtPct(stats.positive_rate));
+      setPill('numeric',            stats.numeric ?? '—');
+      setPill('categorical',        stats.categorical ?? '—');
+      setPill('missing_pct',        stats.missing_pct != null ? stats.missing_pct.toFixed(1) + '%' : '—');
+
+      // --- Table ---
+      const thead = document.querySelector('[data-input-head]');
+      const tbody = document.querySelector('[data-input-body]');
+      if (!thead || !tbody) return;
+      thead.innerHTML = '';
+      tbody.innerHTML = '';
+
+      if (rows.length === 0) {
+        tbody.innerHTML = '<tr><td style="text-align:center;color:var(--slate);padding:16px;">no input data recorded</td></tr>';
+        return;
+      }
+
+      // Determine columns: first 10 from the first row, with target pinned last.
+      const targetCol = stats.target;
+      let cols = Object.keys(rows[0]).slice(0, 10);
+      if (targetCol && cols.includes(targetCol)) {
+        cols = cols.filter((c) => c !== targetCol).concat([targetCol]);
+      }
+
+      // Header row
+      const tr = document.createElement('tr');
+      cols.forEach((col) => {
+        const th = document.createElement('th');
+        th.textContent = col;
+        if (col === targetCol) {
+          th.classList.add('target');
+        }
+        tr.appendChild(th);
+      });
+      thead.appendChild(tr);
+
+      // Body rows
+      rows.slice(0, 10).forEach((row) => {
+        const rtr = document.createElement('tr');
+        cols.forEach((col) => {
+          const td = document.createElement('td');
+          td.textContent = fmtCell(col, row[col]);
+          if (col === targetCol) td.classList.add('target');
+          rtr.appendChild(td);
+        });
+        tbody.appendChild(rtr);
+      });
+    }
+
+    // Global click delegation for any [data-goto] button (RUN, CONTINUE, and future page navigation).
+    document.addEventListener('click', (e) => {
+      const target = e.target.closest('[data-goto]');
+      if (!target) return;
+      goTo(target.getAttribute('data-goto'));
+    });
+
+    // DEMO_LOG must be present before this script runs. Phase 6 loader replaces the inline stub with real data and re-invokes these renderers.
+    renderConfig();
+    renderInputPreview();
+    renderSummary();
+
+    // Expose renderers and replay engine on window for Phase 6 loader.
+    window.renderConfig = renderConfig;
+    window.renderInputPreview = renderInputPreview;
+    window.renderSummary = renderSummary;
+    window.startRuntimeReplay = startRuntimeReplay;
+    window.pauseReplay    = () => { _replayPaused = true; };
+    window.continueReplay = () => { _replayPaused = false; _replayLastTick = performance.now(); };
+    window.restartReplay  = restartRuntimeReplay;
+
+    // Wire the page-3 topbar buttons. PAUSE toggles to RESUME while paused.
+    document.addEventListener('click', (e) => {
+      const pause = e.target.closest('[data-replay-pause]');
+      if (pause) {
+        _replayPaused = !_replayPaused;
+        if (!_replayPaused) _replayLastTick = performance.now();
+        pause.textContent = _replayPaused ? 'RESUME' : 'PAUSE';
+        return;
+      }
+      const restart = e.target.closest('[data-replay-restart]');
+      if (restart) { restartRuntimeReplay(); return; }
+    });
+  </script>
+</body>
+</html>

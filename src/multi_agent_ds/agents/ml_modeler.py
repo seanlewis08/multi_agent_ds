@@ -59,7 +59,9 @@ def _dump_model(model_cls: type[Any], payload: dict[str, Any]) -> dict[str, Any]
 
 
 def _append_decision(state: PipelineState, phase: str, **payload: Any) -> list[dict[str, Any]]:
-    return state.get("agent_decisions", []) + [{"agent": "ml_modeler", "phase": phase, **payload}]
+    """Return the delta for `agent_decisions` (reducer concatenates)."""
+    del state  # `PipelineState.agent_decisions` uses operator.add; return delta only
+    return [{"agent": "ml_modeler", "phase": phase, **payload}]
 
 
 def _review_payload(state: PipelineState, review_stage: str) -> dict[str, Any]:
@@ -300,7 +302,7 @@ def ml_modeler_node(state: PipelineState, mode: str = "eda_review") -> dict[str,
         return {
             "modeling_results": prior_results
             | {"tuning": tuning_skill_results, "tuning_decisions": tuning_decisions},
-            "agent_decisions": state.get("agent_decisions", []) + new_agent_entries,
+            "agent_decisions": new_agent_entries,
             "current_phase": "tune",
             "modeling_iteration": _next_modeling_iteration(state, "tune"),
         }
@@ -342,7 +344,7 @@ def ml_modeler_node(state: PipelineState, mode: str = "eda_review") -> dict[str,
         prior_results = state.get("modeling_results", {})
         return {
             "modeling_results": prior_results | {"train_tuned": retrained},
-            "agent_decisions": state.get("agent_decisions", []) + new_agent_entries,
+            "agent_decisions": new_agent_entries,
             "current_phase": "train_tuned",
         }
 
@@ -386,7 +388,7 @@ def ml_modeler_node(state: PipelineState, mode: str = "eda_review") -> dict[str,
         prior_results = state.get("modeling_results", {})
         return {
             "modeling_results": prior_results | {"n_estimator_search": search_results},
-            "agent_decisions": state.get("agent_decisions", []) + new_agent_entries,
+            "agent_decisions": new_agent_entries,
             "current_phase": "n_estimator_search",
             "n_estimator_search_skipped": skipped,
         }
@@ -461,7 +463,7 @@ def ml_modeler_node(state: PipelineState, mode: str = "eda_review") -> dict[str,
         return {
             "modeling_results": prior_results
             | {"adjust_lr": adjusted, "adjust_lr_decisions": adjust_decisions},
-            "agent_decisions": state.get("agent_decisions", []) + new_agent_entries,
+            "agent_decisions": new_agent_entries,
             "current_phase": "adjust_lr",
             "adjust_lr_skipped": skipped,
             "modeling_iteration": _next_modeling_iteration(state, "adjust_lr"),
@@ -515,7 +517,7 @@ def ml_modeler_node(state: PipelineState, mode: str = "eda_review") -> dict[str,
         prior_results = state.get("modeling_results", {})
         return {
             "modeling_results": prior_results | {"importances": importances},
-            "agent_decisions": state.get("agent_decisions", []) + new_agent_entries,
+            "agent_decisions": new_agent_entries,
             "current_phase": "importance_review",
         }
 
@@ -598,7 +600,7 @@ def ml_modeler_node(state: PipelineState, mode: str = "eda_review") -> dict[str,
         return {
             "modeling_results": prior_results
             | {"feature_selection": subset_results, "feature_selection_decisions": subset_decisions},
-            "agent_decisions": state.get("agent_decisions", []) + new_agent_entries,
+            "agent_decisions": new_agent_entries,
             "current_phase": "feature_selection",
             "feature_selection_skipped": skipped,
             "modeling_iteration": _next_modeling_iteration(state, "feature_selection"),
