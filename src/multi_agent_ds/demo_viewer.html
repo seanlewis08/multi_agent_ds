@@ -536,8 +536,8 @@
             <div class="pill"><b data-pill="cols">—</b> columns</div>
             <div class="pill accent">target = <b data-pill="target">—</b></div>
             <div class="pill">positive rate <b data-pill="positive_rate_pct">—</b></div>
-            <div class="pill">numeric <b data-pill="numeric_count">—</b></div>
-            <div class="pill">categorical <b data-pill="categorical_count">—</b></div>
+            <div class="pill">numeric <b data-pill="numeric">—</b></div>
+            <div class="pill">categorical <b data-pill="categorical">—</b></div>
             <div class="pill">missing cells <b data-pill="missing_pct">—</b></div>
           </div>
 
@@ -613,6 +613,7 @@
 
     function renderConfig() {
       const cfg = window.DEMO_LOG.config || {};
+      const stats = (window.DEMO_LOG.artifacts && window.DEMO_LOG.artifacts.input_df_stats) || {};
       const setText = (sel, text) => {
         const el = document.querySelector(sel);
         if (el) el.textContent = text;
@@ -626,8 +627,12 @@
       setText('[data-cfg="cv_folds"]',          cfg.cv_folds          ?? '—');
       setText('[data-cfg="timeout"]',           cfg.timeout           ?? '—');
       setText('[data-cfg="primary_metric"]',    cfg.primary_metric    ?? '—');
-      setText('[data-cfg="cost_override"]',     cfg.cost_override     ?? '—');
+      setText('[data-cfg="cost_override"]',
+        cfg.cost_override ? `fn=${cfg.cost_override.fn_cost}, fp=${cfg.cost_override.fp_cost}` : '—');
       setText('[data-cfg="tracing"]',           cfg.tracing           ?? '—');
+      setText('[data-cfg="rows_cols"]',
+        (stats.rows != null && stats.cols != null) ? `${fmtNum(stats.rows)} × ${fmtNum(stats.cols)}` : '—');
+      setText('[data-cfg="positive_rate_pct"]', stats.positive_rate != null ? fmtPct(stats.positive_rate) : '—');
 
       const chipBox = document.querySelector('[data-cfg-chips="algorithms"]');
       if (chipBox) {
@@ -659,9 +664,9 @@
       setPill('cols',               stats.cols ?? '—');
       setPill('target',             stats.target ?? '—');
       setPill('positive_rate_pct',  fmtPct(stats.positive_rate));
-      setPill('numeric_count',      stats.numeric_count ?? '—');
-      setPill('categorical_count',  stats.categorical_count ?? '—');
-      setPill('missing_pct',        fmtPct(stats.missing_pct));
+      setPill('numeric',            stats.numeric ?? '—');
+      setPill('categorical',        stats.categorical ?? '—');
+      setPill('missing_pct',        stats.missing_pct != null ? stats.missing_pct.toFixed(1) + '%' : '—');
 
       // --- Table ---
       const thead = document.querySelector('[data-input-head]');
@@ -709,16 +714,20 @@
       });
     }
 
-    // Bind navigation buttons (populated in Tasks 2 and 3 with data-goto attrs).
+    // Bind navigation buttons.
     document.addEventListener('click', (e) => {
       const target = e.target.closest('[data-goto]');
       if (!target) return;
       goTo(target.getAttribute('data-goto'));
     });
 
-    // Initial renders on load.
+    // DEMO_LOG must be present before this script runs. Phase 6 loader replaces the inline stub with real data and re-invokes these renderers.
     renderConfig();
     renderInputPreview();
+
+    // Expose renderers on window for Phase 6 loader.
+    window.renderConfig = renderConfig;
+    window.renderInputPreview = renderInputPreview;
   </script>
 </body>
 </html>
