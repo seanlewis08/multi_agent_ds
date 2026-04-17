@@ -16,6 +16,14 @@ def test_iso_utc_format():
     assert result == "2026-04-16T14:03:22.456Z"
 
 
+def test_iso_utc_rejects_naive_datetime():
+    """iso_utc raises ValueError for naive (tz-unaware) datetimes."""
+    import pytest
+    naive_now = datetime(2026, 4, 16, 14, 3, 22, 456789)  # No tzinfo
+    with pytest.raises(ValueError, match="iso_utc requires a tz-aware datetime"):
+        iso_utc(naive_now)
+
+
 def test_langgraph_event_kind_mappings():
     """langgraph_event_kind translates LangGraph event strings or returns None."""
     assert langgraph_event_kind("on_chain_start") == "node_start"

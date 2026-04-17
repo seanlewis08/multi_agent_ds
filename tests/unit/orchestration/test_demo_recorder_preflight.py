@@ -7,8 +7,8 @@ from pathlib import Path
 import pytest
 
 
-def test_preflight_raises_environment_error_when_api_key_missing(monkeypatch, tmp_path):
-    """Verify preflight() raises EnvironmentError if OPENAI_API_KEY is unset."""
+def test_preflight_raises_runtime_error_when_api_key_missing(monkeypatch, tmp_path):
+    """Verify preflight() raises RuntimeError if OPENAI_API_KEY is unset."""
     from multi_agent_ds.orchestration import demo_recorder as R
 
     # Ensure OPENAI_API_KEY is not set
@@ -18,8 +18,8 @@ def test_preflight_raises_environment_error_when_api_key_missing(monkeypatch, tm
     parquet_path = tmp_path / "input.parquet"
     parquet_path.write_text("fake")
 
-    # Should raise EnvironmentError
-    with pytest.raises(EnvironmentError) as exc_info:
+    # Should raise RuntimeError
+    with pytest.raises(RuntimeError) as exc_info:
         R.preflight(parquet_path=parquet_path)
 
     # Message should mention OPENAI_API_KEY

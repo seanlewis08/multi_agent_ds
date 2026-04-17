@@ -68,7 +68,11 @@ def test_build_demo_subgraph_invokes_all_three_nodes(monkeypatch):
 
     def stub_de(state: PipelineState, mode: str) -> dict:
         de_calls.append(mode)
-        return {"prep_plan": {"stub": True}}
+        return {
+            "processed_data_path": "/fake/processed.parquet",
+            "processed_df_head": [{"stub": True}],
+            "processed_df_stats": {"rows": 10},
+        }
 
     monkeypatch.setattr(R, "eda_analyst_node", stub_eda)
     monkeypatch.setattr(R, "data_engineer_node", stub_de)
@@ -77,23 +81,18 @@ def test_build_demo_subgraph_invokes_all_three_nodes(monkeypatch):
     initial_state = {
         "data_path": "fake.parquet",
         "settings": {},
+        "raw_eda_insights": None,
+        "prep_plan": None,
+        "processed_data_path": None,
     }
 
-    # Invoke the graph
-    try:
-        result = graph.invoke(initial_state)
-        # Verify eda_analyst was called with "raw" and "prep_plan"
-        assert "raw" in eda_calls, f"eda_analyst_node not called with mode='raw', got {eda_calls}"
-        assert "prep_plan" in eda_calls, f"eda_analyst_node not called with mode='prep_plan', got {eda_calls}"
-        # Verify data_engineer was called with "execute"
-        assert "execute" in de_calls, f"data_engineer_node not called with mode='execute', got {de_calls}"
-    except Exception as e:
-        # If invoke fails due to missing state keys, the modes were still called
-        # This is acceptable for a unit test with stubs
-        if "raw" in eda_calls and "prep_plan" in eda_calls and "execute" in de_calls:
-            pass  # Test passes — nodes were invoked
-        else:
-            raise
+    # Invoke the graph — should not raise
+    result = graph.invoke(initial_state)
+    # Verify eda_analyst was called with "raw" and "prep_plan"
+    assert "raw" in eda_calls, f"eda_analyst_node not called with mode='raw', got {eda_calls}"
+    assert "prep_plan" in eda_calls, f"eda_analyst_node not called with mode='prep_plan', got {eda_calls}"
+    # Verify data_engineer was called with "execute"
+    assert "execute" in de_calls, f"data_engineer_node not called with mode='execute', got {de_calls}"
 
 
 def test_build_demo_subgraph_final_state_combines_outputs(monkeypatch):
@@ -111,7 +110,11 @@ def test_build_demo_subgraph_final_state_combines_outputs(monkeypatch):
     monkeypatch.setattr(
         R,
         "data_engineer_node",
-        lambda state, mode: {"processed_data_path": "/path/to/processed.parquet"},
+        lambda state, mode: {
+            "processed_data_path": "/path/to/processed.parquet",
+            "processed_df_head": [{"stub": True}],
+            "processed_df_stats": {"rows": 10},
+        },
     )
 
     graph = R.build_demo_subgraph()
@@ -123,16 +126,17 @@ def test_build_demo_subgraph_final_state_combines_outputs(monkeypatch):
         "processed_data_path": None,
     }
 
-    try:
-        result = graph.invoke(initial_state)
-        # Final state should have outputs from eda node
-        assert "raw_eda_insights" in result
-        # And prep_plan from prep_plan_stage
-        # And processed_data_path from data_engineer
-        assert "processed_data_path" in result
-    except Exception:
-        # Stubs mean we may hit state key errors, but the graph structure is verified by above tests
-        pass
+    # Invoke the graph — should not raise
+    result = graph.invoke(initial_state)
+    # Final state should have outputs from eda node
+    assert "raw_eda_insights" in result
+    assert result["raw_eda_insights"] == {"stat": "eda_value"}
+    # And prep_plan from prep_plan_stage
+    assert "prep_plan" in result
+    assert result["prep_plan"] == {"action": "prep_value"}
+    # And processed_data_path from data_engineer
+    assert "processed_data_path" in result
+    assert result["processed_data_path"] == "/path/to/processed.parquet"
 
 
 def test_build_demo_subgraph_propagates_local_only(monkeypatch):
@@ -156,7 +160,11 @@ def test_build_demo_subgraph_propagates_local_only(monkeypatch):
 
     def stub_de(state: PipelineState, mode: str) -> dict:
         observed_local_only.append(state.get("local_only"))
-        return {"processed_data_path": "/fake/local.parquet"}
+        return {
+            "processed_data_path": "/fake/local.parquet",
+            "processed_df_head": [{"stub": True}],
+            "processed_df_stats": {"rows": 10},
+        }
 
     monkeypatch.setattr(R, "eda_analyst_node", stub_eda)
     monkeypatch.setattr(R, "data_engineer_node", stub_de)
@@ -166,12 +174,13 @@ def test_build_demo_subgraph_propagates_local_only(monkeypatch):
         "data_path": "fake.parquet",
         "settings": {},
         "local_only": True,
+        "raw_eda_insights": None,
+        "prep_plan": None,
+        "processed_data_path": None,
     }
 
-    try:
-        graph.invoke(initial_state)
-    except Exception:
-        pass  # Stubs may mean downstream state is incomplete; we only care about local_only
+    # Invoke the graph — should not raise
+    graph.invoke(initial_state)
 
     assert observed_local_only, "data_engineer_node was never invoked"
     assert observed_local_only[0] is True, (

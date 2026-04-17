@@ -5,17 +5,30 @@ replay by src/multi_agent_ds/demo_viewer.html.
 This module is the 'record' half of the record-once-replay-many demo.
 It lives at the orchestration layer and composes existing agent nodes
 without modifying the production graph (src/multi_agent_ds/orchestration/graph.py).
+
+pattern: Functional Core + Imperative Shell (mixed)
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import os
+import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from functools import partial
 from pathlib import Path
 from typing import Any
 
+import pandas as pd
 from dotenv import load_dotenv
+from langgraph.graph import StateGraph, END
+
+from multi_agent_ds.agents.eda_analyst import eda_analyst_node
+from multi_agent_ds.agents.data_engineer import data_engineer_node
+from multi_agent_ds.core.config import load_settings
+from multi_agent_ds.orchestration.state import PipelineState
+from multi_agent_ds.workflows.discovery import resolve_data_path
 
 # Node kinds we expose in the event log. Keep this a closed enum — the viewer
 # relies on these exact strings.
@@ -40,6 +53,14 @@ RECORDED_NODES = frozenset({"eda_raw", "data_engineer"})
 # contributes the prep_plan artifact to final_state.
 ACCUMULATE_NODES = frozenset({"eda_raw", "prep_plan_stage", "data_engineer"})
 
+# Invariant: every recorded node must also be accumulated so that the viewer's
+# event log and the artifact snapshot agree on per-node output. A recorded node
+# whose output is NOT accumulated would silently strip artifacts from final_state.
+assert RECORDED_NODES.issubset(ACCUMULATE_NODES), (
+    f"RECORDED_NODES {RECORDED_NODES - ACCUMULATE_NODES} are not in ACCUMULATE_NODES; "
+    "update ACCUMULATE_NODES or remove from RECORDED_NODES."
+)
+
 
 @dataclass(frozen=True)
 class NormalizedEvent:
@@ -60,14 +81,20 @@ class NormalizedEvent:
         }
 
 
+# --- Normalization and filtering (Functional Core) -------------------------
+
+# pattern: Functional Core
 def iso_utc(now: datetime) -> str:
     """Format a datetime as ISO-8601 with 'Z' suffix.
 
-    Input must be tz-aware; naive datetimes will raise on `.astimezone(...)`.
+    Input must be tz-aware; naive datetimes raise ValueError.
     """
+    if now.tzinfo is None:
+        raise ValueError("iso_utc requires a tz-aware datetime")
     return now.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.") + f"{now.microsecond // 1000:03d}Z"
 
 
+# pattern: Functional Core
 def langgraph_event_kind(lg_event: str) -> str | None:
     """Translate a LangGraph event string into our closed vocabulary.
 
@@ -80,6 +107,7 @@ def langgraph_event_kind(lg_event: str) -> str | None:
     }.get(lg_event)
 
 
+# pattern: Functional Core
 def should_record(lg_event: dict[str, Any]) -> bool:
     """Return True iff this LangGraph event should appear in the log.
 
@@ -92,6 +120,7 @@ def should_record(lg_event: dict[str, Any]) -> bool:
     return name in RECORDED_NODES
 
 
+# pattern: Functional Core
 def should_accumulate(lg_event: dict[str, Any]) -> bool:
     """True if this event's output should be merged into final_state.
 
@@ -99,12 +128,18 @@ def should_accumulate(lg_event: dict[str, Any]) -> bool:
     (including filtered-from-event-log prep_plan_stage) so artifacts
     stay complete even when their producing node is not replayed.
     Only on_chain_end events contribute outputs.
+
+    Invariant: Every node in RECORDED_NODES must also be in ACCUMULATE_NODES
+    so that the viewer's event log and the artifact snapshot agree on per-node
+    output. A recorded node whose output is NOT accumulated would silently
+    strip artifacts from final_state.
     """
     if lg_event.get("event") != LG_ON_CHAIN_END:
         return False
     return lg_event.get("name", "") in ACCUMULATE_NODES
 
 
+# pattern: Functional Core
 def normalize_event(
     lg_event: dict[str, Any],
     *,
@@ -131,7 +166,7 @@ def normalize_event(
     )
 
 
-# --- Artifact extraction (pure) ----------------------------------------
+# --- Artifact extraction and payload sanitization (Functional Core) --------
 
 # Keys we copy out of PipelineState into the top-level artifacts block.
 # Stay minimal — the viewer only needs these.
@@ -143,6 +178,7 @@ _INPUT_DF_HEAD_KEY = "input_df_head"              # added by recorder pre-run
 _INPUT_DF_STATS_KEY = "input_df_stats"            # added by recorder pre-run
 
 
+# pattern: Functional Core
 def extract_artifacts(final_state: dict[str, Any]) -> dict[str, Any]:
     """Pull the viewer-facing artifact dict out of the final PipelineState.
 
@@ -160,8 +196,7 @@ def extract_artifacts(final_state: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-# --- Payload sanitization (pure) ---------------------------------------
-
+# pattern: Functional Core
 def sanitize_payload(value: Any, *, max_depth: int = 6) -> Any:
     """Recursively strip non-JSON-serializable values from an event payload.
 
@@ -187,9 +222,10 @@ def sanitize_payload(value: Any, *, max_depth: int = 6) -> Any:
     return r if len(r) <= 200 else r[:197] + "..."
 
 
-# --- Atomic write (impure, but narrow and well-tested) -----------------
+# --- Atomic write (Functional Core - pure I/O, well-tested) ---------------
 
 
+# pattern: Functional Core
 def atomic_write_json(payload: dict[str, Any], target: Path) -> None:
     """Write `payload` as JSON to `target` atomically.
 
@@ -204,16 +240,10 @@ def atomic_write_json(payload: dict[str, Any], target: Path) -> None:
     os.replace(tmp, target)
 
 
-# --- Sub-graph builder -------------------------------------------------
-
-from functools import partial
-from langgraph.graph import StateGraph, END
-
-from multi_agent_ds.agents.eda_analyst import eda_analyst_node
-from multi_agent_ds.agents.data_engineer import data_engineer_node
-from multi_agent_ds.orchestration.state import PipelineState
+# --- Sub-graph builder (Functional Core) ----------------------------------
 
 
+# pattern: Functional Core
 def build_demo_subgraph():
     """Compile a minimal StateGraph with optional prep_plan stage.
 
@@ -236,13 +266,14 @@ def build_demo_subgraph():
     return g.compile()
 
 
-# --- Preflight guards --------------------------------------------------
+# --- Preflight guards (Functional Core) ----------------------------------
 
+# pattern: Functional Core
 def preflight(*, parquet_path: Path) -> None:
     """Raise early with a clear message if the recorder can't run.
 
     Checked conditions:
-      - OPENAI_API_KEY must be set (EnvironmentError, mirrors
+      - OPENAI_API_KEY must be set (RuntimeError, mirrors
         adapters/llm/openai.py)
       - parquet_path must exist on disk (FileNotFoundError, includes
         the resolved absolute path in the message)
@@ -251,7 +282,7 @@ def preflight(*, parquet_path: Path) -> None:
     is never produced.
     """
     if not os.getenv("OPENAI_API_KEY"):
-        raise EnvironmentError(
+        raise RuntimeError(
             "OPENAI_API_KEY is not set. Set it in your environment or .env "
             "before running the demo recorder. The recorder invokes LLM "
             "agents and cannot proceed without an API key."
@@ -263,21 +294,18 @@ def preflight(*, parquet_path: Path) -> None:
         )
 
 
-# --- Async driver ------------------------------------------------------
+# =============================================================================
+# END FUNCTIONAL CORE. Imperative Shell (with side effects) follows below.
+# =============================================================================
 
-import asyncio
-import time
-
-import pandas as pd
-
-from multi_agent_ds.core.config import load_settings
+# --- Async driver (Imperative Shell) ----------------------------------------
 
 
+# pattern: Imperative Shell
 async def record_run(
     *,
     parquet_path: Path,
     output_path: Path,
-    target_column: str | None = None,
     local_only: bool = False,
 ) -> dict[str, Any]:
     """Record one eda_raw -> data_engineer run and write the event log.
@@ -288,8 +316,6 @@ async def record_run(
         Path to the input parquet file
     output_path : Path
         Destination for the JSON event log
-    target_column : str, optional
-        Override target column name (default: from settings)
     local_only : bool, default False
         If True, skip S3 upload and write processed parquet locally.
         Use only for offline demo rehearsal.
@@ -315,7 +341,7 @@ async def record_run(
     preflight(parquet_path=parquet_path)
 
     settings = load_settings()
-    target = target_column or _resolve_target(settings)
+    target = _resolve_target(settings)
 
     df = pd.read_parquet(parquet_path)
     input_df_head = df.head(10).to_dict(orient="records")
@@ -359,6 +385,9 @@ async def record_run(
         # State accumulation for recorded nodes is already handled above;
         # no need to duplicate the merge here.
 
+    # Capture duration immediately after event loop ends, before post-run processing
+    duration_ms = int((time.monotonic() - start_monotonic) * 1000)
+
     # Read processed parquet and populate processed_df_head / processed_df_stats
     processed_path = final_state.get("processed_data_path")
     if processed_path and Path(processed_path).exists():
@@ -371,8 +400,6 @@ async def record_run(
             "path": processed_path,
             "missing_pct_after": missing_pct,
         }
-
-    duration_ms = int((time.monotonic() - start_monotonic) * 1000)
     artifacts = extract_artifacts(final_state)
 
     payload = {
@@ -429,7 +456,11 @@ def _config_snapshot(settings: dict[str, Any], *, parquet_path: str) -> dict[str
     scale = syn.get("scale") if source_mode == "synthetic" else "existing"
     model = settings.get("model", {})
     tuning = model.get("tuning", {})
-    return {
+    llm = settings.get("llm", {})
+    debug = settings.get("debug", {})
+
+    # Build the snapshot dict, dropping fields if they don't exist in settings
+    snapshot = {
         "source": str(parquet_path),
         "source_mode": source_mode,
         "target": target,
@@ -439,19 +470,25 @@ def _config_snapshot(settings: dict[str, Any], *, parquet_path: str) -> dict[str
         "timeout": tuning.get("timeout"),
         "algorithms": list(model.get("algorithms", [])),
         "primary_metric": model.get("primary_metric"),
-        "tiebreaker": None,  # not configured in settings.yaml
-        "ml_reviewer": "enabled",  # placeholder; adjust once real routing config is wired
-        "business_stakeholder": "enabled",
-        "report_writer": "enabled",
-        "tracing": settings.get("llm", {}).get("tracing", "disabled"),
-        # no `review` block exists in settings.yaml; omit or set None
-        "review_enabled": None,
-        "review_threshold": None,
     }
 
+    # Add optional fields from LLM config if present
+    if llm.get("cost_override") is not None:
+        snapshot["cost_override"] = llm["cost_override"]
 
-# --- CLI entry point ---------------------------------------------------
+    # Add tracing if debug config exists
+    debug_langsmith = debug.get("langsmith", {})
+    if debug_langsmith.get("enabled"):
+        snapshot["tracing"] = "enabled"
+    else:
+        snapshot["tracing"] = "disabled"
 
+    return snapshot
+
+
+# --- CLI entry point (Imperative Shell) ------------------------------------
+
+# pattern: Imperative Shell
 def main(argv: list[str] | None = None) -> int:
     """CLI entry point: ``uv run python -m multi_agent_ds.orchestration.demo_recorder``."""
     import argparse
@@ -470,7 +507,7 @@ def main(argv: list[str] | None = None) -> int:
         "--parquet",
         type=Path,
         default=None,
-        help="Override the parquet path (default: config/settings.yaml -> data.source)",
+        help="Override the parquet path (default: resolved from config/settings.yaml data.source)",
     )
     parser.add_argument(
         "--no-upload",
@@ -485,10 +522,14 @@ def main(argv: list[str] | None = None) -> int:
         parquet_path = args.parquet
     else:
         settings = load_settings()
-        source = settings.get("data", {}).get("source")
-        if not source:
-            raise ValueError("config/settings.yaml must define data.source or pass --parquet")
-        parquet_path = Path(source)
+        resolved = resolve_data_path(None, settings)
+        if not resolved:
+            raise ValueError(
+                "No parquet path found. Either pass --parquet or ensure "
+                "config/settings.yaml defines data.source with appropriate existing.uri "
+                "or synthetic settings."
+            )
+        parquet_path = Path(resolved)
 
     payload = asyncio.run(record_run(parquet_path=parquet_path, output_path=args.output, local_only=args.no_upload))
 
