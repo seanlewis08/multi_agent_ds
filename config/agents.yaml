@@ -1,17 +1,39 @@
 agents:
   eda_analyst:
     role: "Profiles raw and processed data, synthesizes reviewer feedback, and decides when data is ready for modeling."
+    enabled: true
+    max_retries: 2
   data_engineer:
     role: "Reviews preparation-plan feasibility, executes the approved prep plan, and produces the processed dataset artifact."
+    enabled: true
+    max_retries: 2
   ml_modeler:
     role: "Reviews EDA for modeling implications before fitting, then receives the approved processed dataset for modeling."
+    enabled: true
+    active_variant: sean
+    supported_variants:
+      - sean
+      - jonathan
+    max_retries: 3
   ml_reviewer:
     role: "Challenges EDA and modeling reasoning, distinguishing scientific choices from rules of thumb."
+    enabled: true
+    max_retries: 2
   reviewer:
     role: "Jonathan-owned experiment and PR reviewer for completed pipeline runs."
+    enabled: true
+    runtime_node: reviewer
+    max_retries: 1
   report:
     role: "Drafts the stakeholder-facing summary from the experiment state."
+    enabled: true
+    runtime_node: report_writer
+    max_retries: 2
   business_stakeholder:
     role: "Reviews EDA conclusions and final reports for business realism, clarity, and plausibility."
+    enabled: true
+    max_retries: 2
   orchestrator:
     role: "Coordinates the runtime pipeline and chooses the next agent."
+    enabled: true
+    max_iterations: 5
