@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from typing import Any
 
 from multi_agent_ds.tools.conversation_recorder import (
+    ConversationRecorder,
+    NodeBoundary,
     RecordingOpenAIAdapter,
     conversation_recording,
     get_active_recorder,
@@ -147,3 +149,71 @@ def test_turn_index_is_monotonic() -> None:
         )
 
     assert [turn.turn_index for turn in recorder.turns] == [0, 1]
+
+
+def test_node_boundary_is_a_frozen_dataclass() -> None:
+    boundary = NodeBoundary(kind="start", node="eda_raw", ts="2026-04-16T00:00:00+00:00", elapsed_ms=12.5)
+    assert boundary.kind == "start"
+    assert boundary.node == "eda_raw"
+    assert boundary.elapsed_ms == 12.5
+    # Frozen — assignment should raise.
+    try:
+        boundary.kind = "end"  # type: ignore[misc]
+    except Exception as exc:
+        assert "frozen" in str(exc).lower() or "cannot assign" in str(exc).lower()
+    else:  # pragma: no cover
+        raise AssertionError("NodeBoundary should be frozen")
+
+
+def test_record_boundary_updates_current_node() -> None:
+    recorder = ConversationRecorder()
+    assert recorder.current_node is None
+
+    recorder.record_boundary(
+        NodeBoundary(kind="start", node="eda_raw", ts="t1", elapsed_ms=0.0)
+    )
+    assert recorder.current_node == "eda_raw"
+    assert recorder.node_boundaries[-1].kind == "start"
+
+    recorder.record_boundary(
+        NodeBoundary(kind="end", node="eda_raw", ts="t2", elapsed_ms=10.0)
+    )
+    assert recorder.current_node is None
+    assert len(recorder.node_boundaries) == 2
+
+    # Error boundary also clears current_node when it matches.
+    recorder.record_boundary(
+        NodeBoundary(kind="start", node="ml_modeler_baseline", ts="t3", elapsed_ms=11.0)
+    )
+    recorder.record_boundary(
+        NodeBoundary(kind="error", node="ml_modeler_baseline", ts="t4", elapsed_ms=12.0)
+    )
+    assert recorder.current_node is None
+
+
+def test_turn_is_stamped_with_current_node() -> None:
+    wrapped = _FakeWrappedAdapter()
+    adapter = RecordingOpenAIAdapter(wrapped, agent="eda_analyst", task="raw")
+
+    with conversation_recording() as recorder:
+        recorder.record_boundary(
+            NodeBoundary(kind="start", node="eda_raw", ts="t0", elapsed_ms=0.0)
+        )
+        adapter.chat([{"role": "user", "content": "x"}])
+        recorder.record_boundary(
+            NodeBoundary(kind="end", node="eda_raw", ts="t1", elapsed_ms=5.0)
+        )
+        # Outside any node boundary — turn.node should be None.
+        adapter.chat([{"role": "user", "content": "y"}])
+
+    assert recorder.turns[0].node == "eda_raw"
+    assert recorder.turns[1].node is None
+
+
+def test_flush_boundaries_returns_dicts() -> None:
+    recorder = ConversationRecorder()
+    recorder.record_boundary(
+        NodeBoundary(kind="start", node="n", ts="t", elapsed_ms=1.0)
+    )
+    flushed = recorder.flush_boundaries()
+    assert flushed == [{"kind": "start", "node": "n", "ts": "t", "elapsed_ms": 1.0}]

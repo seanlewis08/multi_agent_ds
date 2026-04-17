@@ -44,19 +44,29 @@ class _FakeAdapter:
 
 
 class _FakeCompiledGraph:
-    """Minimal LangGraph-compatible object exposing ``ainvoke``."""
+    """Minimal LangGraph-compatible object exposing ``astream_events``.
+
+    Mimics the shape of LangGraph's ``v2`` event stream: emits an
+    ``on_chain_start``/``on_chain_end`` pair around each "node", drives a real
+    ``RecordingOpenAIAdapter`` so the recorder sees turns, and returns the
+    final state via the last ``on_chain_end`` payload.
+    """
 
     def __init__(self, record_calls: list[dict[str, Any]]) -> None:
         self._record_calls = record_calls
 
-    async def ainvoke(self, initial_state: dict[str, Any]) -> dict[str, Any]:
-        # Exercise the recorder-aware build_adapter path: instantiate a wrapped
-        # adapter inside the graph run and issue a couple of structured calls
-        # as real agents would. The recorder (activated by run_full_pipeline)
-        # must see both calls.
+    async def astream_events(
+        self, initial_state: dict[str, Any], version: str = "v2"
+    ):
+        # Exercise the recorder-aware build_adapter path inside the simulated
+        # node so turns are stamped with the active node name.
         adapter = RecordingOpenAIAdapter(
             _FakeAdapter(), agent="eda_analyst", task="raw_review"
         )
+        self._record_calls.append(initial_state)
+
+        # node 1
+        yield {"event": "on_chain_start", "name": "eda_raw", "data": {"input": initial_state}}
         adapter.structured_output(
             [
                 {"role": "system", "content": "sys-1"},
@@ -71,14 +81,17 @@ class _FakeCompiledGraph:
             ],
             {"title": "FakeSchema"},
         )
-        self._record_calls.append(initial_state)
-        return {
+        partial_state = {
             "data_path": initial_state.get("data_path"),
             "agent_decisions": [
                 {"agent": "eda_analyst", "phase": "raw_eda"},
                 {"agent": "eda_analyst", "phase": "raw_eda"},
             ],
         }
+        yield {"event": "on_chain_end", "name": "eda_raw", "data": {"output": partial_state}}
+        # Internal LangGraph wrapper events should be ignored by the boundary
+        # filter — include one to make sure.
+        yield {"event": "on_chain_end", "name": "LangGraph", "data": {"output": partial_state}}
 
 
 class _FakeGraphBuilder:
@@ -125,8 +138,13 @@ def test_run_full_pipeline_writes_html_and_records_turns(
     assert html_path.exists()
     content = html_path.read_text(encoding="utf-8")
     assert content.startswith("<!DOCTYPE html>")
-    assert content.count('class="turn-card"') == 2
+    # SPA shell + embedded data blob.
+    assert "const DATA =" in content
     assert "eda_analyst" in content
+    # Two structured turns made it into the embedded payload.
+    assert content.count('"kind": "structured"') == 2
+    # Boundaries captured from the simulated astream_events run.
+    assert "eda_raw" in content
     # Sidebar "conversation_latest.html" copy should also exist.
     assert (tmp_path / "conversation_latest.html").exists()
     # Recorder is reset back to None after the run.

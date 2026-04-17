@@ -39,6 +39,17 @@ class ConversationTurn:
     usage: dict[str, int] | None
     started_at: str  # ISO8601 UTC
     elapsed_ms: float
+    node: str | None = None
+
+
+@dataclass(frozen=True)
+class NodeBoundary:
+    """A LangGraph node start/end/error event, captured via astream_events."""
+
+    kind: str  # "start" | "end" | "error"
+    node: str
+    ts: str  # ISO8601 UTC
+    elapsed_ms: float
 
 
 class ConversationRecorder:
@@ -46,14 +57,34 @@ class ConversationRecorder:
 
     def __init__(self) -> None:
         self.turns: list[ConversationTurn] = []
+        self.node_boundaries: list[NodeBoundary] = []
+        self.current_node: str | None = None
 
     def record(self, turn: ConversationTurn) -> None:
         """Append one turn to the recorder."""
         self.turns.append(turn)
 
+    def record_boundary(self, boundary: NodeBoundary) -> None:
+        """Append a node boundary and update ``current_node``.
+
+        A ``start`` boundary sets ``current_node`` so subsequent turns recorded
+        before the matching ``end`` are stamped with that node name. An ``end``
+        or ``error`` boundary for the currently-active node clears it.
+        """
+        self.node_boundaries.append(boundary)
+        if boundary.kind == "start":
+            self.current_node = boundary.node
+        elif boundary.kind in {"end", "error"}:
+            if self.current_node == boundary.node:
+                self.current_node = None
+
     def flush(self) -> list[dict[str, Any]]:
         """Return all turns as plain dicts (safe for JSON / HTML emission)."""
         return [asdict(turn) for turn in self.turns]
+
+    def flush_boundaries(self) -> list[dict[str, Any]]:
+        """Return all node boundaries as plain dicts."""
+        return [asdict(boundary) for boundary in self.node_boundaries]
 
 
 _active_recorder: ContextVar[ConversationRecorder | None] = ContextVar(
@@ -180,6 +211,7 @@ class RecordingOpenAIAdapter:
             usage=usage,
             started_at=started_at,
             elapsed_ms=elapsed_ms,
+            node=recorder.current_node,
         )
         recorder.record(turn)
 
