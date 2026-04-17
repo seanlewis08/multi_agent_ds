@@ -10,6 +10,7 @@ pattern: Functional Core + Imperative Shell (mixed)
 """
 from __future__ import annotations
 
+import argparse
 import asyncio
 import json
 import os
@@ -268,7 +269,7 @@ def build_demo_subgraph():
 
 # --- Preflight guards (Functional Core) ----------------------------------
 
-# pattern: Functional Core
+# pattern: Imperative Shell
 def preflight(*, parquet_path: Path) -> None:
     """Raise early with a clear message if the recorder can't run.
 
@@ -413,6 +414,7 @@ async def record_run(
     return payload
 
 
+# pattern: Imperative Shell
 def _compute_input_stats(df: pd.DataFrame, *, target: str) -> dict[str, Any]:
     """Tiny stats block consumed by the Input Preview screen."""
     numeric = df.select_dtypes(include="number").shape[1]
@@ -432,6 +434,7 @@ def _compute_input_stats(df: pd.DataFrame, *, target: str) -> dict[str, Any]:
     }
 
 
+# pattern: Imperative Shell
 def _resolve_target(settings: dict[str, Any]) -> str:
     """Resolve the target column name from settings."""
     data = settings.get("data", {})
@@ -442,6 +445,7 @@ def _resolve_target(settings: dict[str, Any]) -> str:
         return data.get("existing", {}).get("target_column", "target")
 
 
+# pattern: Imperative Shell
 def _config_snapshot(settings: dict[str, Any], *, parquet_path: str) -> dict[str, Any]:
     """Project settings into the small dict the Config screen shows."""
     data = settings.get("data", {})
@@ -491,8 +495,6 @@ def _config_snapshot(settings: dict[str, Any], *, parquet_path: str) -> dict[str
 # pattern: Imperative Shell
 def main(argv: list[str] | None = None) -> int:
     """CLI entry point: ``uv run python -m multi_agent_ds.orchestration.demo_recorder``."""
-    import argparse
-
     parser = argparse.ArgumentParser(
         prog="multi_agent_ds.orchestration.demo_recorder",
         description="Record a demo run of eda_raw -> data_engineer to JSON.",
