@@ -885,3 +885,159 @@ def test_run_evaluation_workflow_handles_shap_feature_alignment_mismatch(
             ),
         },
     }
+
+
+def test_run_evaluation_from_state_reconstructs_inputs_and_appends_decision(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_load_dataframe(data_path: str | None, settings: dict[str, object]) -> tuple[object, str]:
+        captured["data_path"] = data_path
+        captured["load_settings"] = settings
+        return object(), str(data_path)
+
+    def fake_prepare_data(
+        df: object,
+        *,
+        target_col: str,
+        test_size: float,
+        validation_size: float | None,
+        random_state: int,
+    ) -> dict[str, object]:
+        captured["prepare_args"] = {
+            "df": df,
+            "target_col": target_col,
+            "test_size": test_size,
+            "validation_size": validation_size,
+            "random_state": random_state,
+        }
+        return {"X_test": [[1.0]], "true_prob_test": [0.2]}
+
+    def fake_run_evaluation_workflow(
+        results: dict[str, dict[str, object]],
+        data: dict[str, object],
+        settings: dict[str, object],
+    ) -> dict[str, object]:
+        captured["workflow_results"] = results
+        captured["workflow_data"] = data
+        captured["workflow_settings"] = settings
+        return {
+            "evaluation_result": {"winner": "lightgbm", "primary_metric": "gini"},
+            "reviewer_summary": {"winner": "lightgbm"},
+            "shap_results": {"available": False},
+            "shap_artifacts": {"metadata": {"available": False}},
+            "mlflow_payload": {"metrics": {}},
+        }
+
+    monkeypatch.setattr(evaluation_workflow, "load_dataframe", fake_load_dataframe)
+    monkeypatch.setattr(evaluation_workflow, "prepare_data", fake_prepare_data)
+    monkeypatch.setattr(
+        evaluation_workflow,
+        "run_evaluation_workflow",
+        fake_run_evaluation_workflow,
+    )
+
+    state = {
+        "settings": {
+            "data": {
+                "source": "existing",
+                "existing": {"target_column": "approved", "uri": "data/processed/fallback.parquet"},
+            },
+            "model": {
+                "primary_metric": "gini",
+                "test_size": 0.25,
+                "validation_size": 0.15,
+                "random_state": 17,
+            },
+        },
+        "modeling_results": {
+            "baseline": {
+                "lightgbm": {"phase": "baseline", "test_scores": {"gini": 0.41}},
+                "logistic_regression": {"phase": "baseline", "test_scores": {"gini": 0.37}},
+            },
+            "train_tuned": {
+                "lightgbm": {"phase": "train_tuned", "test_scores": {"gini": 0.44}},
+            },
+        },
+        "modeling_verdict": {
+            "ranked_algorithms": ["lightgbm", "logistic_regression"],
+            "best_algorithm": "lightgbm",
+        },
+        "agent_decisions": [{"agent": "ml_modeler", "phase": "final_recommendation"}],
+    }
+
+    output = evaluation_workflow.run_evaluation_from_state(state)
+
+    assert captured["data_path"] == "data/processed/fallback.parquet"
+    assert captured["prepare_args"] == {
+        "df": captured["prepare_args"]["df"],
+        "target_col": "approved",
+        "test_size": 0.25,
+        "validation_size": 0.15,
+        "random_state": 17,
+    }
+    assert captured["workflow_results"] == {
+        "lightgbm": {"phase": "train_tuned", "test_scores": {"gini": 0.44}},
+        "logistic_regression": {"phase": "baseline", "test_scores": {"gini": 0.37}},
+    }
+    assert captured["workflow_data"] == {"X_test": [[1.0]], "true_prob_test": [0.2]}
+    assert output["evaluation_result"] == {"winner": "lightgbm", "primary_metric": "gini"}
+    assert output["reviewer_summary"] == {"winner": "lightgbm"}
+    assert output["current_phase"] == "evaluation"
+    assert output["should_loop"] is False
+    assert output["loop_from"] is None
+    assert output["agent_decisions"][-1] == {
+        "agent": "evaluation_workflow",
+        "phase": "evaluation",
+        "winner": "lightgbm",
+        "primary_metric": "gini",
+    }
+
+
+def test_run_evaluation_from_state_prefers_processed_data_path(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    seen_paths: list[str | None] = []
+
+    monkeypatch.setattr(
+        evaluation_workflow,
+        "load_dataframe",
+        lambda data_path, settings: (seen_paths.append(data_path) or object(), str(data_path)),
+    )
+    monkeypatch.setattr(
+        evaluation_workflow,
+        "prepare_data",
+        lambda *args, **kwargs: {"X_test": [[1.0]]},
+    )
+    monkeypatch.setattr(
+        evaluation_workflow,
+        "run_evaluation_workflow",
+        lambda results, data, settings: {
+            "evaluation_result": {"winner": "lightgbm", "primary_metric": "gini"},
+            "reviewer_summary": {"winner": "lightgbm"},
+            "shap_results": {"available": False},
+            "shap_artifacts": {"metadata": {"available": False}},
+            "mlflow_payload": {"metrics": {}},
+        },
+    )
+
+    state = {
+        "settings": {
+            "data": {
+                "source": "existing",
+                "existing": {"target_column": "approved", "uri": "data/raw/fallback.parquet"},
+            },
+            "model": {"primary_metric": "gini"},
+        },
+        "processed_data_path": "data/processed/current.parquet",
+        "modeling_context": {"processed_data_path": "data/processed/from_context.parquet"},
+        "data_path": "data/raw/original.parquet",
+        "modeling_results": {
+            "baseline": {"lightgbm": {"phase": "baseline", "test_scores": {"gini": 0.41}}},
+        },
+    }
+
+    evaluation_workflow.run_evaluation_from_state(state)
+
+    assert seen_paths == ["data/processed/current.parquet"]

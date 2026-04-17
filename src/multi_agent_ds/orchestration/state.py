@@ -37,9 +37,24 @@ class PipelineState(TypedDict, total=False):
     modeling_verdict: dict[str, Any]
     ml_review: dict[str, Any]
     evaluation_result: dict[str, Any]
+    reviewer_summary: dict[str, Any]
+    shap_results: dict[str, Any]
+    shap_artifacts: dict[str, Any]
+    mlflow_payload: dict[str, Any]
     report_draft: str
     experiment_report: str
     business_review: dict[str, Any]
+    dry_run: bool
+    branch_name: str
+    staged_paths: list[str]
+    commit_message: str
+    pr_title: str
+    pr_body: str
+    base_branch: str
+    commit_sha: str | None
+    pr_metadata: dict[str, Any]
+    pr_number: int | None
+    pr_url: str | None
 
     # Control flow
     # `agent_decisions` is reduced with `operator.add`. Nodes MUST return only
@@ -50,6 +65,7 @@ class PipelineState(TypedDict, total=False):
     agent_decisions: Annotated[list[dict[str, Any]], operator.add]
     current_phase: str
     should_loop: bool
+    loop_from: str
     should_revise_modeling: bool
     should_revise_report: bool
     iteration: int

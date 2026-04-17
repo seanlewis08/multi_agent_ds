@@ -1,4 +1,4 @@
-"""LangGraph skeleton for the expanded pre-modeling EDA workflow."""
+"""LangGraph skeleton for the runtime pipeline graph."""
 
 from __future__ import annotations
 
@@ -10,21 +10,33 @@ from multi_agent_ds.agents.data_engineer import data_engineer_node
 from multi_agent_ds.agents.eda_analyst import eda_analyst_node
 from multi_agent_ds.agents.ml_modeler import ml_modeler_node
 from multi_agent_ds.agents.ml_reviewer import ml_reviewer_node
+from multi_agent_ds.agents.report_writer import report_writer_node
+from multi_agent_ds.agents.reviewer import reviewer_node
 from multi_agent_ds.orchestration.router import (
     route_after_data_engineer_execute,
     route_after_data_engineer_feedback,
+    route_after_evaluation,
     route_after_modeling_handoff,
     route_after_modeling_review,
     route_after_prep_plan,
     route_after_processed_approval,
     route_after_processed_eda,
+    route_after_report_generation,
+    route_after_reviewer,
     route_after_raw_eda,
+    route_after_business_review,
 )
 from multi_agent_ds.orchestration.state import PipelineState
+from multi_agent_ds.workflows.evaluation import run_evaluation_from_state
 
 
-def build_graph() -> StateGraph:
-    """Build the shared LangGraph state graph for pre-modeling review and prep."""
+def _evaluation_node(state: PipelineState) -> dict:
+    """Run the evaluation workflow and return state updates for downstream nodes."""
+    return run_evaluation_from_state(state)
+
+
+def build_graph(entry_node: str = "eda_raw") -> StateGraph:
+    """Build the shared LangGraph state graph for runtime execution."""
     graph = StateGraph(PipelineState)
 
     graph.add_node("eda_raw", lambda state: eda_analyst_node(state, mode="raw"))
@@ -115,8 +127,15 @@ def build_graph() -> StateGraph:
         "ml_reviewer_final_recommendation_review",
         lambda state: ml_reviewer_node(state, mode="final_recommendation_review"),
     )
+    graph.add_node("evaluation", _evaluation_node)
+    graph.add_node("reviewer", reviewer_node)
+    graph.add_node("report_writer", report_writer_node)
+    graph.add_node(
+        "business_stakeholder_report_review",
+        lambda state: business_stakeholder_node(state, mode="report_review"),
+    )
 
-    graph.set_entry_point("eda_raw")
+    graph.set_entry_point(entry_node)
     graph.add_conditional_edges(
         "eda_raw",
         route_after_raw_eda,
@@ -233,6 +252,33 @@ def build_graph() -> StateGraph:
         route_after_modeling_review,
         {
             "ml_modeler_final_recommendation": "ml_modeler_final_recommendation",
+            "evaluation": "evaluation",
+        },
+    )
+    graph.add_conditional_edges(
+        "evaluation",
+        route_after_evaluation,
+        {
+            "ml_modeler_baseline": "ml_modeler_baseline",
+            "reviewer": "reviewer",
+        },
+    )
+    graph.add_conditional_edges(
+        "reviewer",
+        route_after_reviewer,
+        {"report_writer": "report_writer"},
+    )
+    graph.add_conditional_edges(
+        "report_writer",
+        route_after_report_generation,
+        {"business_stakeholder_report_review": "business_stakeholder_report_review"},
+    )
+    graph.add_conditional_edges(
+        "business_stakeholder_report_review",
+        route_after_business_review,
+        {
+            "report_writer": "report_writer",
+            "ml_modeler_baseline": "ml_modeler_baseline",
             "end": END,
         },
     )
