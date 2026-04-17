@@ -213,3 +213,30 @@ def build_demo_subgraph():
     g.add_edge("prep_plan_stage", "data_engineer")
     g.add_edge("data_engineer", END)
     return g.compile()
+
+
+# --- Preflight guards --------------------------------------------------
+
+def preflight(*, parquet_path: Path) -> None:
+    """Raise early with a clear message if the recorder can't run.
+
+    Checked conditions:
+      - OPENAI_API_KEY must be set (EnvironmentError, mirrors
+        adapters/llm/openai.py)
+      - parquet_path must exist on disk (FileNotFoundError, includes
+        the resolved absolute path in the message)
+
+    Called before any graph invocation or file write so partial JSON
+    is never produced.
+    """
+    if not os.getenv("OPENAI_API_KEY"):
+        raise EnvironmentError(
+            "OPENAI_API_KEY is not set. Set it in your environment or .env "
+            "before running the demo recorder. The recorder invokes LLM "
+            "agents and cannot proceed without an API key."
+        )
+    if not parquet_path.exists():
+        raise FileNotFoundError(
+            f"Input parquet not found at {parquet_path.resolve()}. "
+            f"Check config/settings.yaml -> data.source or pass --parquet."
+        )
