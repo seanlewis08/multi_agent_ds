@@ -1015,7 +1015,7 @@ Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>"
 | demo-runtime-viewer.AC1.2 | **PASS** | All six artifact keys non-null: raw_eda_insights (7 keys), prep_plan (5 keys), processed_df_head (10 items), processed_df_stats (4 keys), input_df_head (10 items), input_df_stats (7 keys). Total file size: 116,342 bytes. |
 | demo-runtime-viewer.AC1.3 | **PASS** | All 4 events have valid ISO-8601 timestamps (e.g., 2026-04-17T04:27:26.416Z) and elapsed_ms as non-negative integers (63ms, 9806ms, 9831ms, 19436ms). Zero malformed timestamps. |
 | demo-runtime-viewer.AC1.4 | **PASS** | Error condition tested separately. Preflight guard raises FileNotFoundError with resolved absolute path when parquet missing. |
-| demo-runtime-viewer.AC1.5 | **PASS** | Error condition tested separately. Preflight guard raises EnvironmentError mentioning "OPENAI_API_KEY" when env var unset. |
+| demo-runtime-viewer.AC1.5 | **PASS** | Error condition tested separately. Preflight guard raises RuntimeError mentioning "OPENAI_API_KEY" when env var unset. |
 | demo-runtime-viewer.AC1.6 | **PASS** | No `.tmp` sibling file remains after recording. JSON is fully serializable: zero non-JSON types (no DataFrames, ndarrays, pickled objects). Atomic write confirmed. |
 
 ### Unit Test Results
