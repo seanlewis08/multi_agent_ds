@@ -1,6 +1,7 @@
 workflows:
   full_pipeline:
     description: "EDA to stakeholder-approved report pipeline."
+    entry_node: eda_raw
     steps:
       - eda_raw
       - ml_modeler_raw_review
@@ -15,10 +16,25 @@ workflows:
       - business_stakeholder_processed_review
       - eda_processed_approval
       - ml_modeler_handoff
+    post_model_sequence:
+      - evaluation
+      - reviewer
+      - report
+      - business_stakeholder_report_review
     review_loops:
       eda_preparation:
         revise_preparation: eda_prep_plan
         approve_processed_data: ml_modeler_handoff
+  baseline_only:
+    description: "Synthetic-data shortcut into the existing modeling handoff."
+    entry_node: ml_modeler_handoff
+    steps:
+      - ml_modeler_handoff
+    post_model_sequence:
+      - evaluation
+      - reviewer
+      - report
+      - business_stakeholder_report_review
   eda_preparation:
     description: "Pre-modeling EDA review, preparation loop, and processed-data approval."
     max_iterations: 3
