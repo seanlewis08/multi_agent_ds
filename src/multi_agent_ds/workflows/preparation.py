@@ -24,6 +24,55 @@ def _source_stem(source_path: str) -> str:
     return Path(path).stem or "dataset"
 
 
+def _cell_str(value: Any) -> str:
+    """Stringify a single DataFrame cell with a short repr.
+
+    Returns the empty string for None / pandas NA and truncates long values so
+    the preview table stays scan-friendly. Pure-string helper so the caller
+    can hand the result directly to HTML/JSON without further escaping.
+    """
+    if value is None:
+        return ""
+    # pandas NA / NaT / NaN check without importing pandas here (already loaded
+    # at module scope, but we want defensiveness against unusual dtypes).
+    try:
+        cls_name = value.__class__.__name__
+    except AttributeError:
+        cls_name = ""
+    if cls_name in ("NAType", "NaTType"):
+        return ""
+    try:
+        if pd.isna(value):
+            return ""
+    except (TypeError, ValueError):
+        pass
+    text = str(value)
+    return text[:30] + "\u2026" if len(text) > 30 else text
+
+
+def _df_head_preview(
+    df: pd.DataFrame, n_rows: int = 5, max_cols: int = 8
+) -> dict[str, Any]:
+    """Return a JSON-serialisable head preview of a DataFrame.
+
+    Shape: ``{columns: [...], rows: [[cell, ...], ...], total_columns, total_rows}``
+    where each cell is a short string. Used by the HTML report to render
+    before/after previews in the ``data_engineer_execute`` state detail.
+    """
+    cols = [str(c) for c in list(df.columns[:max_cols])]
+    head = df.head(n_rows)
+    rows: list[list[str]] = []
+    for i in range(len(head)):
+        row = [_cell_str(head.iloc[i][c]) for c in df.columns[:max_cols]]
+        rows.append(row)
+    return {
+        "columns": cols,
+        "rows": rows,
+        "total_columns": int(df.shape[1]),
+        "total_rows": int(len(df)),
+    }
+
+
 def build_processed_filename(source_path: str, timestamp: datetime | None = None) -> str:
     """Build a timestamped processed parquet filename."""
     timestamp = timestamp or datetime.utcnow()
@@ -79,6 +128,10 @@ def run_preparation_workflow(
     source_n_rows = int(len(df))
     source_n_features = int(max(df.shape[1] - 1, 0))
 
+    # Capture a short preview of the raw input before any transforms so the
+    # HTML report can show before/after side-by-side on the execute state.
+    raw_head_preview = _df_head_preview(df)
+
     cleaned_df, cleaning_summary = apply_cleaning_actions(
         df=df,
         actions=prep_plan.get("cleaning_actions"),
@@ -89,6 +142,8 @@ def run_preparation_workflow(
         actions=prep_plan.get("feature_actions"),
         target_col=target_col,
     )
+    # Preview the finalised engineered frame (post cleaning + feature actions).
+    processed_head_preview = _df_head_preview(engineered_df)
 
     filename = build_processed_filename(source_path)
     processed_n_rows = int(len(engineered_df))
@@ -127,4 +182,6 @@ def run_preparation_workflow(
         "processed_n_features": processed_n_features,
         "cleaning_summary": cleaning_summary,
         "feature_summary": feature_summary,
+        "raw_head_preview": raw_head_preview,
+        "processed_head_preview": processed_head_preview,
     }

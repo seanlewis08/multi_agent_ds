@@ -615,13 +615,15 @@ def test_route_after_nodes_excluded_from_states() -> None:
 
 
 def test_state_agent_falls_back_to_inference_when_turns_lack_node() -> None:
-    """Bug B: legacy turns without a ``node`` field must not latch onto a state.
+    """Bug B: legacy turns without a ``node`` field must not latch onto a state
+    by node-name equality alone.
 
-    When backfilled / legacy recordings have ``node=None`` on every turn,
-    the old equality check (``turn.node == state.node``) matched None==None
-    and pulled in a random turn's agent. The fix requires a non-None node on
-    both sides — unmatched states fall through to ``_agent_for_node(node)``
-    which infers correctly by prefix.
+    Under Fix A the attribution pass matches turns by (agent, time-window)
+    rather than node-name equality, so a turn with ``node=None`` that also
+    lacks an agent-match (e.g. eda_analyst / business_stakeholder turn) must
+    NOT land in a ml_reviewer_raw_review state. A turn whose agent DOES match
+    the state (ml_reviewer) correctly lands via the agent-window path — that
+    is the intended behavior, not a regression.
     """
     turns = [
         _sample_turn(
@@ -658,8 +660,9 @@ def test_state_agent_falls_back_to_inference_when_turns_lack_node() -> None:
     assert state["node"] == "ml_reviewer_raw_review"
     # Inferred from node prefix, NOT taken from a random turn's agent.
     assert state["agent"] == "ml_reviewer"
-    # And no turn should have been matched (since all turns lack a node).
-    assert state["turn_indices"] == []
+    # Only the ml_reviewer turn (index 2) matches the state via
+    # agent+time-window; the eda_analyst / business_stakeholder turns do not.
+    assert state["turn_indices"] == [2]
 
 
 def test_timeline_pxpermmsv_scale_embedded() -> None:
@@ -836,6 +839,217 @@ def test_multi_layer_recorded_calls_land_on_state_and_render_css() -> None:
     # Rendered HTML carries the per-layer CSS classes so the badge styling works.
     for cls in ("call-layer-skill", "call-layer-tool", "call-layer-workflow"):
         assert cls in document, f"missing CSS class: {cls}"
+
+
+def test_turn_attribution_by_agent_time_window() -> None:
+    """Fan-out: three states with distinct agents, overlapping time windows,
+    three turns with corresponding agents — each state lands its own turn.
+
+    This covers Bug 1 from Fix A: raw-review fan-out where three sibling
+    reviewer states (ml_modeler, ml_reviewer, business_stakeholder) overlap
+    in time, and three turns — one per agent — must be attributed by
+    agent-match rather than node-name string match.
+    """
+    turns = [
+        _sample_turn(
+            turn_index=0,
+            agent="ml_modeler",
+            task="raw_review",
+            kind="structured",
+            response={"parsed": {"summary": "ml_modeler view"}},
+            node=None,
+            started_at="2026-04-16T12:00:00.010+00:00",
+        ),
+        _sample_turn(
+            turn_index=1,
+            agent="ml_reviewer",
+            task="raw_review",
+            kind="structured",
+            response={"parsed": {"summary": "ml_reviewer view"}},
+            node=None,
+            started_at="2026-04-16T12:00:00.015+00:00",
+        ),
+        _sample_turn(
+            turn_index=2,
+            agent="business_stakeholder",
+            task="raw_review",
+            kind="structured",
+            response={"parsed": {"summary": "biz view"}},
+            node=None,
+            started_at="2026-04-16T12:00:00.020+00:00",
+        ),
+    ]
+    boundaries = [
+        {"kind": "start", "node": "ml_modeler_raw_review",
+         "ts": "2026-04-16T12:00:00+00:00", "elapsed_ms": 0.0},
+        {"kind": "end", "node": "ml_modeler_raw_review",
+         "ts": "2026-04-16T12:00:00.100+00:00", "elapsed_ms": 100.0},
+        {"kind": "start", "node": "ml_reviewer_raw_review",
+         "ts": "2026-04-16T12:00:00+00:00", "elapsed_ms": 0.0},
+        {"kind": "end", "node": "ml_reviewer_raw_review",
+         "ts": "2026-04-16T12:00:00.100+00:00", "elapsed_ms": 100.0},
+        {"kind": "start", "node": "business_stakeholder_raw_review",
+         "ts": "2026-04-16T12:00:00+00:00", "elapsed_ms": 0.0},
+        {"kind": "end", "node": "business_stakeholder_raw_review",
+         "ts": "2026-04-16T12:00:00.100+00:00", "elapsed_ms": 100.0},
+    ]
+    data = _build_data_dict(
+        turns, boundaries, [], {"started_at": "2026-04-16T12:00:00+00:00"}
+    )
+    by_node = {s["node"]: s for s in data["states"]}
+    assert by_node["ml_modeler_raw_review"]["turn_indices"] == [0]
+    assert by_node["ml_reviewer_raw_review"]["turn_indices"] == [1]
+    assert by_node["business_stakeholder_raw_review"]["turn_indices"] == [2]
+
+
+def test_turn_attribution_time_window_for_same_agent_states() -> None:
+    """Iteration duplication (Bug 3): two eda_analyst states at different
+    times must each claim only the turn in their own window.
+    """
+    turns = [
+        _sample_turn(
+            turn_index=0,
+            agent="eda_analyst",
+            task="prep_plan",
+            kind="structured",
+            response={"parsed": {"summary": "iter-1"}},
+            node="eda_prep_plan",
+            started_at="2026-04-16T12:00:00.050+00:00",
+        ),
+        _sample_turn(
+            turn_index=1,
+            agent="eda_analyst",
+            task="prep_plan",
+            kind="structured",
+            response={"parsed": {"summary": "iter-2"}},
+            node="eda_prep_plan",
+            started_at="2026-04-16T12:00:01.050+00:00",
+        ),
+    ]
+    boundaries = [
+        {"kind": "start", "node": "eda_prep_plan",
+         "ts": "2026-04-16T12:00:00+00:00", "elapsed_ms": 0.0},
+        {"kind": "end", "node": "eda_prep_plan",
+         "ts": "2026-04-16T12:00:00.500+00:00", "elapsed_ms": 500.0},
+        {"kind": "start", "node": "eda_prep_plan",
+         "ts": "2026-04-16T12:00:01+00:00", "elapsed_ms": 1000.0},
+        {"kind": "end", "node": "eda_prep_plan",
+         "ts": "2026-04-16T12:00:01.500+00:00", "elapsed_ms": 1500.0},
+    ]
+    data = _build_data_dict(
+        turns, boundaries, [], {"started_at": "2026-04-16T12:00:00+00:00"}
+    )
+    eda_states = [s for s in data["states"] if s["node"] == "eda_prep_plan"]
+    assert len(eda_states) == 2
+    # First iteration covers t=[0, 500] and owns turn 0 (t~50ms).
+    assert eda_states[0]["turn_indices"] == [0]
+    # Second iteration covers t=[1000, 1500] and owns turn 1 (t~1050ms).
+    assert eda_states[1]["turn_indices"] == [1]
+
+
+def test_orphaned_turn_with_node_none_lands_by_agent() -> None:
+    """A turn with node=None but a valid agent must still attribute to the
+    right state via agent+time-window — Bug 4 from Fix A.
+    """
+    turns = [
+        _sample_turn(
+            turn_index=0,
+            agent="business_stakeholder",
+            task="raw_review",
+            kind="structured",
+            response={"parsed": {"summary": "biz view"}},
+            node=None,  # orphaned
+            started_at="2026-04-16T12:00:00.020+00:00",
+        ),
+    ]
+    boundaries = [
+        {"kind": "start", "node": "business_stakeholder_raw_review",
+         "ts": "2026-04-16T12:00:00+00:00", "elapsed_ms": 0.0},
+        {"kind": "end", "node": "business_stakeholder_raw_review",
+         "ts": "2026-04-16T12:00:00.100+00:00", "elapsed_ms": 100.0},
+    ]
+    data = _build_data_dict(
+        turns, boundaries, [], {"started_at": "2026-04-16T12:00:00+00:00"}
+    )
+    assert data["states"][0]["turn_indices"] == [0]
+
+
+def test_state_calls_panel_embedded() -> None:
+    """Silent states with recorded_calls must get the state-level panel
+    rendered — the JS function + CSS class are embedded in the document.
+    """
+    document = render_conversation_html([], [], {})
+    assert "function renderStateCallsPanel" in document
+    assert ".state-calls" in document
+    # The panel is invoked from renderStateDetail.
+    assert "renderStateCallsPanel(state)" in document
+
+
+def test_list_as_table_renders_for_feature_summaries() -> None:
+    """An EDAOutput turn with 17 feature_summaries must hit the table
+    renderer — the JS helper plus the "Showing N of M rows" truncation
+    message are embedded so the SPA can produce the table at render time.
+    """
+    document = render_conversation_html([], [], {})
+    assert "function renderListAsTable" in document
+    assert "Showing " in document
+    assert "response-table" in document
+
+
+def test_df_head_preview_attached_to_execute_state() -> None:
+    """Seeding a data_engineer_execute decision with a raw_head_preview
+    surfaces the preview on the owning state as ``data_preview``.
+    """
+    boundaries = [
+        {"kind": "start", "node": "data_engineer_execute",
+         "ts": "t0", "elapsed_ms": 0.0},
+        {"kind": "end", "node": "data_engineer_execute",
+         "ts": "t1", "elapsed_ms": 100.0},
+    ]
+    raw_preview = {
+        "columns": ["a", "b"],
+        "rows": [["1", "x"], ["2", "y"]],
+        "total_columns": 2,
+        "total_rows": 2,
+    }
+    processed_preview = {
+        "columns": ["a", "b", "c"],
+        "rows": [["1", "x", "ok"], ["2", "y", "ok"]],
+        "total_columns": 3,
+        "total_rows": 2,
+    }
+    agent_decisions = [
+        {
+            "agent": "data_engineer",
+            "phase": "prep_execute",
+            "raw_head_preview": raw_preview,
+            "processed_head_preview": processed_preview,
+        },
+    ]
+    data = _build_data_dict([], boundaries, agent_decisions, {})
+    assert data["states"][0]["node"] == "data_engineer_execute"
+    preview = data["states"][0].get("data_preview")
+    assert preview is not None
+    assert preview["input"] == raw_preview
+    assert preview["processed"] == processed_preview
+
+
+def test_data_preview_panel_renderer_embedded() -> None:
+    """The SPA exposes the panel renderer + CSS for the preview tables."""
+    document = render_conversation_html([], [], {})
+    assert "function renderDataPreviewPanel" in document
+    assert ".data-preview-table" in document
+    assert ".data-preview-panel" in document
+
+
+def test_render_preparation_execution_plan_dispatched() -> None:
+    """Objects with ready_for_execution + cleaning_actions route to the new
+    PreparationExecutionPlan formatter.
+    """
+    document = render_conversation_html([], [], {})
+    assert "function renderPreparationExecutionPlan" in document
+    # Dispatch is wired into renderStructured.
+    assert "renderPreparationExecutionPlan(parsed)" in document
 
 
 def test_legacy_skill_only_calls_default_to_skill_layer() -> None:

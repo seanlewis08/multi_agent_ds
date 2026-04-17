@@ -97,6 +97,77 @@ def test_run_preparation_workflow_raises_when_target_column_is_missing(tmp_path:
         )
 
 
+def test_run_preparation_workflow_returns_head_previews(monkeypatch, tmp_path: Path) -> None:
+    """Head previews for raw + processed frames are included in the returned dict.
+
+    The HTML report uses these to render side-by-side before/after tables on
+    the ``data_engineer_execute`` state detail.
+    """
+    source_path = tmp_path / "raw.parquet"
+    pd.DataFrame(
+        {
+            "claim_amount_avg": [10.0, 12.0, 1000.0],
+            "distance_to_work": [1.0, None, 4.0],
+            "binary_target": [0, 1, 1],
+        }
+    ).to_parquet(source_path)
+
+    def fake_upload_to_s3(local_path, path_key, filename, settings):
+        assert Path(local_path).exists()
+        return f"s3://{settings['s3']['bucket']}/{settings['s3']['prefix']}/{settings['s3']['paths'][path_key]}/{filename}"
+
+    monkeypatch.setattr("multi_agent_ds.workflows.preparation.upload_to_s3", fake_upload_to_s3)
+
+    result = run_preparation_workflow(
+        data_path=str(source_path),
+        prep_plan={
+            "cleaning_actions": [
+                {
+                    "action": "impute_numeric_median",
+                    "params": {"columns": ["distance_to_work"]},
+                },
+            ],
+            "feature_actions": [
+                {
+                    "action": "ratio",
+                    "params": {
+                        "numerator": "claim_amount_avg",
+                        "denominator": "distance_to_work",
+                        "output_column": "claim_per_distance",
+                    },
+                }
+            ],
+        },
+        settings={
+            "data": {"source": "existing", "existing": {"target_column": "binary_target"}},
+            "s3": {
+                "bucket": "example-bucket",
+                "prefix": "multi_agent_ds",
+                "paths": {"processed": "data/processed"},
+            },
+        },
+    )
+
+    raw_preview = result["raw_head_preview"]
+    processed_preview = result["processed_head_preview"]
+
+    assert isinstance(raw_preview, dict)
+    assert isinstance(processed_preview, dict)
+    assert raw_preview["total_rows"] == 3
+    assert raw_preview["total_columns"] == 3
+    assert list(raw_preview["columns"]) == [
+        "claim_amount_avg",
+        "distance_to_work",
+        "binary_target",
+    ]
+    # 3 rows of data, each a list of stringified cells (one per column).
+    assert len(raw_preview["rows"]) == 3
+    assert all(isinstance(cell, str) for row in raw_preview["rows"] for cell in row)
+    # Processed preview reflects the engineered frame (extra ratio column).
+    assert "claim_per_distance" in processed_preview["columns"]
+    assert processed_preview["total_columns"] == 4
+
+
 def test_run_preparation_workflow_requires_existing_target_column_config(tmp_path: Path) -> None:
     source_path = tmp_path / "raw.parquet"
     pd.DataFrame({"feature": [1, 2], "binary_target": [0, 1]}).to_parquet(source_path)

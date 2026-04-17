@@ -104,6 +104,8 @@ def data_engineer_node(state: PipelineState, mode: str = "feedback") -> dict[str
                 target_column=prep_result.get("target_column"),
                 processed_n_rows=prep_result.get("processed_n_rows", prep_result.get("n_rows")),
                 processed_n_features=prep_result.get("processed_n_features", prep_result.get("n_features")),
+                raw_head_preview=prep_result.get("raw_head_preview"),
+                processed_head_preview=prep_result.get("processed_head_preview"),
             ),
             "current_phase": "prep_execute",
         }

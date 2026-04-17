@@ -14,6 +14,7 @@ from __future__ import annotations
 import html
 import json
 import shutil
+from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -301,6 +302,41 @@ def _agent_column_order(
     return seen
 
 
+def _best_state_for_turn(
+    turn: dict[str, Any],
+    states_by_agent: dict[str, list[dict[str, Any]]],
+    *,
+    tolerance_ms: float = 50.0,
+) -> dict[str, Any] | None:
+    """Find the best state for a turn via (agent, time-window) match.
+
+    Returns the state whose [started_at_ms, ended_at_ms] window (extended by
+    ``tolerance_ms`` on each side to absorb clock-skew on fan-out boundaries)
+    contains the turn's ``started_at_ms`` AND which is owned by the same
+    agent. If multiple candidates match, the one with the closest start time
+    to the turn wins. Returns ``None`` when no candidate matches — callers
+    can then fall back to node-name equality.
+    """
+    agent = turn.get("agent")
+    if not agent:
+        return None
+    candidates = states_by_agent.get(agent, [])
+    t = float(turn.get("started_at_ms", 0.0) or 0.0)
+    in_window: list[dict[str, Any]] = []
+    for state in candidates:
+        start = state.get("started_at_ms")
+        end = state.get("ended_at_ms")
+        if start is None or end is None:
+            continue
+        if float(start) - tolerance_ms <= t <= float(end) + tolerance_ms:
+            in_window.append(state)
+    if not in_window:
+        return None
+    return min(
+        in_window, key=lambda s: abs(float(s.get("started_at_ms", 0.0) or 0.0) - t)
+    )
+
+
 def _build_data_dict(
     turns: list[dict[str, Any]],
     node_boundaries: list[dict[str, Any]],
@@ -348,47 +384,57 @@ def _build_data_dict(
     # Assemble states from boundaries.
     states = _pair_boundaries_into_states(node_boundaries or [])
 
-    # For each state, compute turn_indices, agent, phase, summary.
+    # Stamp each state with its node-inferred agent up-front so the
+    # attribution loop can match turns by (agent, time-window). The agent is
+    # authoritative from the node name — the old "agents_seen[0]" logic
+    # incorrectly latched onto whichever turn happened to appear first.
     for state in states:
-        node = state["node"]
-        matching_turn_indices: list[int] = []
-        agents_seen: list[str] = []
-        phases_seen: list[str] = []
-        for annotated in annotated_turns:
-            turn_node = annotated.get("node")
-            # Require BOTH sides to carry a node before accepting a match. For
-            # legacy / backfilled payloads where turns lack a ``node`` field,
-            # ``turn_node`` is None and would otherwise spuriously match every
-            # state (None == None) — causing the state's agent to latch onto
-            # whichever turn happens to appear first globally. Falling through
-            # to ``_agent_for_node(node)`` produces the correct inferred agent
-            # for those legacy payloads.
-            if turn_node is None or turn_node != node:
-                continue
-            matching_turn_indices.append(annotated["turn_index"])
-            agents_seen.append(annotated["agent"])
-            phases_seen.append(annotated["phase"])
-        state["turn_indices"] = matching_turn_indices
-        # Prefer the agent inferred from the node name when it appears in
-        # agents_seen. Legacy fan-out payloads sometimes stamp all sibling
-        # reviewers with the same node name, making agents_seen a mix of
-        # (business_stakeholder, ml_modeler, ml_reviewer) for an
-        # ``ml_reviewer_*`` state — in that case the inferred agent is the
-        # authoritative one. Fall back to the first turn's agent otherwise.
-        inferred_agent = _agent_for_node(node)
-        if agents_seen:
-            state["agent"] = (
-                inferred_agent if inferred_agent in agents_seen else agents_seen[0]
-            )
+        state["agent"] = _agent_for_node(state["node"])
+
+    # Build an agent -> [states] index for fast (agent, time-window) lookup.
+    states_by_agent: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for state in states:
+        agent_id = state.get("agent")
+        if isinstance(agent_id, str) and agent_id:
+            states_by_agent[agent_id].append(state)
+        # Initialise the per-state attribution buckets.
+        state["turn_indices"] = []
+        state.setdefault("phase", "")
+        state.setdefault("summary", "")
+
+    # Attribute each turn to at most one state. Primary: (agent, time-window)
+    # match — this correctly routes fan-out turns where multiple sibling
+    # states share node names (e.g. three *_raw_review reviewers) and also
+    # correctly distinguishes repeated-iteration states (e.g. three
+    # eda_prep_plan iterations) by start time. Fallback: node-name equality
+    # for legacy turns that carry a node but have no time-window match.
+    for annotated in annotated_turns:
+        turn_index = annotated["turn_index"]
+        match = _best_state_for_turn(annotated, states_by_agent)
+        if match is not None:
+            match["turn_indices"].append(turn_index)
+            continue
+        # Fallback: node-name equality against the first matching state.
+        turn_node = annotated.get("node")
+        if not isinstance(turn_node, str) or not turn_node:
+            continue
+        for state in states:
+            if state.get("node") == turn_node:
+                state["turn_indices"].append(turn_index)
+                break
+
+    # Populate phase + summary from turns attributed to each state (post-
+    # attribution). Falling back to the first matched turn's values — if a
+    # state has no attributed turns, phase/summary stay empty.
+    for state in states:
+        indices = state.get("turn_indices") or []
+        if indices:
+            first_turn = annotated_turns[indices[0]]
+            state["phase"] = first_turn.get("phase", "") or ""
+            state["summary"] = _extract_summary(first_turn.get("response") or {})
         else:
-            state["agent"] = inferred_agent
-        state["phase"] = phases_seen[0] if phases_seen else ""
-        # Summary: pull the first useful one-liner from the first turn's response.
-        summary = ""
-        if matching_turn_indices:
-            first_turn = annotated_turns[matching_turn_indices[0]]
-            summary = _extract_summary(first_turn.get("response") or {})
-        state["summary"] = summary
+            state["phase"] = ""
+            state["summary"] = ""
 
     # Fallback: if we have no boundaries, synthesize states from turns so the
     # Summary view is still meaningful. Group consecutive turns by (node,
@@ -444,6 +490,33 @@ def _build_data_dict(
             )
         else:
             state["routed_via"] = None
+
+    # Attach before/after head previews from data_engineer_execute
+    # decisions. The agent stores them on the ``prep_execute`` decision entry
+    # rather than stamping them on the state directly (agent_decisions is the
+    # authoritative decision log). We thread them through here so the HTML
+    # report can render side-by-side raw/processed preview tables.
+    execute_previews = [
+        decision
+        for decision in agent_decisions
+        if decision.get("agent") == "data_engineer"
+        and decision.get("phase") == "prep_execute"
+        and (
+            decision.get("raw_head_preview") is not None
+            or decision.get("processed_head_preview") is not None
+        )
+    ]
+    execute_preview_iter = iter(execute_previews)
+    for state in states:
+        if state.get("node") != "data_engineer_execute":
+            continue
+        decision = next(execute_preview_iter, None)
+        if decision is None:
+            break
+        state["data_preview"] = {
+            "input": decision.get("raw_head_preview"),
+            "processed": decision.get("processed_head_preview"),
+        }
 
     # Attach recorded calls (skill / tool / workflow) to their owning state by
     # node name. Calls without a node (recorded outside any boundary) are
@@ -1089,6 +1162,121 @@ table.kv-table th, table.kv-table td {
 }
 table.kv-table th { background: #F0EADC; }
 
+/* ---- Response list-of-dicts rendered as a compact table ---- */
+.response-table {
+  border-collapse: collapse;
+  font-size: 11px;
+  width: 100%;
+  margin: 4px 0;
+}
+.response-table th, .response-table td {
+  border: 1px solid var(--border);
+  padding: 4px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+.response-table th {
+  background: #F0EDE6;
+  font-weight: 600;
+}
+.response-table td {
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.response-table-wrap { overflow-x: auto; }
+.table-truncation {
+  font-size: 10px;
+  color: var(--muted);
+  text-align: right;
+  margin-top: 2px;
+}
+h5.schema-field-label {
+  margin: 10px 0 4px;
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ---- State-level function-calls panel (for silent states) ---- */
+.state-calls {
+  background: #F6F1E7;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--layer-skill);
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin: 0 0 16px;
+}
+.state-calls h3 {
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.state-calls-summary {
+  font-size: 12px;
+  color: #444;
+  margin-bottom: 6px;
+}
+.state-calls ul.recorded-calls-list {
+  margin: 0;
+  padding-left: 16px;
+}
+.state-calls ul.recorded-calls-list li.recorded-call {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  margin: 1px 0;
+}
+.state-calls ul.recorded-calls-list code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+}
+
+/* ---- Data preview tables (before/after on data_engineer_execute) ---- */
+.data-preview-panel {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin: 0 0 16px;
+}
+.data-preview {
+  flex: 1 1 320px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+.data-preview h3 {
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.data-preview .preview-meta {
+  font-size: 10px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+table.data-preview-table {
+  border-collapse: collapse;
+  font-size: 11px;
+  width: 100%;
+  margin: 2px 0;
+}
+table.data-preview-table th, table.data-preview-table td {
+  border: 1px solid var(--border);
+  padding: 3px 6px;
+  text-align: left;
+  vertical-align: top;
+  white-space: nowrap;
+}
+table.data-preview-table th { background: #F0EDE6; font-weight: 600; }
+
 /* ---- Timeline ---- */
 .timeline-controls {
   display: flex; gap: 14px; align-items: center; margin-bottom: 14px;
@@ -1516,13 +1704,86 @@ function renderStateDetail(app, nodeName) {
     ]),
   ]);
   app.appendChild(header);
+  // Data preview (before/after) for data_engineer_execute states.
+  const dataPreviewPanel = renderDataPreviewPanel(state);
+  if (dataPreviewPanel) app.appendChild(dataPreviewPanel);
+  // State-level function-calls panel: surfaces skill/tool/workflow calls for
+  // silent states (data_engineer_execute, ml_modeler_handoff, evaluation)
+  // that make calls but produce no LLM turns.
+  const stateCallsPanel = renderStateCallsPanel(state);
+  if (stateCallsPanel) app.appendChild(stateCallsPanel);
   // Turn cards
   const turns = (state.turn_indices || []).map(i => DATA.turns[i]).filter(Boolean);
   if (!turns.length) {
-    app.appendChild(el('div', { className: 'muted' }, 'No adapter turns recorded for this state.'));
+    if (!stateCallsPanel) {
+      app.appendChild(el('div', { className: 'muted' }, 'No adapter turns recorded for this state.'));
+    }
     return;
   }
   turns.forEach(turn => app.appendChild(renderTurnCard(turn, state)));
+}
+
+function renderStateCallsPanel(state) {
+  const calls = (state && state.recorded_calls) || [];
+  if (!calls.length) return null;
+  const byLayer = { skill: 0, tool: 0, workflow: 0 };
+  calls.forEach(c => {
+    const layer = c.layer || 'skill';
+    byLayer[layer] = (byLayer[layer] || 0) + 1;
+  });
+  const summaryParts = Object.keys(byLayer)
+    .filter(l => byLayer[l] > 0)
+    .map(l => byLayer[l] + ' ' + l + ' call' + (byLayer[l] === 1 ? '' : 's'));
+  const ul = el('ul', { className: 'recorded-calls-list' });
+  calls.forEach(c => {
+    const layer = c.layer || 'skill';
+    ul.appendChild(el('li', { className: 'recorded-call' }, [
+      el('span', { className: 'call-layer call-layer-' + layer }, layer),
+      el('code', null, c.skill || '(unknown)'),
+      el('span', { className: 'call-elapsed' }, '(' + fmtMs(c.elapsed_ms) + ')'),
+    ]));
+  });
+  return el('section', { className: 'state-calls' }, [
+    el('h3', null, 'Function calls during this state'),
+    el('div', { className: 'state-calls-summary' }, summaryParts.join(' \u00b7 ')),
+    ul,
+  ]);
+}
+
+function renderDataPreviewPanel(state) {
+  const preview = state && state.data_preview;
+  if (!preview) return null;
+  const panel = el('section', { className: 'data-preview-panel' });
+  const slots = [
+    { key: 'input', title: 'Input data (head)' },
+    { key: 'processed', title: 'Processed data (head)' },
+  ];
+  let rendered = 0;
+  slots.forEach(slot => {
+    const pv = preview[slot.key];
+    if (!pv || !Array.isArray(pv.columns) || !Array.isArray(pv.rows)) return;
+    const thead = el('thead', null, el('tr', null,
+      pv.columns.map(c => el('th', null, String(c)))
+    ));
+    const tbody = el('tbody', null,
+      pv.rows.map(row => el('tr', null,
+        row.map(cell => el('td', { title: String(cell) }, String(cell)))
+      ))
+    );
+    const metaParts = [];
+    if (pv.total_rows != null) metaParts.push(pv.total_rows + ' rows');
+    if (pv.total_columns != null) metaParts.push(pv.total_columns + ' cols');
+    panel.appendChild(el('div', { className: 'data-preview' }, [
+      el('h3', null, slot.title),
+      (metaParts.length
+        ? el('div', { className: 'preview-meta' }, metaParts.join(' \u00b7 '))
+        : null),
+      el('div', { className: 'response-table-wrap' },
+        el('table', { className: 'data-preview-table' }, [thead, tbody])),
+    ]));
+    rendered += 1;
+  });
+  return rendered > 0 ? panel : null;
 }
 
 function renderTurnCard(turn, state) {
@@ -1737,6 +1998,7 @@ function renderStructured(parsed) {
   if (keySet.has('tuning_plan') || keySet.has('tuning_configs')) return renderTuningDecision(parsed);
   if (keySet.has('lr_adjustment') || keySet.has('learning_rate_adjustment')) return renderLearningRateDecision(parsed);
   if (keySet.has('selected_features') || keySet.has('features_to_drop')) return renderFeatureSelectionDecision(parsed);
+  if (keySet.has('ready_for_execution') && keySet.has('cleaning_actions')) return renderPreparationExecutionPlan(parsed);
   if (keySet.has('approved') && keySet.has('cleaning_actions')) return renderPreparationPlan(parsed);
   if (keySet.has('next_action') && (keySet.has('verdict') || keySet.has('rationale'))) return renderBusinessReview(parsed);
   if (keySet.has('should_revise_modeling')) return renderMLReview(parsed);
@@ -1777,18 +2039,224 @@ function renderValueDD(val) {
   return dd;
 }
 
-// Schema-specific formatters. Each delegates to renderGenericKV for anything
-// beyond the fields we know about, ensuring no field is silently dropped.
-function renderEDAOutput(p) { return renderGenericKV(p); }
-function renderPreparationPlan(p) { return renderGenericKV(p); }
-function renderBaselineDecision(p) { return renderGenericKV(p); }
-function renderTuningDecision(p) { return renderGenericKV(p); }
-function renderLearningRateDecision(p) { return renderGenericKV(p); }
-function renderFeatureSelectionDecision(p) { return renderGenericKV(p); }
-function renderModelingVerdict(p) { return renderGenericKV(p); }
-function renderEDAReview(p) { return renderGenericKV(p); }
-function renderMLReview(p) { return renderGenericKV(p); }
-function renderBusinessReview(p) { return renderGenericKV(p); }
+// --- Shared helpers for schema-aware formatters ---
+
+function renderListAsTable(list, options) {
+  options = options || {};
+  if (!Array.isArray(list) || list.length === 0) return null;
+  const first = list[0];
+  if (typeof first !== 'object' || first === null || Array.isArray(first)) return null;
+  const maxRows = options.maxRows || 5;
+  const maxCols = options.maxCols || 6;
+  const visible = list.slice(0, maxRows);
+  const truncated = list.length > maxRows;
+  const keySet = new Set();
+  visible.forEach(row => {
+    if (row && typeof row === 'object' && !Array.isArray(row)) {
+      Object.keys(row).forEach(k => keySet.add(k));
+    }
+  });
+  const columns = Array.from(keySet).slice(0, maxCols);
+  if (!columns.length) return null;
+  const thead = el('thead', null, el('tr', null,
+    columns.map(c => el('th', null, c))
+  ));
+  const tbody = el('tbody', null,
+    visible.map(row => el('tr', null,
+      columns.map(c => {
+        const v = (row && typeof row === 'object') ? row[c] : undefined;
+        const display = (v === null || v === undefined) ? '' :
+          (typeof v === 'object' ? JSON.stringify(v) : String(v));
+        return el('td', { title: display },
+          display.length > 60 ? display.slice(0, 57) + '\u2026' : display);
+      })
+    ))
+  );
+  const wrap = el('div', { className: 'response-table-wrap' },
+    el('table', { className: 'response-table' }, [thead, tbody])
+  );
+  if (truncated) {
+    const note = el('div', { className: 'table-truncation' },
+      'Showing ' + maxRows + ' of ' + list.length + ' rows');
+    const outer = el('div', null, [wrap, note]);
+    return outer;
+  }
+  return wrap;
+}
+
+function renderDictAsKV(obj) {
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return null;
+  const dl = el('dl', { className: 'kv-list' });
+  Object.keys(obj).forEach(key => {
+    dl.appendChild(el('dt', null, key));
+    dl.appendChild(renderValueDD(obj[key]));
+  });
+  return dl;
+}
+
+function renderStringList(list) {
+  if (!Array.isArray(list) || !list.length) return null;
+  const ul = el('ul');
+  list.forEach(v => ul.appendChild(el('li', null, String(v))));
+  return ul;
+}
+
+// --- Schema-specific formatters ---
+//
+// Each formatter renders known fields with appropriate widgets (tables for
+// list-of-dicts, pill-lists for list-of-strings, kv-lists for dicts) and
+// delegates unknown fields to renderGenericKV so nothing is silently dropped.
+
+function _renderSchema(parsed, tabularFields, scalarFields) {
+  // Generic driver: render known list-of-dict fields as tables, known scalar
+  // fields as labelled lines, and anything else via the generic kv list.
+  const frag = document.createDocumentFragment();
+  const known = new Set([...(tabularFields || []), ...(scalarFields || [])]);
+  (tabularFields || []).forEach(field => {
+    const val = parsed[field];
+    if (!Array.isArray(val) || !val.length) return;
+    const table = renderListAsTable(val);
+    if (!table) return;
+    frag.appendChild(el('h5', { className: 'schema-field-label' }, field));
+    frag.appendChild(table);
+  });
+  const leftover = {};
+  Object.keys(parsed).forEach(k => {
+    if (!known.has(k)) leftover[k] = parsed[k];
+    else if ((scalarFields || []).includes(k)) leftover[k] = parsed[k];
+  });
+  if (Object.keys(leftover).length) {
+    frag.appendChild(renderGenericKV(leftover));
+  }
+  return frag;
+}
+
+function renderEDAOutput(p) {
+  return _renderSchema(p, ['feature_summaries'], null);
+}
+
+function renderPreparationPlan(p) {
+  return _renderSchema(
+    p,
+    ['cleaning_actions', 'feature_actions', 'action_feedback'],
+    null,
+  );
+}
+
+function renderPreparationExecutionPlan(p) {
+  // Shares the field shape of PreparationPlanOutput — reuse.
+  return renderPreparationPlan(p);
+}
+
+function renderBaselineDecision(p) {
+  // algorithms_to_tune is a list of strings — render as a pill list.
+  const frag = document.createDocumentFragment();
+  if (Array.isArray(p.algorithms_to_tune) && p.algorithms_to_tune.length) {
+    frag.appendChild(el('h5', { className: 'schema-field-label' }, 'algorithms_to_tune'));
+    frag.appendChild(renderStringList(p.algorithms_to_tune));
+  }
+  const leftover = {};
+  Object.keys(p).forEach(k => {
+    if (k !== 'algorithms_to_tune') leftover[k] = p[k];
+  });
+  if (Object.keys(leftover).length) frag.appendChild(renderGenericKV(leftover));
+  return frag;
+}
+
+function renderTuningDecision(p) {
+  // chosen_params is a dict — render as kv-list when present.
+  const frag = document.createDocumentFragment();
+  if (p && p.chosen_params && typeof p.chosen_params === 'object'
+      && !Array.isArray(p.chosen_params)) {
+    frag.appendChild(el('h5', { className: 'schema-field-label' }, 'chosen_params'));
+    const kv = renderDictAsKV(p.chosen_params);
+    if (kv) frag.appendChild(kv);
+  }
+  // tuning_configs (if list-of-dicts) as a table.
+  if (Array.isArray(p.tuning_configs) && p.tuning_configs.length) {
+    const table = renderListAsTable(p.tuning_configs);
+    if (table) {
+      frag.appendChild(el('h5', { className: 'schema-field-label' }, 'tuning_configs'));
+      frag.appendChild(table);
+    }
+  }
+  const leftover = {};
+  Object.keys(p).forEach(k => {
+    if (k !== 'chosen_params' && k !== 'tuning_configs') leftover[k] = p[k];
+  });
+  if (Object.keys(leftover).length) frag.appendChild(renderGenericKV(leftover));
+  return frag;
+}
+
+function renderLearningRateDecision(p) {
+  return _renderSchema(p, ['adjustments'], null);
+}
+
+function renderFeatureSelectionDecision(p) {
+  // kept_features / dropped_features / selected_features are lists of
+  // strings — render each as a pill list; the rest via generic kv.
+  const frag = document.createDocumentFragment();
+  const listFields = ['kept_features', 'dropped_features', 'selected_features', 'features_to_drop'];
+  listFields.forEach(field => {
+    const val = p[field];
+    if (Array.isArray(val) && val.length
+        && val.every(v => typeof v === 'string' || typeof v === 'number')) {
+      frag.appendChild(el('h5', { className: 'schema-field-label' }, field));
+      frag.appendChild(renderStringList(val));
+    }
+  });
+  const leftover = {};
+  Object.keys(p).forEach(k => {
+    if (!listFields.includes(k)) leftover[k] = p[k];
+  });
+  if (Object.keys(leftover).length) frag.appendChild(renderGenericKV(leftover));
+  return frag;
+}
+
+function renderModelingVerdict(p) {
+  const frag = document.createDocumentFragment();
+  if (Array.isArray(p.ranked_algorithms) && p.ranked_algorithms.length) {
+    frag.appendChild(el('h5', { className: 'schema-field-label' }, 'ranked_algorithms'));
+    frag.appendChild(renderStringList(p.ranked_algorithms.map(v => String(v))));
+  }
+  if (Array.isArray(p.final_metrics) && p.final_metrics.length) {
+    const table = renderListAsTable(p.final_metrics);
+    if (table) {
+      frag.appendChild(el('h5', { className: 'schema-field-label' }, 'final_metrics'));
+      frag.appendChild(table);
+    }
+  } else if (p.final_metrics && typeof p.final_metrics === 'object') {
+    frag.appendChild(el('h5', { className: 'schema-field-label' }, 'final_metrics'));
+    const kv = renderDictAsKV(p.final_metrics);
+    if (kv) frag.appendChild(kv);
+  }
+  const leftover = {};
+  Object.keys(p).forEach(k => {
+    if (k !== 'ranked_algorithms' && k !== 'final_metrics') leftover[k] = p[k];
+  });
+  if (Object.keys(leftover).length) frag.appendChild(renderGenericKV(leftover));
+  return frag;
+}
+
+function renderEDAReview(p) {
+  return _renderSchema(
+    p,
+    ['concerns', 'scientific_vs_art', 'recommendations'],
+    null,
+  );
+}
+
+function renderMLReview(p) {
+  return _renderSchema(p, ['decisions', 'recommendations', 'concerns'], null);
+}
+
+function renderBusinessReview(p) {
+  return _renderSchema(
+    p,
+    ['concerns', 'recommendations', 'business_risks'],
+    null,
+  );
+}
 
 // --- view 3: timeline ---
 function layoutLaneChips(laneItems) {
