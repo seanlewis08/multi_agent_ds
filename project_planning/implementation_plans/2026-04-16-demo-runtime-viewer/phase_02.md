@@ -30,7 +30,7 @@ This phase implements and tests:
 - **demo-runtime-viewer.AC1.2 Success:** The recorded JSON includes `artifacts.raw_eda_insights` (the EDA agent's structured output) and `artifacts.prep_plan` + `artifacts.processed_df_head` (the Data Engineer's outputs).
 - **demo-runtime-viewer.AC1.3 Success:** Every event has `ts` (ISO-8601 timestamp) and `elapsed_ms` (ms since recording started).
 - **demo-runtime-viewer.AC1.4 Failure:** If the configured parquet path does not exist, the recorder raises a clear `FileNotFoundError` naming the missing path and does not write a partial JSON.
-- **demo-runtime-viewer.AC1.5 Failure:** If `OPENAI_API_KEY` is unset, the recorder raises a clear `EnvironmentError` before invoking the graph.
+- **demo-runtime-viewer.AC1.5 Failure:** If `OPENAI_API_KEY` is unset, the recorder raises a clear `RuntimeError` before invoking the graph.
 - **demo-runtime-viewer.AC1.6 Edge:** Re-running the recorder atomically replaces `data/interim/demo_run_latest.json` (writes to `.tmp` sibling, then renames).
 
 ---
@@ -521,7 +521,7 @@ def preflight(*, parquet_path: Path) -> None:
     """Raise early with a clear message if the recorder can't run.
 
     Checked conditions:
-      - OPENAI_API_KEY must be set (EnvironmentError, mirrors
+      - OPENAI_API_KEY must be set (RuntimeError, mirrors
         adapters/llm/openai.py)
       - parquet_path must exist on disk (FileNotFoundError, includes
         the resolved absolute path in the message)
@@ -530,7 +530,7 @@ def preflight(*, parquet_path: Path) -> None:
     is never produced.
     """
     if not os.getenv("OPENAI_API_KEY"):
-        raise EnvironmentError(
+        raise RuntimeError(
             "OPENAI_API_KEY is not set. Set it in your environment or .env "
             "before running the demo recorder. The recorder invokes LLM "
             "agents and cannot proceed without an API key."
@@ -544,7 +544,7 @@ def preflight(*, parquet_path: Path) -> None:
 
 **Testing:**
 Use `monkeypatch.delenv("OPENAI_API_KEY", raising=False)` and `tmp_path` for the parquet. Assertions:
-- `preflight(parquet_path=tmp_path / "missing.parquet")` raises `EnvironmentError` when `OPENAI_API_KEY` is unset (check regardless of parquet presence).
+- `preflight(parquet_path=tmp_path / "missing.parquet")` raises `RuntimeError` when `OPENAI_API_KEY` is unset (check regardless of parquet presence).
 - With `OPENAI_API_KEY` set but parquet missing, raises `FileNotFoundError` containing the resolved path.
 - With both set, returns `None` (no exception).
 
@@ -967,7 +967,7 @@ Expected: exit code 1, `FileNotFoundError` printed, message includes `/tmp/does-
 ```bash
 env -u OPENAI_API_KEY uv run python -m multi_agent_ds.orchestration.demo_recorder
 ```
-Expected: exit code 1, `EnvironmentError` printed, message mentions `OPENAI_API_KEY`.
+Expected: exit code 1, `RuntimeError` printed, message mentions `OPENAI_API_KEY`.
 
 **Step 6: AC1.6 — Atomic replace**
 ```bash
@@ -1001,7 +1001,7 @@ Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>"
 - [ ] `src/multi_agent_ds/orchestration/demo_recorder.py` exists with all eight tasks' contents.
 - [ ] `tests/unit/orchestration/test_demo_recorder_*.py` — all tests pass. Count: 12–15 tests total across four files.
 - [ ] `uv run python -m multi_agent_ds.orchestration.demo_recorder` succeeds and writes a JSON satisfying AC1.1, AC1.2, AC1.3, AC1.6.
-- [ ] Running without `OPENAI_API_KEY` raises `EnvironmentError` (AC1.5).
+- [ ] Running without `OPENAI_API_KEY` raises `RuntimeError` (AC1.5).
 - [ ] Running with `--parquet /tmp/does-not-exist.parquet` raises `FileNotFoundError` (AC1.4).
 - [ ] No edits to `src/multi_agent_ds/orchestration/graph.py` (AC7.4 preserved).
 - [ ] No edits to any file under `src/multi_agent_ds/agents/` (AC7.4 preserved).
