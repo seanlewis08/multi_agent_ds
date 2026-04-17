@@ -15,6 +15,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from dotenv import load_dotenv
+
 # Node kinds we expose in the event log. Keep this a closed enum — the viewer
 # relies on these exact strings.
 NODE_START = "node_start"
@@ -281,14 +283,16 @@ async def record_run(
 
     Flow
     ----
-      1. preflight() — fail fast on missing env / parquet
-      2. load settings and raw DataFrame
-      3. seed input_df_head / input_df_stats into the initial state
-      4. compile the sub-graph
-      5. async-iterate astream_events(version='v2'), record filtered events
-      6. collect final state, extract artifacts, assemble payload
-      7. atomic_write_json to output_path
+      1. Load .env file (so OPENAI_API_KEY can be read from environment)
+      2. preflight() — fail fast on missing env / parquet
+      3. load settings and raw DataFrame
+      4. seed input_df_head / input_df_stats into the initial state
+      5. compile the sub-graph
+      6. async-iterate astream_events(version='v2'), record filtered events
+      7. collect final state, extract artifacts, assemble payload
+      8. atomic_write_json to output_path
     """
+    load_dotenv()
     preflight(parquet_path=parquet_path)
 
     settings = load_settings()
