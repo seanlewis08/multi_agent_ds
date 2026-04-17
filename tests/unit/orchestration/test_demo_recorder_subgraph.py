@@ -133,3 +133,49 @@ def test_build_demo_subgraph_final_state_combines_outputs(monkeypatch):
     except Exception:
         # Stubs mean we may hit state key errors, but the graph structure is verified by above tests
         pass
+
+
+def test_build_demo_subgraph_propagates_local_only(monkeypatch):
+    """Regression test: local_only must survive LangGraph TypedDict filtering.
+
+    PipelineState is a TypedDict; any initial_state key not declared in the
+    schema is silently dropped before node invocation. This test seeds
+    local_only=True in initial_state and asserts data_engineer_node receives
+    it unchanged. Catches the bug where --no-upload was plumbed through the
+    CLI but stripped by the graph because local_only wasn't in PipelineState.
+    """
+    from multi_agent_ds.orchestration import demo_recorder as R
+
+    observed_local_only: list[bool | None] = []
+
+    def stub_eda(state: PipelineState, mode: str) -> dict:
+        return {
+            "raw_eda_insights": {"stub": True},
+            "prep_plan": {"stub": True} if mode == "prep_plan" else None,
+        }
+
+    def stub_de(state: PipelineState, mode: str) -> dict:
+        observed_local_only.append(state.get("local_only"))
+        return {"processed_data_path": "/fake/local.parquet"}
+
+    monkeypatch.setattr(R, "eda_analyst_node", stub_eda)
+    monkeypatch.setattr(R, "data_engineer_node", stub_de)
+
+    graph = R.build_demo_subgraph()
+    initial_state = {
+        "data_path": "fake.parquet",
+        "settings": {},
+        "local_only": True,
+    }
+
+    try:
+        graph.invoke(initial_state)
+    except Exception:
+        pass  # Stubs may mean downstream state is incomplete; we only care about local_only
+
+    assert observed_local_only, "data_engineer_node was never invoked"
+    assert observed_local_only[0] is True, (
+        f"local_only did not propagate through LangGraph; "
+        f"data_engineer_node observed {observed_local_only[0]!r} instead of True. "
+        f"Likely PipelineState TypedDict is missing the local_only field."
+    )

@@ -50,3 +50,8 @@ class PipelineState(TypedDict, total=False):
     iteration: int
     modeling_iteration: int
     report_iteration: int
+
+    # Demo recorder offline-mode flag (skips S3 upload, writes parquet locally).
+    # Set only by the demo recorder's --no-upload flag; default False preserves
+    # production behaviour. Consumed by data_engineer_node mode="execute".
+    local_only: bool
