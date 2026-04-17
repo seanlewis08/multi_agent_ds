@@ -1,8 +1,8 @@
 # Project Tree — multi_agent_ds
 
-_Last updated: 2026-04-16 (demo-runtime-viewer branch: demo_viewer.html, demo_recorder.py, demo_viewer_loader.py landed)_
+_Last updated: 2026-04-17 (demo-runtime-viewer branch: demo_app.py standalone entry point added)_
 
-Captured: 2026-04-16
+Captured: 2026-04-17
 
 ```
 ├── LICENSE
@@ -48,6 +48,7 @@ Captured: 2026-04-16
 │       │   ├── orchestrator.py
 │       │   └── report_writer.py
 │       ├── app.py
+│       ├── demo_app.py
 │       ├── demo_viewer.html
 │       ├── core
 │       │   ├── __init__.py
