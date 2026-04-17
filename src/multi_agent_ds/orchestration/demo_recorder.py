@@ -397,3 +397,50 @@ def _config_snapshot(settings: dict[str, Any], *, parquet_path: str) -> dict[str
         "review_enabled": None,
         "review_threshold": None,
     }
+
+
+# --- CLI entry point ---------------------------------------------------
+
+def main(argv: list[str] | None = None) -> int:
+    """CLI entry point: ``uv run python -m multi_agent_ds.orchestration.demo_recorder``."""
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        prog="multi_agent_ds.orchestration.demo_recorder",
+        description="Record a demo run of eda_raw -> data_engineer to JSON.",
+    )
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=Path("data/interim/demo_run_latest.json"),
+        help="Destination JSON path (default: data/interim/demo_run_latest.json)",
+    )
+    parser.add_argument(
+        "--parquet",
+        type=Path,
+        default=None,
+        help="Override the parquet path (default: config/settings.yaml -> data.source)",
+    )
+    args = parser.parse_args(argv)
+
+    # Resolve parquet path from args or settings
+    if args.parquet is not None:
+        parquet_path = args.parquet
+    else:
+        settings = load_settings()
+        source = settings.get("data", {}).get("source")
+        if not source:
+            raise ValueError("config/settings.yaml must define data.source or pass --parquet")
+        parquet_path = Path(source)
+
+    payload = asyncio.run(record_run(parquet_path=parquet_path, output_path=args.output))
+
+    print(
+        f"wrote {args.output} — {len(payload['events'])} events, "
+        f"duration {payload['duration_ms']} ms"
+    )
+    return 0
+
+
+if __name__ == "__main__":  # pragma: no cover
+    raise SystemExit(main())
