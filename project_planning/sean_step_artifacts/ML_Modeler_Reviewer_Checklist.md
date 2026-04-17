@@ -22,10 +22,10 @@ The current agent should:
 
 ## Current Status
 
-- Overall status: `in progress`
-- Current checkpoint: `Step 5 - Final validation and closeout`
-- Human review completed through: `Step 3 - ML Reviewer agent modeling review modes`
-- Testing completed through: `Step 5 - Final focused validation (47 passed)`
+- Overall status: `complete`
+- Current checkpoint: `Step 5 - Final validation and closeout (signed off)`
+- Human review completed through: `Step 5 - Final validation and closeout`
+- Testing completed through: `Step 5 - Final focused validation (66 passed)`
 
 ## Checkpoint Checklist
 
@@ -63,8 +63,8 @@ Testing checkpoint:
 
 Human review checkpoint:
 
-- [ ] Confirm every new mode delegates compute to `skills/modeling.py` and does no math itself
-- [ ] Confirm per-mode state updates match the contracts from Step 1
+- [x] Confirm every new mode delegates compute to `skills/modeling.py` and does no math itself
+- [x] Confirm per-mode state updates match the contracts from Step 1
 
 Testing checkpoint:
 
@@ -82,8 +82,8 @@ Testing checkpoint:
 
 Human review checkpoint:
 
-- [ ] Confirm each review mode returns an `MLReviewerVerdict` with an explicit approve/revise flag
-- [ ] Confirm the reviewer never retrains or re-tunes models
+- [x] Confirm each review mode returns an `MLReviewerVerdict` with an explicit approve/revise flag
+- [x] Confirm the reviewer never retrains or re-tunes models
 
 Testing checkpoint:
 
@@ -99,8 +99,8 @@ Testing checkpoint:
 
 Human review checkpoint:
 
-- [ ] Confirm prompts instruct the modeler to explain reasoning and the reviewer to challenge weak reasoning
-- [ ] Confirm the router cannot loop forever
+- [x] Confirm prompts instruct the modeler to explain reasoning and the reviewer to challenge weak reasoning
+- [x] Confirm the router cannot loop forever
 
 Testing checkpoint:
 
@@ -112,12 +112,12 @@ Testing checkpoint:
 - [x] Re-check the final ML Modeler + Reviewer slice against `Sean_Plan.md`
 - [x] Re-check the final slice against architecture boundaries
 - [x] Summarize remaining limitations, if any
-- [ ] Ask: `Should I commit and push these changes?`
+- [x] Ask: `Should I commit and push these changes?`
 
 Human review checkpoint:
 
-- [ ] Confirm the completed unit is reviewable on its own
-- [ ] Confirm no unrelated worktree changes are being bundled
+- [x] Confirm the completed unit is reviewable on its own
+- [x] Confirm no unrelated worktree changes are being bundled
 
 Testing checkpoint:
 
@@ -307,4 +307,35 @@ Notes:
   * An end-to-end graph integration test cannot be added until graph.py lands.
 Next item:
 - Commit-chronicler commit + push of Step 4 + Step 5 closeout.
+```
+
+```text
+Date: 2026-04-16
+Checkpoint: Step 5 - Full step closeout
+Status: Complete and signed off
+Files touched (closeout batch, beyond Step 4's):
+- CLAUDE.md (new)
+- .claude/agents/architecture-guard.md, commit-chronicler.md, efficiency-reviewer.md, implementation-engineer.md, plan-guardian.md (tracked)
+- .claude/settings.json, .claude/.gitignore (new)
+- src/multi_agent_ds/orchestration/graph.py (modeling loop wiring: 13 nodes + 5 conditional edges + 3 direct bridges)
+- src/multi_agent_ds/orchestration/router.py (route_after_modeling_handoff returns ml_modeler_baseline)
+- src/multi_agent_ds/agents/ml_modeler.py (_critique_section_for helper + 5 .format() call-site updates)
+- config/prompts.yaml ({critique_section} placeholder on the 5 reviewer-facing prompts)
+- tests/test_langgraph_router.py, tests/test_langgraph_graph.py, tests/test_pre_modeling_review_agents.py (updated + new tests)
+- notebooks/ML_Modeler_Reviewer_Graph_Wiring_Review.ipynb (new review notebook)
+- project_planning/sean_step_artifacts/ML_Modeler_Reviewer_Checklist.md (this file)
+Validation run:
+- uv run pytest tests/test_pre_modeling_review_agents.py tests/test_langgraph_router.py tests/test_langgraph_graph.py tests/test_cleaning.py tests/test_feature_engineering.py tests/test_preparation_workflow.py -> 66 passed
+Commits in the Step 5 + closeout sequence (all pushed to origin/feature/step-10-ml-modeler-reviewer):
+- a2a3646 Step 1: contracts + state
+- 3dcfc86 Step 2: ml_modeler modeling modes
+- 42bd429 Step 3: ml_reviewer modeling review modes + audit fixes
+- fd89571 Step 4: router + per-phase iteration cap + Step 5 closeout
+- a997a18 dev protocol (CLAUDE.md + .claude/)
+- 82c203b graph wiring
+- 6e732de reviewer critique plumbing
+Human review completed: all Step 2 / Step 3 / Step 4 / Step 5 checkpoints ticked via the review notebooks (Step1, Step2, Step4, GraphWiring) and sign-off.
+Push: successful via SSH override; upstream set; branch at 6e732de on origin.
+Next item:
+- Open PR against develop/multi_agent using the drafted PR body. Step 6 (report + business stakeholder) and Step 7 (LLM model routing) are owned by another agent.
 ```

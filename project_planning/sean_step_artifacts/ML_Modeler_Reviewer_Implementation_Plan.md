@@ -2,8 +2,8 @@
 
 **Scope:** Sean Step 5 from `Sean_Plan.md` (BUILD_PLAN reference: Step 8 — ML modeler)
 **Primary targets:** `src/multi_agent_ds/agents/ml_modeler.py`, `agents/ml_reviewer.py`, `workflows/modeling.py`
-**Secondary targets:** `config/prompts.yaml`, `src/multi_agent_ds/core/contracts.py`, `orchestration/state.py`, `orchestration/router.py`
-**Status:** Not started
+**Secondary targets:** `config/prompts.yaml`, `src/multi_agent_ds/core/contracts.py`, `orchestration/state.py`, `orchestration/router.py`, `orchestration/graph.py`, `config/workflows.yaml`
+**Status:** Complete — 66 tests passing; branch `feature/step-10-ml-modeler-reviewer` pushed to origin at `6e732de`; awaiting PR open against `develop/multi_agent`.
 
 ## Purpose
 
