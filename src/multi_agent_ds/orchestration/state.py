@@ -57,6 +57,11 @@ class PipelineState(TypedDict, total=False):
     pr_url: str | None
 
     # Control flow
+    # `agent_decisions` is reduced with `operator.add`. Nodes MUST return only
+    # the NEW entries they are contributing (the delta), not the full list —
+    # the reducer concatenates with the current channel value. Returning the
+    # full existing list causes exponential duplication across fan-out and
+    # serial nodes (see LANGGRAPH_DEBUGGING.md / demo recorder bloat).
     agent_decisions: Annotated[list[dict[str, Any]], operator.add]
     current_phase: str
     should_loop: bool
@@ -66,3 +71,8 @@ class PipelineState(TypedDict, total=False):
     iteration: int
     modeling_iteration: int
     report_iteration: int
+
+    # Demo recorder offline-mode flag (skips S3 upload, writes parquet locally).
+    # Set only by the demo recorder's --no-upload flag; default False preserves
+    # production behaviour. Consumed by data_engineer_node mode="execute".
+    local_only: bool

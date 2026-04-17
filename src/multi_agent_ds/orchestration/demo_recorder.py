@@ -1,0 +1,567 @@
+"""Demo recorder: run eda_analyst -> data_engineer as a minimal sub-graph
+and write an event log to data/interim/demo_run_latest.json for later
+replay by src/multi_agent_ds/demo_viewer.html.
+
+This module is the 'record' half of the record-once-replay-many demo.
+It lives at the orchestration layer and composes existing agent nodes
+without modifying the production graph (src/multi_agent_ds/orchestration/graph.py).
+
+pattern: Functional Core + Imperative Shell (mixed)
+"""
+from __future__ import annotations
+
+import argparse
+import asyncio
+import json
+import os
+import time
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+import pandas as pd
+from dotenv import load_dotenv
+
+from multi_agent_ds.core.config import load_settings
+from multi_agent_ds.orchestration.graph import build_graph
+from multi_agent_ds.orchestration.state import PipelineState
+from multi_agent_ds.workflows.discovery import resolve_data_path
+
+# Node kinds we expose in the event log. Keep this a closed enum — the viewer
+# relies on these exact strings.
+NODE_START = "node_start"
+NODE_END = "node_end"
+NODE_ERROR = "node_error"
+
+# LangGraph event kinds we care about. We filter events by kind and by node
+# name so the log stays small and replay-friendly.
+LG_ON_CHAIN_START = "on_chain_start"
+LG_ON_CHAIN_END = "on_chain_end"
+LG_ON_CHAIN_ERROR = "on_chain_error"
+
+# Nodes we record: the 13-node pre-modeling EDA workflow.
+# See EDA_LANGGRAPH_WORKFLOW.md for the full graph specification.
+RECORDED_NODES = frozenset({
+    "eda_raw",
+    "ml_modeler_raw_review",
+    "ml_reviewer_raw_review",
+    "business_stakeholder_raw_review",
+    "eda_prep_plan",
+    "data_engineer_feedback",
+    "data_engineer_execute",
+    "eda_processed",
+    "ml_modeler_processed_review",
+    "ml_reviewer_processed_review",
+    "business_stakeholder_processed_review",
+    "eda_processed_approval",
+    "ml_modeler_handoff",
+})
+
+# All graph nodes whose outputs should be merged into final_state,
+# regardless of whether they appear in the viewer's event log.
+# For the full 13-node workflow, we accumulate all recorded nodes.
+ACCUMULATE_NODES = RECORDED_NODES
+
+# Invariant: every recorded node must also be accumulated so that the viewer's
+# event log and the artifact snapshot agree on per-node output. A recorded node
+# whose output is NOT accumulated would silently strip artifacts from final_state.
+assert RECORDED_NODES.issubset(ACCUMULATE_NODES), (
+    f"RECORDED_NODES {RECORDED_NODES - ACCUMULATE_NODES} are not in ACCUMULATE_NODES; "
+    "update ACCUMULATE_NODES or remove from RECORDED_NODES."
+)
+
+
+@dataclass(frozen=True)
+class NormalizedEvent:
+    """A flat, JSON-serializable shape the viewer consumes."""
+    ts: str              # ISO-8601 UTC, ends in 'Z'
+    elapsed_ms: int      # ms since recording started
+    kind: str            # one of NODE_START / NODE_END / NODE_ERROR
+    node: str            # node name from LangGraph (e.g. 'eda_raw')
+    data: dict[str, Any] # payload (input or output) — small, JSON-safe
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "ts": self.ts,
+            "elapsed_ms": self.elapsed_ms,
+            "kind": self.kind,
+            "node": self.node,
+            "data": self.data,
+        }
+
+
+# --- Normalization and filtering (Functional Core) -------------------------
+
+# pattern: Functional Core
+def iso_utc(now: datetime) -> str:
+    """Format a datetime as ISO-8601 with 'Z' suffix.
+
+    Input must be tz-aware; naive datetimes raise ValueError.
+    """
+    if now.tzinfo is None:
+        raise ValueError("iso_utc requires a tz-aware datetime")
+    return now.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.") + f"{now.microsecond // 1000:03d}Z"
+
+
+# pattern: Functional Core
+def langgraph_event_kind(lg_event: str) -> str | None:
+    """Translate a LangGraph event string into our closed vocabulary.
+
+    Returns None for events we do not record.
+    """
+    return {
+        LG_ON_CHAIN_START: NODE_START,
+        LG_ON_CHAIN_END: NODE_END,
+        LG_ON_CHAIN_ERROR: NODE_ERROR,
+    }.get(lg_event)
+
+
+# pattern: Functional Core
+def should_record(lg_event: dict[str, Any]) -> bool:
+    """Return True iff this LangGraph event should appear in the log.
+
+    Gates on both event kind (on_chain_*) and node name (eda_raw / data_engineer).
+    Rejects LLM-level events (on_llm_*, on_chat_model_*) and sub-tool events.
+    """
+    if langgraph_event_kind(lg_event.get("event", "")) is None:
+        return False
+    name = lg_event.get("name", "")
+    return name in RECORDED_NODES
+
+
+# pattern: Functional Core
+def should_accumulate(lg_event: dict[str, Any]) -> bool:
+    """True if this event's output should be merged into final_state.
+
+    Distinct from should_record: accumulation covers all graph nodes
+    (including filtered-from-event-log prep_plan_stage) so artifacts
+    stay complete even when their producing node is not replayed.
+    Only on_chain_end events contribute outputs.
+
+    Invariant: Every node in RECORDED_NODES must also be in ACCUMULATE_NODES
+    so that the viewer's event log and the artifact snapshot agree on per-node
+    output. A recorded node whose output is NOT accumulated would silently
+    strip artifacts from final_state.
+    """
+    if lg_event.get("event") != LG_ON_CHAIN_END:
+        return False
+    return lg_event.get("name", "") in ACCUMULATE_NODES
+
+
+# pattern: Functional Core
+def normalize_event(
+    lg_event: dict[str, Any],
+    *,
+    ts: str,
+    elapsed_ms: int,
+) -> NormalizedEvent:
+    """Convert a LangGraph v2 event dict into our NormalizedEvent shape.
+
+    Preconditions: should_record(lg_event) is True.
+
+    The `data` field is the LangGraph event's `data` payload, shallow-copied
+    and filtered to primitives we can JSON-serialize safely. Callers must
+    ensure non-JSON-safe values (e.g. DataFrames) are stripped BEFORE calling
+    — see sanitize_payload in Task 2.
+    """
+    kind = langgraph_event_kind(lg_event["event"])
+    assert kind is not None, "should_record lied about event"
+    return NormalizedEvent(
+        ts=ts,
+        elapsed_ms=elapsed_ms,
+        kind=kind,
+        node=lg_event["name"],
+        data=dict(lg_event.get("data", {})),
+    )
+
+
+# --- Artifact extraction and payload sanitization (Functional Core) --------
+
+# Keys we copy out of PipelineState into the top-level artifacts block.
+# Stay minimal — the viewer only needs these.
+_EDA_ARTIFACT_KEY = "raw_eda_insights"
+_DE_PREP_PLAN_KEY = "prep_plan"
+_DE_PROCESSED_DF_HEAD_KEY = "processed_df_head"   # added by recorder post-run from parquet
+_DE_PROCESSED_DF_STATS_KEY = "processed_df_stats" # added by recorder post-run from parquet
+_INPUT_DF_HEAD_KEY = "input_df_head"              # added by recorder pre-run
+_INPUT_DF_STATS_KEY = "input_df_stats"            # added by recorder pre-run
+
+
+# pattern: Functional Core
+def extract_artifacts(final_state: dict[str, Any]) -> dict[str, Any]:
+    """Pull the viewer-facing artifact dict out of the final PipelineState.
+
+    Missing keys resolve to None (not an error) so the recorder can still
+    produce a JSON even when the graph halted early. The viewer treats
+    None as 'unavailable'.
+    """
+    return {
+        "raw_eda_insights": final_state.get(_EDA_ARTIFACT_KEY),
+        "prep_plan": final_state.get(_DE_PREP_PLAN_KEY),
+        "processed_df_head": final_state.get(_DE_PROCESSED_DF_HEAD_KEY),
+        "processed_df_stats": final_state.get(_DE_PROCESSED_DF_STATS_KEY),
+        "input_df_head": final_state.get(_INPUT_DF_HEAD_KEY),
+        "input_df_stats": final_state.get(_INPUT_DF_STATS_KEY),
+    }
+
+
+# pattern: Functional Core
+def sanitize_payload(value: Any, *, max_depth: int = 6) -> Any:
+    """Recursively strip non-JSON-serializable values from an event payload.
+
+    Policy:
+      - primitives pass through
+      - dict / list / tuple recurse
+      - anything else (DataFrame, numpy array, Series, objects) becomes
+        its repr() truncated to 200 chars
+      - depth cap prevents infinite recursion on circular refs
+
+    This runs on every LangGraph event `data` field before we stash it.
+    """
+    if max_depth <= 0:
+        return f"<max-depth: {type(value).__name__}>"
+    if value is None or isinstance(value, (bool, int, float, str)):
+        return value
+    if isinstance(value, dict):
+        return {str(k): sanitize_payload(v, max_depth=max_depth - 1) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [sanitize_payload(v, max_depth=max_depth - 1) for v in value]
+    # Fallback: repr-truncate anything else (DataFrame, ndarray, custom classes).
+    r = repr(value)
+    return r if len(r) <= 200 else r[:197] + "..."
+
+
+# --- Atomic write (Functional Core - pure I/O, well-tested) ---------------
+
+
+# pattern: Functional Core
+def atomic_write_json(payload: dict[str, Any], target: Path) -> None:
+    """Write `payload` as JSON to `target` atomically.
+
+    Writes to `target.with_suffix(target.suffix + '.tmp')` first, then
+    os.replace() to the target path. This guarantees that readers never
+    see a half-written file: either the old JSON (previous demo run) or
+    the new JSON — never a truncated blend.
+    """
+    target.parent.mkdir(parents=True, exist_ok=True)
+    tmp = target.with_suffix(target.suffix + ".tmp")
+    tmp.write_text(json.dumps(payload, indent=2, sort_keys=False, default=str), encoding="utf-8")
+    os.replace(tmp, target)
+
+
+# --- Sub-graph builder (Functional Core) ----------------------------------
+
+
+# pattern: Functional Core
+def _build_demo_graph():
+    """Delegate to the production graph builder.
+
+    Returns a compiled StateGraph representing the full 13-node pre-modeling
+    EDA workflow. See EDA_LANGGRAPH_WORKFLOW.md for routing and node details.
+
+    The demo recorder filters this graph's event stream to RECORDED_NODES,
+    which are the 13 pre-modeling nodes. Post-modeling nodes are ignored
+    because they are not in RECORDED_NODES, causing the recorder to
+    naturally stop accumulating events after ml_modeler_handoff.
+    """
+    return build_graph().compile()
+
+
+# =============================================================================
+# END FUNCTIONAL CORE. Imperative Shell (with side effects) follows below.
+# =============================================================================
+
+# --- Preflight guards (Imperative Shell) ---------------------------------
+
+# pattern: Imperative Shell
+def preflight(*, parquet_path: Path) -> None:
+    """Raise early with a clear message if the recorder can't run.
+
+    Checked conditions:
+      - OPENAI_API_KEY must be set (RuntimeError, mirrors
+        adapters/llm/openai.py)
+      - parquet_path must exist on disk (FileNotFoundError, includes
+        the resolved absolute path in the message)
+
+    Called before any graph invocation or file write so partial JSON
+    is never produced.
+    """
+    if not os.getenv("OPENAI_API_KEY"):
+        raise RuntimeError(
+            "OPENAI_API_KEY is not set. Set it in your environment or .env "
+            "before running the demo recorder. The recorder invokes LLM "
+            "agents and cannot proceed without an API key."
+        )
+    if not parquet_path.exists():
+        raise FileNotFoundError(
+            f"Input parquet not found at {parquet_path.resolve()}. "
+            f"Check config/settings.yaml -> data.source or pass --parquet."
+        )
+
+
+# --- Async driver (Imperative Shell) ----------------------------------------
+
+
+# pattern: Imperative Shell
+async def record_run(
+    *,
+    parquet_path: Path,
+    output_path: Path,
+    local_only: bool = False,
+) -> dict[str, Any]:
+    """Record one eda_raw -> data_engineer run and write the event log.
+
+    Parameters
+    ----------
+    parquet_path : Path
+        Path to the input parquet file
+    output_path : Path
+        Destination for the JSON event log
+    local_only : bool, default False
+        If True, skip S3 upload and write processed parquet locally.
+        Use only for offline demo rehearsal.
+
+    Returns
+    -------
+    dict
+        The payload dict that was written (handy for tests and the CLI
+        to report a summary).
+
+    Flow
+    ----
+      1. Load .env file (so OPENAI_API_KEY can be read from environment)
+      2. preflight() — fail fast on missing env / parquet
+      3. load settings and raw DataFrame
+      4. seed input_df_head / input_df_stats into the initial state
+      5. compile the sub-graph
+      6. async-iterate astream_events(version='v2'), record filtered events
+      7. collect final state, extract artifacts, assemble payload
+      8. atomic_write_json to output_path
+    """
+    load_dotenv()
+    preflight(parquet_path=parquet_path)
+
+    settings = load_settings()
+    target = _resolve_target(settings)
+
+    df = pd.read_parquet(parquet_path)
+    input_df_head = df.head(10).to_dict(orient="records")
+    input_df_stats = _compute_input_stats(df, target=target)
+
+    initial_state: dict[str, Any] = {
+        "data_path": str(parquet_path),
+        # state["data"] expects dict[str, Any] (see PipelineState); DataFrame passes via data_path
+        "settings": settings,
+        "input_df_head": input_df_head,
+        "input_df_stats": input_df_stats,
+        "local_only": local_only,
+    }
+
+    graph = _build_demo_graph()
+
+    events: list[dict[str, Any]] = []
+    final_state: dict[str, Any] = dict(initial_state)
+    start_monotonic = time.monotonic()
+    start_ts = datetime.now(timezone.utc)
+
+    async for lg_event in graph.astream_events(input=initial_state, version="v2"):
+        # Accumulate state from all graph nodes (including filtered ones).
+        # prep_plan_stage's output is NOT in the event log but IS merged here
+        # so artifacts.prep_plan remains populated.
+        if should_accumulate(lg_event):
+            output = lg_event.get("data", {}).get("output")
+            if isinstance(output, dict):
+                safe_output = sanitize_payload(output)
+                if isinstance(safe_output, dict):
+                    final_state.update(safe_output)
+
+        # Record only the events the viewer will replay.
+        if not should_record(lg_event):
+            continue
+        elapsed_ms = int((time.monotonic() - start_monotonic) * 1000)
+        ts = iso_utc(datetime.now(timezone.utc))
+        safe_data = sanitize_payload(lg_event.get("data", {}))
+        normalized = normalize_event({**lg_event, "data": safe_data}, ts=ts, elapsed_ms=elapsed_ms)
+        events.append(normalized.to_dict())
+        # State accumulation for recorded nodes is already handled above;
+        # no need to duplicate the merge here.
+
+    # Capture duration immediately after event loop ends, before post-run processing
+    duration_ms = int((time.monotonic() - start_monotonic) * 1000)
+
+    # Read processed parquet and populate processed_df_head / processed_df_stats
+    processed_path = final_state.get("processed_data_path")
+    if processed_path and Path(processed_path).exists():
+        pdf = pd.read_parquet(processed_path)
+        final_state["processed_df_head"] = pdf.head(10).to_dict(orient="records")
+        missing_pct = round(float(pdf.isna().mean().mean()) * 100.0, 3)
+        final_state["processed_df_stats"] = {
+            "rows": int(pdf.shape[0]),
+            "cols": int(pdf.shape[1]),
+            "path": processed_path,
+            "missing_pct_after": missing_pct,
+        }
+    artifacts = extract_artifacts(final_state)
+
+    payload = {
+        "recorded_at": iso_utc(start_ts),
+        "duration_ms": duration_ms,
+        "config": _config_snapshot(settings, parquet_path=str(parquet_path)),
+        "artifacts": artifacts,
+        "events": events,
+    }
+    atomic_write_json(payload, output_path)
+    return payload
+
+
+# pattern: Imperative Shell
+def _compute_input_stats(df: pd.DataFrame, *, target: str) -> dict[str, Any]:
+    """Tiny stats block consumed by the Input Preview screen."""
+    numeric = df.select_dtypes(include="number").shape[1]
+    categorical = df.shape[1] - numeric
+    missing_pct = float(df.isna().mean().mean()) * 100.0
+    positive_rate: float | None = None
+    if target in df.columns and pd.api.types.is_numeric_dtype(df[target]):
+        positive_rate = float(df[target].astype(float).mean())
+    return {
+        "rows": int(df.shape[0]),
+        "cols": int(df.shape[1]),
+        "target": target,
+        "positive_rate": positive_rate,
+        "numeric": int(numeric),
+        "categorical": int(categorical),
+        "missing_pct": round(missing_pct, 3),
+    }
+
+
+# pattern: Imperative Shell
+def _resolve_target(settings: dict[str, Any]) -> str:
+    """Resolve the target column name from settings."""
+    data = settings.get("data", {})
+    source_mode = data.get("source", "synthetic")
+    if source_mode == "synthetic":
+        return data.get("synthetic", {}).get("target", {}).get("column_name", "target")
+    else:
+        return data.get("existing", {}).get("target_column", "target")
+
+
+# pattern: Imperative Shell
+def _config_snapshot(settings: dict[str, Any], *, parquet_path: str) -> dict[str, Any]:
+    """Project settings into the small dict the Config screen shows.
+
+    Reflects the 13-node pre-modeling workflow with agent labels.
+    See EDA_LANGGRAPH_WORKFLOW.md for node details.
+    """
+    data = settings.get("data", {})
+    source_mode = data.get("source", "synthetic")
+    syn = data.get("synthetic", {})
+    existing = data.get("existing", {})
+    target = (
+        syn.get("target", {}).get("column_name")
+        if source_mode == "synthetic"
+        else existing.get("target_column")
+    )
+    scale = syn.get("scale") if source_mode == "synthetic" else "existing"
+    model = settings.get("model", {})
+    tuning = model.get("tuning", {})
+    llm = settings.get("llm", {})
+    debug = settings.get("debug", {})
+
+    # Build the snapshot dict, dropping fields if they don't exist in settings
+    snapshot = {
+        "source": str(parquet_path),
+        "source_mode": source_mode,
+        "target": target,
+        "scale": scale,
+        "max_trials": tuning.get("max_trials"),
+        "cv_folds": model.get("cv_folds"),
+        "timeout": tuning.get("timeout"),
+        "algorithms": list(model.get("algorithms", [])),
+        "primary_metric": model.get("primary_metric"),
+        # Pre-modeling workflow agents (13 nodes)
+        "workflow_agents": [
+            "eda_analyst (eda_raw)",
+            "ml_modeler (ml_modeler_raw_review)",
+            "ml_reviewer (ml_reviewer_raw_review)",
+            "business_stakeholder (business_stakeholder_raw_review)",
+            "eda_analyst (eda_prep_plan)",
+            "data_engineer (data_engineer_feedback)",
+            "data_engineer (data_engineer_execute)",
+            "eda_analyst (eda_processed)",
+            "ml_modeler (ml_modeler_processed_review)",
+            "ml_reviewer (ml_reviewer_processed_review)",
+            "business_stakeholder (business_stakeholder_processed_review)",
+            "eda_analyst (eda_processed_approval)",
+            "ml_modeler (ml_modeler_handoff)",
+        ],
+    }
+
+    # Add optional fields from LLM config if present
+    if llm.get("cost_override") is not None:
+        snapshot["cost_override"] = llm["cost_override"]
+
+    # Add tracing if debug config exists
+    debug_langsmith = debug.get("langsmith", {})
+    if debug_langsmith.get("enabled"):
+        snapshot["tracing"] = "enabled"
+    else:
+        snapshot["tracing"] = "disabled"
+
+    return snapshot
+
+
+# --- CLI entry point (Imperative Shell) ------------------------------------
+
+# pattern: Imperative Shell
+def main(argv: list[str] | None = None) -> int:
+    """CLI entry point: ``uv run python -m multi_agent_ds.orchestration.demo_recorder``."""
+    parser = argparse.ArgumentParser(
+        prog="multi_agent_ds.orchestration.demo_recorder",
+        description="Record a demo run of eda_raw -> data_engineer to JSON.",
+    )
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=Path("data/interim/demo_run_latest.json"),
+        help="Destination JSON path (default: data/interim/demo_run_latest.json)",
+    )
+    parser.add_argument(
+        "--parquet",
+        type=Path,
+        default=None,
+        help="Override the parquet path (default: resolved from config/settings.yaml data.source)",
+    )
+    parser.add_argument(
+        "--no-upload",
+        action="store_true",
+        dest="no_upload",
+        help="Skip S3 upload; write processed parquet locally. Use only for offline demo rehearsal.",
+    )
+    args = parser.parse_args(argv)
+
+    # Resolve parquet path from args or settings
+    if args.parquet is not None:
+        parquet_path = args.parquet
+    else:
+        settings = load_settings()
+        resolved = resolve_data_path(None, settings)
+        if not resolved:
+            raise ValueError(
+                "No parquet path found. Either pass --parquet or ensure "
+                "config/settings.yaml defines data.source with appropriate existing.uri "
+                "or synthetic settings."
+            )
+        parquet_path = Path(resolved)
+
+    payload = asyncio.run(record_run(parquet_path=parquet_path, output_path=args.output, local_only=args.no_upload))
+
+    print(
+        f"wrote {args.output} — {len(payload['events'])} events, "
+        f"duration {payload['duration_ms']} ms"
+    )
+    return 0
+
+
+if __name__ == "__main__":  # pragma: no cover
+    raise SystemExit(main())

@@ -135,6 +135,25 @@ Defines the shared state object passed between graph nodes.
 ### orchestration/router.py
 Routing logic that decides which agent node executes next.
 
+### orchestration/demo_recorder.py
+Record-once-replay-many driver for the Demo tab. Delegates to `build_graph()` and records the 13-node pre-modeling EDA workflow (see `project_planning/sean_step_artifacts/EDA_LANGGRAPH_WORKFLOW.md`). Streams `astream_events(version="v2")`, filters to the closed `RECORDED_NODES` set, sanitizes payloads, and writes `data/interim/demo_run_latest.json` atomically. `data/` is gitignored — the JSON is regenerated locally via `uv run python -m multi_agent_ds.orchestration.demo_recorder`.
+
+Key exports / contracts:
+- `RECORDED_NODES` — frozenset of the 13 pre-modeling node names the viewer replays (`eda_raw`, `ml_modeler_raw_review`, `ml_reviewer_raw_review`, `business_stakeholder_raw_review`, `eda_prep_plan`, `data_engineer_feedback`, `data_engineer_execute`, `eda_processed`, `ml_modeler_processed_review`, `ml_reviewer_processed_review`, `business_stakeholder_processed_review`, `eda_processed_approval`, `ml_modeler_handoff`).
+- `ACCUMULATE_NODES` — nodes whose `on_chain_end` outputs merge into `final_state`. Invariant: `RECORDED_NODES ⊆ ACCUMULATE_NODES`.
+- `record_run(*, parquet_path, output_path, local_only=False)` — async driver that emits the JSON event log.
+
+### orchestration/demo_viewer_loader.py
+Pure helper (no I/O) that fuses the viewer HTML template with the recorded JSON:
+- `inject_demo_log(viewer_html: str, demo_log_json: str) -> str` — inserts `<script>window.DEMO_LOG = …</script>` before the first existing `<script>` tag, escaping `</` so embedded JSON cannot break out. Raises `ValueError` if no `<script>` tag is present. Called from `app.py`'s Demo tab; safe to import there because it stays within the orchestration layer and reads no files.
+
+---
+
+## Presentation Assets
+
+### src/multi_agent_ds/demo_viewer.html
+Single-file, 4-page demo viewer (Config → Input Preview → Runtime Replay → Output Drawer) rendered inside the Streamlit Demo tab via `st.components.v1.html`. Reads `window.DEMO_LOG` (injected by `demo_viewer_loader.inject_demo_log`) and exposes `window.renderConfig`, `window.renderInputPreview`, `window.startRuntimeReplay`, `window.pauseReplay`, `window.continueReplay`, `window.renderSummary`. This is the only HTML asset in the repo; additional presentation assets should land next to it under `src/multi_agent_ds/`.
+
 ---
 
 ## adapters/ — Provider Abstraction
