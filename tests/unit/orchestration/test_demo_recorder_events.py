@@ -56,3 +56,60 @@ def test_normalize_event_shape():
     assert result_dict["kind"] == "node_start"
     assert result_dict["node"] == "eda_raw"
     assert result_dict["data"] == {"input": {"key": "value"}}
+
+
+# Tests for should_accumulate: state merging from all graph nodes
+def test_should_accumulate_eda_raw_on_chain_end():
+    """should_accumulate returns True for eda_raw node_end events."""
+    from multi_agent_ds.orchestration.demo_recorder import should_accumulate
+
+    result = should_accumulate({"event": "on_chain_end", "name": "eda_raw"})
+    assert result is True
+
+
+def test_should_accumulate_prep_plan_stage_on_chain_end():
+    """should_accumulate returns True for prep_plan_stage (key case: not recorded but accumulated)."""
+    from multi_agent_ds.orchestration.demo_recorder import should_accumulate
+
+    result = should_accumulate({"event": "on_chain_end", "name": "prep_plan_stage"})
+    assert result is True
+
+
+def test_should_accumulate_data_engineer_on_chain_end():
+    """should_accumulate returns True for data_engineer node_end events."""
+    from multi_agent_ds.orchestration.demo_recorder import should_accumulate
+
+    result = should_accumulate({"event": "on_chain_end", "name": "data_engineer"})
+    assert result is True
+
+
+def test_should_accumulate_rejects_non_end_events():
+    """should_accumulate returns False for non-end events."""
+    from multi_agent_ds.orchestration.demo_recorder import should_accumulate
+
+    result = should_accumulate({"event": "on_chain_start", "name": "eda_raw"})
+    assert result is False
+
+
+def test_should_accumulate_rejects_non_graph_nodes():
+    """should_accumulate returns False for nodes not in ACCUMULATE_NODES."""
+    from multi_agent_ds.orchestration.demo_recorder import should_accumulate
+
+    result = should_accumulate({"event": "on_chain_end", "name": "some_random_chain"})
+    assert result is False
+
+
+def test_should_accumulate_rejects_wrong_event_type():
+    """should_accumulate returns False for wrong event type even on graph nodes."""
+    from multi_agent_ds.orchestration.demo_recorder import should_accumulate
+
+    result = should_accumulate({"event": "on_chat_model_end", "name": "eda_raw"})
+    assert result is False
+
+
+def test_should_accumulate_rejects_langgraph_internal():
+    """should_accumulate returns False for internal LangGraph events."""
+    from multi_agent_ds.orchestration.demo_recorder import should_accumulate
+
+    result = should_accumulate({"event": "on_chain_end", "name": "LangGraph"})
+    assert result is False

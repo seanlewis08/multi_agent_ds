@@ -34,6 +34,12 @@ LG_ON_CHAIN_ERROR = "on_chain_error"
 # (if any emerge from sub-runnables) are ignored by the recorder.
 RECORDED_NODES = frozenset({"eda_raw", "data_engineer"})
 
+# All graph nodes whose outputs should be merged into final_state,
+# regardless of whether they appear in the viewer's event log.
+# prep_plan_stage is intentionally excluded from RECORDED_NODES but still
+# contributes the prep_plan artifact to final_state.
+ACCUMULATE_NODES = frozenset({"eda_raw", "prep_plan_stage", "data_engineer"})
+
 
 @dataclass(frozen=True)
 class NormalizedEvent:
@@ -84,6 +90,19 @@ def should_record(lg_event: dict[str, Any]) -> bool:
         return False
     name = lg_event.get("name", "")
     return name in RECORDED_NODES
+
+
+def should_accumulate(lg_event: dict[str, Any]) -> bool:
+    """True if this event's output should be merged into final_state.
+
+    Distinct from should_record: accumulation covers all graph nodes
+    (including filtered-from-event-log prep_plan_stage) so artifacts
+    stay complete even when their producing node is not replayed.
+    Only on_chain_end events contribute outputs.
+    """
+    if lg_event.get("event") != LG_ON_CHAIN_END:
+        return False
+    return lg_event.get("name", "") in ACCUMULATE_NODES
 
 
 def normalize_event(
