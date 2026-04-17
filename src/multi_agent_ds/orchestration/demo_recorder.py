@@ -181,3 +181,35 @@ def atomic_write_json(payload: dict[str, Any], target: Path) -> None:
     tmp = target.with_suffix(target.suffix + ".tmp")
     tmp.write_text(json.dumps(payload, indent=2, sort_keys=False, default=str), encoding="utf-8")
     os.replace(tmp, target)
+
+
+# --- Sub-graph builder -------------------------------------------------
+
+from functools import partial
+from langgraph.graph import StateGraph, END
+
+from multi_agent_ds.agents.eda_analyst import eda_analyst_node
+from multi_agent_ds.agents.data_engineer import data_engineer_node
+from multi_agent_ds.orchestration.state import PipelineState
+
+
+def build_demo_subgraph():
+    """Compile a minimal StateGraph with optional prep_plan stage.
+
+    The graph is: eda_raw -> prep_plan_stage -> data_engineer -> END.
+    Node names ('eda_raw', 'data_engineer') match RECORDED_NODES so
+    should_record() filters the event stream. The prep_plan_stage is
+    internal — the viewer only sees eda_raw and data_engineer events
+    (simpler visual presentation) but the sub-graph internally runs
+    all three nodes so data_engineer gets the prep plan it needs.
+    """
+    g = StateGraph(PipelineState)
+    g.add_node("eda_raw", partial(eda_analyst_node, mode="raw"))
+    # prep_plan_stage runs internally but is not recorded (keep viewer simple)
+    g.add_node("prep_plan_stage", partial(eda_analyst_node, mode="prep_plan"))
+    g.add_node("data_engineer", partial(data_engineer_node, mode="execute"))
+    g.set_entry_point("eda_raw")
+    g.add_edge("eda_raw", "prep_plan_stage")
+    g.add_edge("prep_plan_stage", "data_engineer")
+    g.add_edge("data_engineer", END)
+    return g.compile()
