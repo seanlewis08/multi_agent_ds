@@ -35,6 +35,37 @@ This phase implements and tests:
 
 ---
 
+## DEMO-TIME ADDENDUM: --no-upload mode
+
+Added on 2026-04-16 (day before demo). Sean is offline from AWS SSO during Phase 2 rehearsal, so the recorder gained a `--no-upload` flag that bypasses S3 and writes the processed parquet locally to `data/processed/{filename}`.
+
+### When to use
+- Only for demo rehearsal and offline recording runs.
+- Never in production Streamlit runs.
+
+### How to restore S3 upload mode (when back on AWS)
+1. Authenticate: `aws sso login --profile data-science`
+2. Run the recorder WITHOUT the flag:
+   ```bash
+   uv run python -m multi_agent_ds.orchestration.demo_recorder --output data/interim/demo_run_latest.json --parquet data/raw/synthetic_dataset.parquet
+   ```
+3. The default behavior uploads to S3 exactly as before. No code change needed.
+
+### Related env fixup (user-local)
+`.env` must have `OPENAI_BASE_URL=https://api.openai.com/v1` (or the line removed entirely) for `sk-proj-...` keys. The previous `https://us.api.openai.com/v1` only worked with service-account keys.
+
+### Bug fix carried along
+`record_run` now calls `load_dotenv()` before `preflight()`, so `.env`-only keys are detected. Previously preflight checked `os.environ` directly and failed even when the key was present in `.env`.
+
+### Implementation details
+- `run_preparation_workflow` gained `local_only: bool = False` parameter
+- `data_engineer_node` forwards `local_only` from state to the workflow
+- `demo_recorder.main()` accepts `--no-upload` flag and passes `local_only=True` to `record_run`
+- When `local_only=True`, processed parquet is written to `data/processed/{filename}` (from settings) as an absolute path
+- Downstream readers (e.g., viewer) can read the local path via `pd.read_parquet(processed_data_path)` — no changes needed
+
+---
+
 <!-- START_SUBCOMPONENT_A (tasks 1-3) -->
 <!-- START_TASK_1 -->
 ### Task 1: Pure event-normalization helpers

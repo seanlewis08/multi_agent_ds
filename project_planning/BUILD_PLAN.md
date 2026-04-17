@@ -394,16 +394,23 @@ mlflow:
 
 ### Step 5d: Demo runtime viewer
 
-**Status:** In progress (Phase 1 of 7 from `project_planning/design_plans/2026-04-16-demo-runtime-viewer.md`)
+**Status:** In progress (Phase 2 of 7 from `project_planning/design_plans/2026-04-16-demo-runtime-viewer.md`) — Core recording complete, addendum for offline mode added 2026-04-16.
 
 **What:** A record-once-replay-many demo viewer. A new `demo_recorder.py` builds a two-node `StateGraph` (`eda_raw → data_engineer → END`), streams `astream_events(version="v2")`, and writes `data/interim/demo_run_latest.json`. A new `demo_viewer.html` replays the recording as four screens (Config → Input → Runtime → Output+Summary) inside the existing `app.py` via `st.components.v1.html`.
 
 **Scope excluded:** `ml_modeler`, `ml_reviewer`, `business_stakeholder`, `report_writer` are NOT executed live in this demo. Their drawer panes show clearly-labeled `SCRIPTED` canned content.
 
 **Files introduced:**
-- `src/multi_agent_ds/orchestration/demo_recorder.py`
-- `src/multi_agent_ds/demo_viewer.html`
+- `src/multi_agent_ds/orchestration/demo_recorder.py` — 20 unit tests passing; Phase 2 complete
+- `src/multi_agent_ds/demo_viewer.html` (Phase 3)
 - `data/interim/demo_run_latest.json` (runtime output, not checked in)
+
+**Phase 2 addendum — offline mode for AWS SSO downtime:**
+- Added `--no-upload` flag to `demo_recorder` CLI for offline demo rehearsal
+- `run_preparation_workflow` accepts `local_only: bool = False` parameter
+- When `local_only=True`, processed parquet is written to `data/processed/{filename}` locally instead of uploading to S3
+- `preflight()` now loads `.env` before checking `OPENAI_API_KEY` (bug fix)
+- 3 new test files added with 6 new tests; all 49 unit tests passing
 
 ---
 
