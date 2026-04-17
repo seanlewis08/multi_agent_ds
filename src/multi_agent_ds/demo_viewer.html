@@ -698,8 +698,220 @@
         </div>
         <div class="footer">multi_agent_ds <span class="dot">●</span> replay mode <span class="dot">●</span> local only <span style="margin-left:auto;">03 / 04</span></div>
       </div>
-      <!-- Page 4: Summary — placeholder, filled in Phase 5 -->
-      <div class="page p4"><div class="tag">PAGE 4 — SUMMARY</div><div class="body"><h1>Summary (Phase 5 stub)</h1></div></div>
+      <!-- Page 4: Summary — output drawer with agent rail -->
+      <div class="page p4">
+        <div class="tag">PAGE 4 — SUMMARY</div>
+        <div class="topbar">
+          <div class="brand">MULTI-AGENT <span>·</span> DS</div>
+          <div class="crumbs">Config &nbsp;›&nbsp; Input &nbsp;›&nbsp; Runtime &nbsp;›&nbsp; <b>Results</b></div>
+        </div>
+        <div class="p4-stage">
+          <div class="p4-slider">
+            <div class="p4-main">
+              <h1>Results & Agent Review</h1>
+              <div class="sub">Processed data and feedback from downstream agents.</div>
+              <div class="stamp" data-run-stamp>RUN —</div>
+              <div class="split">
+                <div>
+                  <h4 style="margin: 16px 0 8px 0; font-family: 'Arial Black'; font-size: 13px; letter-spacing: 0.5px; text-transform: uppercase; color: var(--slate);">Delta: Before → After</h4>
+                  <div class="delta-row">
+                    <div class="delta"><div class="num" data-delta="roc_auc">n/a</div><div class="lbl">ROC-AUC (best trial)</div></div>
+                    <div class="delta"><div class="num" data-delta="feature_delta">n/a</div><div class="lbl">features after encoding</div></div>
+                  </div>
+                  <div class="delta-row">
+                    <div class="delta"><div class="num" data-delta="missing_delta">n/a</div><div class="lbl">missing cells</div></div>
+                    <div class="delta"><div class="num" data-delta="runtime">n/a</div><div class="lbl">end-to-end runtime</div></div>
+                  </div>
+                  <h4 style="margin: 16px 0 8px 0; font-family: 'Arial Black'; font-size: 13px; letter-spacing: 0.5px; text-transform: uppercase; color: var(--slate);">Processed Data Preview</h4>
+                  <div class="tbl">
+                    <table>
+                      <thead data-out-head></thead>
+                      <tbody data-out-body></tbody>
+                    </table>
+                  </div>
+                  <div style="font-size:11px; color: var(--slate); margin-top:6px; font-family:'Courier New', monospace;" data-out-caption>—</div>
+                </div>
+                <div>
+                  <h4 style="margin: 0 0 8px 0; font-family: 'Arial Black'; font-size: 13px; letter-spacing: 0.5px; text-transform: uppercase; color: var(--slate);">Agent Review</h4>
+                  <div class="agent-rail">
+                    <div class="group-lbl">Orchestration</div>
+                    <div class="agent-card crew" onclick="openAgent('orch')">
+                      <div class="avatar">Cr</div>
+                      <div class="meta">
+                        <div class="name">Orchestrator</div>
+                        <div class="role" data-role="orch">loading…</div>
+                      </div>
+                      <div class="chev">›</div>
+                    </div>
+                    <div class="group-lbl">Data Preparation</div>
+                    <div class="agent-card" onclick="openAgent('eda')">
+                      <div class="avatar">EA</div>
+                      <div class="meta">
+                        <div class="name">EDA Analyst</div>
+                        <div class="role" data-role="eda">loading…</div>
+                      </div>
+                      <div class="chev">›</div>
+                    </div>
+                    <div class="agent-card" onclick="openAgent('de')">
+                      <div class="avatar">DE</div>
+                      <div class="meta">
+                        <div class="name">Data Engineer</div>
+                        <div class="role" data-role="de">loading…</div>
+                      </div>
+                      <div class="chev">›</div>
+                    </div>
+                    <div class="group-lbl">Model Review</div>
+                    <div class="agent-card" onclick="openAgent('mlm')">
+                      <div class="avatar">MM</div>
+                      <div class="meta">
+                        <div class="name">ML Modeler</div>
+                        <div class="role" data-role="mlm">loading…</div>
+                      </div>
+                      <div class="chev">›</div>
+                    </div>
+                    <div class="agent-card" onclick="openAgent('mlr')">
+                      <div class="avatar">MR</div>
+                      <div class="meta">
+                        <div class="name">ML Reviewer</div>
+                        <div class="role" data-role="mlr">loading…</div>
+                      </div>
+                      <div class="chev">›</div>
+                    </div>
+                    <div class="agent-card" onclick="openAgent('biz')">
+                      <div class="avatar">BS</div>
+                      <div class="meta">
+                        <div class="name">Business Stakeholder</div>
+                        <div class="role" data-role="biz">loading…</div>
+                      </div>
+                      <div class="chev">›</div>
+                    </div>
+                    <div class="group-lbl">Reporting</div>
+                    <div class="agent-card crew" onclick="openAgent('rep')">
+                      <div class="avatar">Rp</div>
+                      <div class="meta">
+                        <div class="name">Report Writer</div>
+                        <div class="role" data-role="rep">loading…</div>
+                      </div>
+                      <div class="chev">›</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="p4-detail">
+              <div class="detail-head">
+                <button class="detail-back" onclick="closeAgent()">BACK</button>
+                <div class="detail-title">Agent <b data-detail-title>Review</b></div>
+              </div>
+              <div class="detail-body">
+                <!-- Recorded panes: dynamic population -->
+                <div class="detail-pane orch" data-pane-body="orch">rendering…</div>
+                <div class="detail-pane eda" data-pane-body="eda">rendering…</div>
+                <div class="detail-pane de" data-pane-body="de">rendering…</div>
+
+                <!-- Scripted panes: mockup content with badge -->
+                <div class="detail-pane mlm">
+                  <div class="scripted-badge" style="grid-column: 1 / -1; display:flex; gap:8px; align-items:center; padding:8px 12px; background:rgba(255,182,128,.12); border:1px solid #FFB680; border-radius:8px; color:#FFB680; font-size:11px; letter-spacing:.08em; text-transform:uppercase;">
+                    <span>●</span> SCRIPTED — not executed in this demo run
+                  </div>
+                  <div class="dcard" style="grid-column: 1 / -1;">
+                    <h5>MODEL SELECTION</h5>
+                    <ul>
+                      <li>Evaluated 5 trials across LightGBM and Logistic Regression</li>
+                      <li>Best trial: LightGBM with AUC 0.847</li>
+                      <li>Recommended for deployment with monitoring</li>
+                    </ul>
+                  </div>
+                  <div class="dcard">
+                    <h5>FEATURE IMPORTANCE</h5>
+                    <ul>
+                      <li><code>claim_amount_avg</code> (importance: 0.31)</li>
+                      <li><code>credit_score</code> (importance: 0.28)</li>
+                      <li><code>num_prior_claims</code> (importance: 0.19)</li>
+                    </ul>
+                  </div>
+                  <div class="dcard">
+                    <h5>VALIDATION</h5>
+                    <ul>
+                      <li>Holdout test AUC: 0.841</li>
+                      <li>No significant drift between CV folds</li>
+                      <li>Cross-validation AUC: 0.836 ± 0.009</li>
+                    </ul>
+                  </div>
+                </div>
+
+                <div class="detail-pane mlr">
+                  <div class="scripted-badge" style="grid-column: 1 / -1; display:flex; gap:8px; align-items:center; padding:8px 12px; background:rgba(255,182,128,.12); border:1px solid #FFB680; border-radius:8px; color:#FFB680; font-size:11px; letter-spacing:.08em; text-transform:uppercase;">
+                    <span>●</span> SCRIPTED — not executed in this demo run
+                  </div>
+                  <div class="dcard" style="grid-column: 1 / -1;">
+                    <h5>MATHEMATICAL REVIEW</h5>
+                    <ul>
+                      <li>Feature distributions are well-behaved post-encoding</li>
+                      <li>No multicollinearity detected (VIF &lt; 5)</li>
+                      <li>Verdict: <b style="color: #2E7D32;">APPROVE</b></li>
+                    </ul>
+                  </div>
+                  <div class="dcard">
+                    <h5>STATISTICAL NOTES</h5>
+                    <ul>
+                      <li>2 features flagged for near-zero variance</li>
+                      <li>Correlation matrix reviewed; no surprises</li>
+                      <li>Approved for training</li>
+                    </ul>
+                  </div>
+                </div>
+
+                <div class="detail-pane biz">
+                  <div class="scripted-badge" style="grid-column: 1 / -1; display:flex; gap:8px; align-items:center; padding:8px 12px; background:rgba(255,182,128,.12); border:1px solid #FFB680; border-radius:8px; color:#FFB680; font-size:11px; letter-spacing:.08em; text-transform:uppercase;">
+                    <span>●</span> SCRIPTED — not executed in this demo run
+                  </div>
+                  <div class="dcard" style="grid-column: 1 / -1;">
+                    <h5>BUSINESS STAKEHOLDER SIGN-OFF</h5>
+                    <ul>
+                      <li>Model features are interpretable and defensible</li>
+                      <li>Expected to improve claim prediction by 12–15%</li>
+                      <li>Verdict: <b style="color: #2E7D32;">APPROVE</b></li>
+                    </ul>
+                  </div>
+                  <div class="dcard">
+                    <h5>NEXT STEPS</h5>
+                    <ul>
+                      <li>Deploy to staging environment</li>
+                      <li>Monitor prediction bias quarterly</li>
+                      <li>Review with product team before production</li>
+                    </ul>
+                  </div>
+                </div>
+
+                <div class="detail-pane rep">
+                  <div class="scripted-badge" style="grid-column: 1 / -1; display:flex; gap:8px; align-items:center; padding:8px 12px; background:rgba(255,182,128,.12); border:1px solid #FFB680; border-radius:8px; color:#FFB680; font-size:11px; letter-spacing:.08em; text-transform:uppercase;">
+                    <span>●</span> SCRIPTED — not executed in this demo run
+                  </div>
+                  <div class="dcard" style="grid-column: 1 / -1;">
+                    <h5>EXPERIMENT REPORT</h5>
+                    <ul>
+                      <li>Section 1: Data preparation overview</li>
+                      <li>Section 2: Model selection and validation</li>
+                      <li>Section 3: Business impact and recommendations</li>
+                      <li>Section 4: Deployment checklist</li>
+                    </ul>
+                  </div>
+                  <div class="dcard">
+                    <h5>ARTIFACTS</h5>
+                    <ul>
+                      <li>experiment_report.md (4 sections)</li>
+                      <li>Model binary and feature encoder</li>
+                      <li>Validation dataset and predictions</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="footer">multi_agent_ds <span class="dot">●</span> replay mode <span class="dot">●</span> local only <span style="margin-left:auto;">04 / 04</span></div>
+      </div>
     </div>
   </div>
 
@@ -707,6 +919,8 @@
   <!-- Test stub matches post-M4 _config_snapshot output (src/multi_agent_ds/orchestration/demo_recorder.py:449). Stale on-disk data/interim/demo_run_latest.json must be regenerated before Phase 3 Task 4. -->
   <script>
     window.DEMO_LOG = window.DEMO_LOG || {
+      recorded_at: "2026-04-17T04:27:26.416Z",
+      duration_ms: 19436,
       config: {
         source: "data/raw/synthetic_dataset.parquet",
         source_mode: "synthetic",
@@ -722,7 +936,262 @@
       },
       artifacts: {
         input_df_head: [],
-        input_df_stats: {}
+        input_df_stats: {
+          rows: 500000,
+          cols: 17,
+          target: "binary_target",
+          positive_rate: 0.273272,
+          numeric: 14,
+          categorical: 3,
+          missing_pct: 0.031
+        },
+        processed_df_head: [
+          {
+            age: 45,
+            annual_income: 75000,
+            credit_score: 720,
+            vehicle_value: 25000,
+            annual_premium: 1200,
+            claim_amount_avg: 8500,
+            miles_driven_annual: 12000,
+            distance_to_work: 15,
+            num_prior_claims: 2,
+            policy_tenure_months: 36,
+            num_drivers_on_policy: 2,
+            num_vehicles: 2,
+            "vehicle_value_normalized": 0.5,
+            "income_bin": "mid",
+            "age_bin": "adult",
+            "credit_score_normalized": 0.72,
+            "binary_target": 1,
+            "encoded_vehicle_class": 1,
+            "encoded_region": 2
+          },
+          {
+            age: 32,
+            annual_income: 65000,
+            credit_score: 680,
+            vehicle_value: 18000,
+            annual_premium: 950,
+            claim_amount_avg: 4200,
+            miles_driven_annual: 10000,
+            distance_to_work: 12,
+            num_prior_claims: 0,
+            policy_tenure_months: 24,
+            num_drivers_on_policy: 1,
+            num_vehicles: 1,
+            "vehicle_value_normalized": 0.36,
+            "income_bin": "mid",
+            "age_bin": "adult",
+            "credit_score_normalized": 0.68,
+            "binary_target": 0,
+            "encoded_vehicle_class": 0,
+            "encoded_region": 1
+          },
+          {
+            age: 58,
+            annual_income: 95000,
+            credit_score: 750,
+            vehicle_value: 35000,
+            annual_premium: 1800,
+            claim_amount_avg: 12000,
+            miles_driven_annual: 18000,
+            distance_to_work: 25,
+            num_prior_claims: 3,
+            policy_tenure_months: 60,
+            num_drivers_on_policy: 3,
+            num_vehicles: 3,
+            "vehicle_value_normalized": 0.7,
+            "income_bin": "high",
+            "age_bin": "senior",
+            "credit_score_normalized": 0.75,
+            "binary_target": 1,
+            "encoded_vehicle_class": 2,
+            "encoded_region": 2
+          },
+          {
+            age: 28,
+            annual_income: 45000,
+            credit_score: 620,
+            vehicle_value: 15000,
+            annual_premium: 800,
+            claim_amount_avg: 3500,
+            miles_driven_annual: 8000,
+            distance_to_work: 8,
+            num_prior_claims: 1,
+            policy_tenure_months: 12,
+            num_drivers_on_policy: 1,
+            num_vehicles: 1,
+            "vehicle_value_normalized": 0.3,
+            "income_bin": "low",
+            "age_bin": "adult",
+            "credit_score_normalized": 0.62,
+            "binary_target": 0,
+            "encoded_vehicle_class": 0,
+            "encoded_region": 0
+          },
+          {
+            age: 51,
+            annual_income: 110000,
+            credit_score: 780,
+            vehicle_value: 45000,
+            annual_premium: 2100,
+            claim_amount_avg: 15000,
+            miles_driven_annual: 20000,
+            distance_to_work: 30,
+            num_prior_claims: 4,
+            policy_tenure_months: 84,
+            num_drivers_on_policy: 4,
+            num_vehicles: 2,
+            "vehicle_value_normalized": 0.9,
+            "income_bin": "high",
+            "age_bin": "senior",
+            "credit_score_normalized": 0.78,
+            "binary_target": 1,
+            "encoded_vehicle_class": 2,
+            "encoded_region": 3
+          },
+          {
+            age: 35,
+            annual_income: 70000,
+            credit_score: 700,
+            vehicle_value: 22000,
+            annual_premium: 1100,
+            claim_amount_avg: 6500,
+            miles_driven_annual: 11000,
+            distance_to_work: 18,
+            num_prior_claims: 1,
+            policy_tenure_months: 48,
+            num_drivers_on_policy: 2,
+            num_vehicles: 2,
+            "vehicle_value_normalized": 0.44,
+            "income_bin": "mid",
+            "age_bin": "adult",
+            "credit_score_normalized": 0.7,
+            "binary_target": 0,
+            "encoded_vehicle_class": 1,
+            "encoded_region": 1
+          },
+          {
+            age: 42,
+            annual_income: 85000,
+            credit_score: 740,
+            vehicle_value: 28000,
+            annual_premium: 1400,
+            claim_amount_avg: 9500,
+            miles_driven_annual: 13000,
+            distance_to_work: 20,
+            num_prior_claims: 2,
+            policy_tenure_months: 36,
+            num_drivers_on_policy: 2,
+            num_vehicles: 2,
+            "vehicle_value_normalized": 0.56,
+            "income_bin": "mid",
+            "age_bin": "adult",
+            "credit_score_normalized": 0.74,
+            "binary_target": 1,
+            "encoded_vehicle_class": 1,
+            "encoded_region": 2
+          },
+          {
+            age: 26,
+            annual_income: 48000,
+            credit_score: 640,
+            vehicle_value: 16000,
+            annual_premium: 900,
+            claim_amount_avg: 4000,
+            miles_driven_annual: 9000,
+            distance_to_work: 10,
+            num_prior_claims: 0,
+            policy_tenure_months: 6,
+            num_drivers_on_policy: 1,
+            num_vehicles: 1,
+            "vehicle_value_normalized": 0.32,
+            "income_bin": "low",
+            "age_bin": "adult",
+            "credit_score_normalized": 0.64,
+            "binary_target": 0,
+            "encoded_vehicle_class": 0,
+            "encoded_region": 0
+          },
+          {
+            age: 55,
+            annual_income: 105000,
+            credit_score: 770,
+            vehicle_value: 38000,
+            annual_premium: 1900,
+            claim_amount_avg: 13500,
+            miles_driven_annual: 19000,
+            distance_to_work: 28,
+            num_prior_claims: 3,
+            policy_tenure_months: 72,
+            num_drivers_on_policy: 3,
+            num_vehicles: 3,
+            "vehicle_value_normalized": 0.76,
+            "income_bin": "high",
+            "age_bin": "senior",
+            "credit_score_normalized": 0.77,
+            "binary_target": 1,
+            "encoded_vehicle_class": 2,
+            "encoded_region": 2
+          },
+          {
+            age: 38,
+            annual_income: 72000,
+            credit_score: 710,
+            vehicle_value: 24000,
+            annual_premium: 1250,
+            claim_amount_avg: 7500,
+            miles_driven_annual: 12000,
+            distance_to_work: 16,
+            num_prior_claims: 1,
+            policy_tenure_months: 30,
+            num_drivers_on_policy: 2,
+            num_vehicles: 2,
+            "vehicle_value_normalized": 0.48,
+            "income_bin": "mid",
+            "age_bin": "adult",
+            "credit_score_normalized": 0.71,
+            "binary_target": 0,
+            "encoded_vehicle_class": 1,
+            "encoded_region": 1
+          }
+        ],
+        processed_df_stats: {
+          rows: 500000,
+          cols: 19,
+          path: "data/processed/synthetic_dataset_processed_20260417T042743Z.parquet",
+          missing_pct_after: 0.0
+        },
+        raw_eda_insights: {
+          n_rows: 500000,
+          n_features: 17,
+          target_rate: 0.273272,
+          needs_cleaning: false,
+          feature_summaries: [
+            { feature: "claim_amount_avg", type: "numeric", auc: 0.602 },
+            { feature: "credit_score", type: "numeric", auc: 0.591 },
+            { feature: "num_prior_claims", type: "numeric", auc: 0.584 },
+            { feature: "annual_income", type: "numeric", auc: 0.576 },
+            { feature: "annual_premium", type: "numeric", auc: 0.568 },
+            { feature: "vehicle_value", type: "numeric", auc: 0.557 },
+            { feature: "miles_driven_annual", type: "numeric", auc: 0.53 }
+          ]
+        },
+        prep_plan: {
+          summary: "Impute missing values using median; encode categorical features; normalize numeric features to [0,1]",
+          approved: true,
+          cleaning_actions: [
+            "Impute annual_income (missing: 0.031)",
+            "Remove 3 rows with extreme outliers in claim_amount_avg"
+          ],
+          feature_actions: [
+            "Encode categorical: vehicle_class, region",
+            "Normalize numeric: all numeric features to [0,1]",
+            "Bin age: young, adult, senior"
+          ],
+          handoff_notes: "19 features ready for modeling. Target rate: 27.3%. No leakage detected."
+        }
       },
       events: [
         // RAW EDA: eda_raw profiles the raw dataset
@@ -779,6 +1248,245 @@
   </script>
 
   <script>
+    // ============ AGENT RAIL & DRAWER HELPERS ============
+    const AGENT_LABELS = {
+      'orch': 'Orchestrator',
+      'eda': 'EDA Analyst',
+      'de': 'Data Engineer',
+      'mlm': 'ML Modeler',
+      'mlr': 'ML Reviewer',
+      'biz': 'Business Stakeholder',
+      'rep': 'Report Writer',
+    };
+
+    const ALL_CLASSES = ['orch', 'eda', 'de', 'mlm', 'mlr', 'biz', 'rep'];
+
+    function openAgent(which) {
+      if (!ALL_CLASSES.includes(which)) return;
+      const slider = document.querySelector('.p4-slider');
+      const title = document.querySelector('[data-detail-title]');
+      if (slider) {
+        // Remove all open-* classes
+        ALL_CLASSES.forEach((cls) => slider.classList.remove(`open-${cls}`));
+        // Add the new one
+        slider.classList.add(`open-${which}`);
+      }
+      if (title) {
+        title.textContent = AGENT_LABELS[which] || which;
+      }
+    }
+
+    function closeAgent() {
+      const slider = document.querySelector('.p4-slider');
+      if (slider) {
+        ALL_CLASSES.forEach((cls) => slider.classList.remove(`open-${cls}`));
+      }
+    }
+
+    // Demo canned content for scripted agents (not recorded in this run)
+    const DEMO_CANNED = {
+      rail_subtitles: {
+        mlm: '5 trials · best AUC 0.847 (scripted)',
+        mlr: 'verdict: approve · 2 flags (scripted)',
+        biz: 'verdict: approve · interpretable (scripted)',
+        rep: 'experiment_report.md · 4 sections (scripted)',
+      },
+    };
+
+    // ============ PAGE 4 RENDERERS ============
+
+    function _runStampText(log) {
+      if (!log || !log.recorded_at) return 'RUN —';
+      // recorded_at is ISO-8601; extract HHMM-X style from the time part for a demo-style stamp.
+      const d = new Date(log.recorded_at);
+      if (Number.isNaN(d.getTime())) return 'RUN —';
+      const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+      const dd = String(d.getUTCDate()).padStart(2, '0');
+      const hh = String(d.getUTCHours()).padStart(2, '0');
+      const mi = String(d.getUTCMinutes()).padStart(2, '0');
+      return `RUN #${mm}${dd}-${hh}${mi}`;
+    }
+
+    function _fmtRuntime(ms) {
+      if (ms == null) return 'n/a';
+      const total = Math.floor(ms / 1000);
+      const mm = String(Math.floor(total / 60)).padStart(2, '0');
+      const ss = String(total % 60).padStart(2, '0');
+      return `${mm}:${ss}`;
+    }
+
+    function _escapeHtml(text) {
+      return String(text)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function renderSummary() {
+      const log = window.DEMO_LOG || {};
+      const artifacts = log.artifacts || {};
+      const inputStats = artifacts.input_df_stats || {};
+      const outStats   = artifacts.processed_df_stats || {};
+      const outRows    = artifacts.processed_df_head || [];
+
+      // --- Run stamp ---
+      const stamp = document.querySelector('[data-run-stamp]');
+      if (stamp) stamp.innerHTML = _runStampText(log).replace(/RUN (#.+)/, 'RUN <b>$1</b>');
+
+      // --- Delta cards ---
+      const setDelta = (key, text) => {
+        const el = document.querySelector(`[data-delta="${key}"]`);
+        if (el) el.textContent = text;
+      };
+      const toggleDeltaGood = (key, good) => {
+        const card = document.querySelector(`[data-delta="${key}"]`).parentElement;
+        if (card) card.classList.toggle('good', good);
+      };
+      // ROC-AUC is always 'n/a' in demo scope (ml_modeler does not run).
+      setDelta('roc_auc', outStats.best_roc_auc != null ? outStats.best_roc_auc.toFixed(3) : 'n/a');
+      toggleDeltaGood('roc_auc', outStats.best_roc_auc != null);
+      const featuresPresent = inputStats.cols != null && outStats.cols != null;
+      if (featuresPresent) {
+        setDelta('feature_delta', `${inputStats.cols} → ${outStats.cols}`);
+      } else {
+        setDelta('feature_delta', 'n/a');
+      }
+      toggleDeltaGood('feature_delta', featuresPresent && outStats.cols !== inputStats.cols);
+      const missingImproved = inputStats.missing_pct != null && outStats.missing_pct_after != null
+        && outStats.missing_pct_after < inputStats.missing_pct;
+      if (inputStats.missing_pct != null && outStats.missing_pct_after != null) {
+        setDelta('missing_delta', `${fmtPct(inputStats.missing_pct)} → ${fmtPct(outStats.missing_pct_after)}`);
+      } else if (inputStats.missing_pct != null) {
+        setDelta('missing_delta', `${fmtPct(inputStats.missing_pct)} → n/a`);
+      } else {
+        setDelta('missing_delta', 'n/a');
+      }
+      toggleDeltaGood('missing_delta', missingImproved);
+      setDelta('runtime', _fmtRuntime(log.duration_ms));
+      toggleDeltaGood('runtime', log.duration_ms != null);
+
+      // --- Processed df table ---
+      const outHead = document.querySelector('[data-out-head]');
+      const outBody = document.querySelector('[data-out-body]');
+      const caption = document.querySelector('[data-out-caption]');
+      if (outHead && outBody) {
+        outHead.innerHTML = '';
+        outBody.innerHTML = '';
+        if (outRows.length === 0) {
+          outBody.innerHTML = '<tr><td style="text-align:center;color:var(--slate);padding:16px;">(not recorded)</td></tr>';
+        } else {
+          const targetCol = inputStats.target;
+          let cols = Object.keys(outRows[0]).slice(0, 11);
+          if (targetCol && cols.includes(targetCol)) {
+            cols = cols.filter((c) => c !== targetCol).concat([targetCol]);
+          }
+          const tr = document.createElement('tr');
+          cols.forEach((col) => {
+            const th = document.createElement('th');
+            th.textContent = col;
+            if (col === targetCol) { th.classList.add('target'); th.style.color = '#FFB680'; }
+            tr.appendChild(th);
+          });
+          outHead.appendChild(tr);
+          outRows.slice(0, 10).forEach((row) => {
+            const rtr = document.createElement('tr');
+            cols.forEach((col) => {
+              const td = document.createElement('td');
+              const v = row[col];
+              td.textContent = (v == null) ? '—' : String(v);
+              if (col === targetCol) td.classList.add('target');
+              rtr.appendChild(td);
+            });
+            outBody.appendChild(rtr);
+          });
+        }
+      }
+      if (caption) {
+        const path = outStats.path || 'data/interim/processed_df.parquet';
+        const shape = (outStats.rows != null && outStats.cols != null)
+          ? `${fmtNum(outStats.rows)} × ${outStats.cols}` : 'shape unknown';
+        caption.textContent = `${path} · ${shape}`;
+      }
+
+      // --- Rail subtitles ---
+      const setRole = (key, text) => {
+        const el = document.querySelector(`[data-role="${key}"]`);
+        if (el) el.textContent = text;
+      };
+      const eventCount = (Array.isArray(log.events) ? log.events.length : 0);
+      const edaInsights = artifacts.raw_eda_insights || {};
+      const edaBullets = Array.isArray(edaInsights.feature_summaries) ? edaInsights.feature_summaries.length
+                       : Object.keys(edaInsights).length;
+      const prepPlan = artifacts.prep_plan || {};
+      const transformCount = Object.keys(prepPlan).length;
+      setRole('orch', `routes state · ${eventCount} events`);
+      setRole('eda', edaBullets > 0 ? `${edaBullets} insights · profiling, leakage` : 'recorded');
+      setRole('de',  transformCount > 0 ? `${transformCount} transform groups · impute, encode` : 'recorded');
+      setRole('mlm', DEMO_CANNED.rail_subtitles.mlm);
+      setRole('mlr', DEMO_CANNED.rail_subtitles.mlr);
+      setRole('biz', DEMO_CANNED.rail_subtitles.biz);
+      setRole('rep', DEMO_CANNED.rail_subtitles.rep);
+
+      // --- Recorded agent panes ---
+      _renderOrchPane(log);
+      _renderEdaPane(artifacts);
+      _renderDePane(artifacts);
+    }
+
+    function _renderOrchPane(log) {
+      const host = document.querySelector('[data-pane-body="orch"]');
+      if (!host) return;
+      const events = Array.isArray(log.events) ? log.events : [];
+      const nodes = Array.from(new Set(events.map((e) => e.node))).filter(Boolean);
+      const transitions = events.filter((e) => e.kind === 'node_start' || e.kind === 'node_end').length;
+      host.innerHTML = `
+        <div class="dcard" style="grid-column: 1 / -1;">
+          <h5>ROUTING DECISIONS</h5>
+          <ul>
+            <li>Recorded path: <code>${nodes.join(' → ')}</code></li>
+            <li>${transitions} node transitions observed</li>
+            <li>Recorded at <code>${log.recorded_at || '—'}</code></li>
+          </ul>
+        </div>
+        <div class="dcard">
+          <h5>EVENT COUNTS</h5>
+          <div class="stat-row">
+            <div class="s"><div class="n">${events.length}</div><div class="l">total events</div></div>
+            <div class="s"><div class="n">${transitions}</div><div class="l">node transitions</div></div>
+          </div>
+          <div class="stat-row" style="margin-top:8px;">
+            <div class="s"><div class="n">${_fmtRuntime(log.duration_ms)}</div><div class="l">duration</div></div>
+            <div class="s"><div class="n">${nodes.length}</div><div class="l">nodes</div></div>
+          </div>
+        </div>
+      `;
+    }
+
+    function _renderEdaPane(artifacts) {
+      const host = document.querySelector('[data-pane-body="eda"]');
+      if (!host) return;
+      const insights = artifacts.raw_eda_insights || {};
+      const json = JSON.stringify(insights, null, 2);
+      host.innerHTML = `
+        <div class="dcard" style="grid-column: 1 / -1;">
+          <h5>RAW INSIGHTS (handed to Data Engineer)</h5>
+          <div class="code">${_escapeHtml(json) || '—'}</div>
+        </div>
+      `;
+    }
+
+    function _renderDePane(artifacts) {
+      const host = document.querySelector('[data-pane-body="de"]');
+      if (!host) return;
+      const plan = artifacts.prep_plan || {};
+      const json = JSON.stringify(plan, null, 2);
+      host.innerHTML = `
+        <div class="dcard" style="grid-column: 1 / -1;">
+          <h5>PREP PLAN (handed to ML Modeler — scripted in this demo)</h5>
+          <div class="code">${_escapeHtml(json) || '—'}</div>
+        </div>
+      `;
+    }
+
     const viewer = document.querySelector('.viewer');
 
     function goTo(page) {
@@ -1155,10 +1863,12 @@
     // DEMO_LOG must be present before this script runs. Phase 6 loader replaces the inline stub with real data and re-invokes these renderers.
     renderConfig();
     renderInputPreview();
+    renderSummary();
 
     // Expose renderers and replay engine on window for Phase 6 loader.
     window.renderConfig = renderConfig;
     window.renderInputPreview = renderInputPreview;
+    window.renderSummary = renderSummary;
     window.startRuntimeReplay = startRuntimeReplay;
     window.pauseReplay = () => {
       if (_replayElapsedTicker) {
