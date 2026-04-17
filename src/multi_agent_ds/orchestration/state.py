@@ -25,6 +25,11 @@ class PipelineState(TypedDict, total=False):
     prep_feedback: dict[str, Any]
     prep_approved: bool
     prep_iteration: int
+    # Outer-loop rejection context carried into the next eda_prep_plan turn so
+    # the analyst's retry prompt has fresh signal (concerns + recommendations
+    # from the most recent processed_approval=False verdict).
+    processed_approval_concerns: list[str]
+    processed_approval_recommendations: list[str]
     prep_result: dict[str, Any]
     processed_data_path: str
     processed_eda_insights: dict[str, Any]

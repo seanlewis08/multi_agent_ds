@@ -6,6 +6,7 @@ from multi_agent_ds.agents.ml_modeler import ml_modeler_node
 from multi_agent_ds.agents.ml_reviewer import ml_reviewer_node
 from multi_agent_ds.core.contracts import (
     EDAReviewOutput,
+    PreparationExecutionPlan,
     PreparationFeedbackOutput,
     PreparationPlanOutput,
     ProcessedApprovalOutput,
@@ -36,7 +37,7 @@ def test_eda_review_output_accepts_structured_review() -> None:
 def test_preparation_plan_output_accepts_action_lists() -> None:
     prep_plan = PreparationPlanOutput(
         summary="Clip one outlier feature and impute numeric gaps.",
-        approved=True,
+        accepts_engineer_plan=True,
         cleaning_actions=[
             {
                 "area": "cleaning",
@@ -47,16 +48,27 @@ def test_preparation_plan_output_accepts_action_lists() -> None:
         ],
         feature_actions=[],
         handoff_notes=["Keep the target column untouched."],
+        revision_rationale="Accepted engineer plan; clip + impute are executable as-is.",
     )
 
-    assert prep_plan.approved is True
+    assert prep_plan.accepts_engineer_plan is True
     assert prep_plan.cleaning_actions[0].action == "clip_outliers_iqr"
+    assert prep_plan.revision_rationale.startswith("Accepted")
 
 
 def test_preparation_feedback_output_accepts_feasibility_notes() -> None:
     feedback = PreparationFeedbackOutput(
         summary="The plan is feasible as written.",
         ready_for_execution=True,
+        cleaning_actions=[
+            {
+                "area": "cleaning",
+                "action": "clip_outliers_iqr",
+                "rationale": "Reduce extreme leverage points.",
+                "params": {"columns": ["claim_amount_avg"]},
+            }
+        ],
+        feature_actions=[],
         action_feedback=[
             {
                 "action": "clip_outliers_iqr",
@@ -69,6 +81,13 @@ def test_preparation_feedback_output_accepts_feasibility_notes() -> None:
 
     assert feedback.ready_for_execution is True
     assert feedback.action_feedback[0].feasible is True
+    assert feedback.cleaning_actions[0].action == "clip_outliers_iqr"
+
+
+def test_preparation_feedback_output_alias_is_preparation_execution_plan() -> None:
+    # Back-compat: PreparationFeedbackOutput must still resolve to the
+    # new PreparationExecutionPlan class during the deprecation window.
+    assert PreparationFeedbackOutput is PreparationExecutionPlan
 
 
 def test_processed_approval_output_accepts_revision_request() -> None:

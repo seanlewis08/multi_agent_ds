@@ -39,15 +39,38 @@ def route_after_raw_eda(_state: PipelineState) -> tuple[str, str, str]:
 
 
 def route_after_prep_plan(state: PipelineState) -> str:
-    """Either execute an approved plan or keep iterating with the data engineer."""
-    if state.get("prep_approved", False):
+    """Route after an analyst prep-plan turn.
+
+    The analyst ends the consensus loop by accepting the engineer's latest
+    executable plan (``accepts_engineer_plan=True``). That only makes sense
+    once the engineer has produced at least one plan — so acceptance requires
+    both the flag AND a populated ``prep_feedback``. Otherwise the loop
+    continues with another engineer turn.
+    """
+    prep_plan = state.get("prep_plan") or {}
+    feedback = state.get("prep_feedback") or {}
+    if prep_plan.get("accepts_engineer_plan", False) and feedback:
         return "data_engineer_execute"
     return "data_engineer_feedback"
 
 
-def route_after_data_engineer_feedback(_state: PipelineState) -> str:
-    """Return feasibility feedback to the EDA analyst for the next plan iteration."""
-    return "eda_prep_plan"
+def route_after_data_engineer_feedback(state: PipelineState) -> str:
+    """Route after an engineer feedback/plan turn.
+
+    The engineer ends the consensus loop by signalling ``ready_for_execution``
+    on a plan that has at least one concrete action. If not ready and the
+    iteration budget still has room, hand back to the analyst for another
+    revision turn. When the cap is hit, force-execute the engineer's latest
+    plan as forward progress (the outer ``processed_approval`` loop will
+    catch a broken plan).
+    """
+    feedback = state.get("prep_feedback") or {}
+    has_actions = bool(feedback.get("cleaning_actions") or feedback.get("feature_actions"))
+    if feedback.get("ready_for_execution", False) and has_actions:
+        return "data_engineer_execute"
+    if state.get("prep_iteration", 0) < _prep_iteration_limit():
+        return "eda_prep_plan"
+    return "data_engineer_execute"
 
 
 def route_after_data_engineer_execute(_state: PipelineState) -> str:

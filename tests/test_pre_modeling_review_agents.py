@@ -38,9 +38,47 @@ class FakeReviewAdapter:
             }
 
         canned: dict[str, dict[str, Any]] = {
+            "PreparationExecutionPlan": {
+                "summary": "The plan is feasible.",
+                "ready_for_execution": True,
+                "cleaning_actions": [
+                    {
+                        "area": "cleaning",
+                        "action": "clip_outliers_iqr",
+                        "rationale": "Reduce extreme leverage points.",
+                        "params": {"columns": ["claim_amount_avg"]},
+                    }
+                ],
+                "feature_actions": [
+                    {
+                        "area": "feature_engineering",
+                        "action": "ratio",
+                        "rationale": "Surface per-unit ratios.",
+                        "params": {"numerator": "a", "denominator": "b"},
+                    }
+                ],
+                "action_feedback": [
+                    {
+                        "action": "clip_outliers_iqr",
+                        "feasible": True,
+                        "reason": "The feature is numeric.",
+                    }
+                ],
+                "execution_notes": ["Run the approved plan once."],
+            },
+            # Back-compat: some older schema lookups may still use the alias.
             "PreparationFeedbackOutput": {
                 "summary": "The plan is feasible.",
                 "ready_for_execution": True,
+                "cleaning_actions": [
+                    {
+                        "area": "cleaning",
+                        "action": "clip_outliers_iqr",
+                        "rationale": "Reduce extreme leverage points.",
+                        "params": {"columns": ["claim_amount_avg"]},
+                    }
+                ],
+                "feature_actions": [],
                 "action_feedback": [
                     {
                         "action": "clip_outliers_iqr",
@@ -205,8 +243,13 @@ def test_data_engineer_feedback_returns_structured_output(monkeypatch) -> None:
     )
 
     assert result["prep_feedback"]["ready_for_execution"] is True
+    # Engineer's executable plan carries cleaning + feature actions now.
+    assert result["prep_feedback"]["cleaning_actions"][0]["action"] == "clip_outliers_iqr"
+    assert result["prep_feedback"]["feature_actions"][0]["action"] == "ratio"
     assert result["agent_decisions"][0]["summary"] == "The plan is feasible."
     assert result["agent_decisions"][0]["action_feedback_count"] == 1
+    assert result["agent_decisions"][0]["cleaning_action_count"] == 1
+    assert result["agent_decisions"][0]["feature_action_count"] == 1
     assert result["current_phase"] == "prep_feedback"
 
 
@@ -247,6 +290,132 @@ def test_data_engineer_execute_returns_preparation_result(monkeypatch) -> None:
     assert result["agent_decisions"][0]["artifact_filename"] == "example_processed_20260416T010203Z.parquet"
     assert result["agent_decisions"][0]["processed_n_rows"] == 10
     assert result["current_phase"] == "prep_execute"
+
+
+def test_data_engineer_execute_uses_feedback_plan_not_analyst_plan(monkeypatch) -> None:
+    """``execute`` must run the engineer's plan (``prep_feedback``), not the analyst's."""
+    captured: dict[str, Any] = {}
+
+    def fake_run_preparation_workflow(
+        data_path: str,
+        prep_plan: dict[str, Any],
+        settings: dict[str, Any],
+        local_only: bool = False,
+    ) -> dict[str, Any]:
+        captured["prep_plan"] = prep_plan
+        return {
+            "source_data_path": data_path,
+            "target_column": "binary_target",
+            "artifact_filename": "example_processed.parquet",
+            "processed_data_path": "s3://bucket/processed.parquet",
+            "source_n_rows": 10,
+            "source_n_features": 3,
+            "n_rows": 10,
+            "n_features": 4,
+            "processed_n_rows": 10,
+            "processed_n_features": 4,
+            "cleaning_summary": [],
+            "feature_summary": [],
+        }
+
+    monkeypatch.setattr(
+        "multi_agent_ds.agents.data_engineer.run_preparation_workflow",
+        fake_run_preparation_workflow,
+    )
+
+    analyst_actions = [{"area": "cleaning", "action": "analyst_only_action", "rationale": "analyst", "params": {}}]
+    engineer_actions = [{"area": "cleaning", "action": "engineer_refined_action", "rationale": "engineer", "params": {}}]
+
+    data_engineer_node(
+        {
+            "settings": _settings(),
+            "data_path": "data/raw/example.parquet",
+            "prep_plan": {
+                "cleaning_actions": analyst_actions,
+                "feature_actions": [],
+            },
+            "prep_feedback": {
+                "summary": "Engineer refined plan.",
+                "ready_for_execution": True,
+                "cleaning_actions": engineer_actions,
+                "feature_actions": [],
+                "action_feedback": [],
+                "execution_notes": [],
+            },
+            "agent_decisions": [],
+        },
+        mode="execute",
+    )
+
+    # The engineer's plan — not the analyst's — must be what ran.
+    assert captured["prep_plan"]["cleaning_actions"] == engineer_actions
+    assert captured["prep_plan"]["cleaning_actions"] != analyst_actions
+
+
+def test_data_engineer_execute_falls_back_to_analyst_plan_when_feedback_empty(monkeypatch) -> None:
+    """When ``prep_feedback`` is missing or action-empty, fall back to ``prep_plan``."""
+    captured: dict[str, Any] = {}
+
+    def fake_run_preparation_workflow(
+        data_path: str,
+        prep_plan: dict[str, Any],
+        settings: dict[str, Any],
+        local_only: bool = False,
+    ) -> dict[str, Any]:
+        captured["prep_plan"] = prep_plan
+        return {
+            "source_data_path": data_path,
+            "target_column": "binary_target",
+            "artifact_filename": "example_processed.parquet",
+            "processed_data_path": "s3://bucket/processed.parquet",
+            "source_n_rows": 10,
+            "source_n_features": 3,
+            "n_rows": 10,
+            "n_features": 4,
+            "processed_n_rows": 10,
+            "processed_n_features": 4,
+            "cleaning_summary": [],
+            "feature_summary": [],
+        }
+
+    monkeypatch.setattr(
+        "multi_agent_ds.agents.data_engineer.run_preparation_workflow",
+        fake_run_preparation_workflow,
+    )
+
+    analyst_actions = [{"area": "cleaning", "action": "analyst_action", "rationale": "r", "params": {}}]
+
+    # Case 1: prep_feedback missing entirely.
+    data_engineer_node(
+        {
+            "settings": _settings(),
+            "data_path": "data/raw/example.parquet",
+            "prep_plan": {"cleaning_actions": analyst_actions, "feature_actions": []},
+            "agent_decisions": [],
+        },
+        mode="execute",
+    )
+    assert captured["prep_plan"]["cleaning_actions"] == analyst_actions
+
+    # Case 2: prep_feedback present but both action lists are empty.
+    data_engineer_node(
+        {
+            "settings": _settings(),
+            "data_path": "data/raw/example.parquet",
+            "prep_plan": {"cleaning_actions": analyst_actions, "feature_actions": []},
+            "prep_feedback": {
+                "summary": "No concrete actions yet.",
+                "ready_for_execution": False,
+                "cleaning_actions": [],
+                "feature_actions": [],
+                "action_feedback": [],
+                "execution_notes": [],
+            },
+            "agent_decisions": [],
+        },
+        mode="execute",
+    )
+    assert captured["prep_plan"]["cleaning_actions"] == analyst_actions
 
 
 def test_ml_modeler_raw_review_returns_review_payload(monkeypatch) -> None:

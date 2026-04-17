@@ -51,13 +51,29 @@ def _build_eda_messages(profile_result: dict[str, Any], prompts: dict[str, Any],
 
 
 def _build_prep_plan_messages(state: PipelineState, prompts: dict[str, Any]) -> list[dict[str, str]]:
-    """Construct the prep-planning prompt from raw EDA and reviewer feedback."""
+    """Construct the prep-planning prompt from raw EDA and reviewer feedback.
+
+    The analyst deliberates with the data engineer to converge on a
+    preparation plan. The engineer's latest executable plan (if any) is
+    piped in as ``engineer_plan_json`` so the analyst can either accept it
+    or propose concrete revisions. On retries after an outer-loop
+    processed-approval rejection, the rejection's concerns and
+    recommendations are piped in so the analyst is not retrying blind.
+    """
+    engineer_plan = state.get("prep_feedback", {})
     user_prompt = prompts["prep_plan"].format(
         raw_eda_json=json.dumps(state["raw_eda_insights"], sort_keys=True),
         ml_modeler_review_json=json.dumps(state.get("raw_eda_ml_modeler_review", {}), sort_keys=True),
         ml_review_json=json.dumps(state.get("raw_eda_ml_review", {}), sort_keys=True),
         business_review_json=json.dumps(state.get("raw_eda_business_review", {}), sort_keys=True),
-        prep_feedback_json=json.dumps(state.get("prep_feedback", {}), sort_keys=True),
+        prep_feedback_json=json.dumps(engineer_plan, sort_keys=True),
+        engineer_plan_json=json.dumps(engineer_plan, sort_keys=True),
+        processed_approval_concerns_json=json.dumps(
+            state.get("processed_approval_concerns", []), sort_keys=True
+        ),
+        processed_approval_recommendations_json=json.dumps(
+            state.get("processed_approval_recommendations", []), sort_keys=True
+        ),
         prep_iteration=state.get("prep_iteration", 0) + 1,
         prep_iteration_limit=_workflow_iteration_limit(),
     )
@@ -155,12 +171,11 @@ def eda_analyst_node(state: PipelineState, mode: str = "raw") -> dict[str, Any]:
         prep_plan = _dump_model(PreparationPlanOutput, response["parsed"])
         return {
             "prep_plan": prep_plan,
-            "prep_approved": prep_plan["approved"],
             "prep_iteration": state.get("prep_iteration", 0) + 1,
             "agent_decisions": _append_decision(
                 state,
                 "prep_plan",
-                approved=prep_plan["approved"],
+                accepts_engineer_plan=prep_plan["accepts_engineer_plan"],
                 action_count=len(prep_plan["cleaning_actions"]) + len(prep_plan["feature_actions"]),
             ),
             "current_phase": "prep_plan",
@@ -193,7 +208,7 @@ def eda_analyst_node(state: PipelineState, mode: str = "raw") -> dict[str, Any]:
             schema=_schema_for(ProcessedApprovalOutput),
         )
         approval = _dump_model(ProcessedApprovalOutput, response["parsed"])
-        return {
+        updates: dict[str, Any] = {
             "processed_eda_approved": approval["approved"],
             "agent_decisions": _append_decision(
                 state,
@@ -204,5 +219,11 @@ def eda_analyst_node(state: PipelineState, mode: str = "raw") -> dict[str, Any]:
             "current_phase": "processed_approval",
             "prep_result": state.get("prep_result", {}) | {"processed_approval": approval},
         }
+        # On rejection, persist concerns + recommendations so the next
+        # eda_prep_plan turn can surface them in the analyst's prompt.
+        if not approval["approved"]:
+            updates["processed_approval_concerns"] = list(approval.get("concerns", []))
+            updates["processed_approval_recommendations"] = list(approval.get("recommendations", []))
+        return updates
 
     raise ValueError(f"Unsupported eda_analyst mode: {mode}")

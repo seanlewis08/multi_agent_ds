@@ -49,13 +49,19 @@ class PreparationAction(BaseModel):
 
 
 class PreparationPlanOutput(BaseModel):
-    """EDA analyst handoff plan for data preparation."""
+    """EDA analyst handoff plan for data preparation.
+
+    Part of the EDA↔Data-Engineer consensus loop. The analyst proposes (or
+    revises) a cleaning + feature-engineering plan and signals whether it
+    accepts the engineer's latest executable plan via ``accepts_engineer_plan``.
+    """
 
     summary: str
-    approved: bool
+    accepts_engineer_plan: bool = False
     cleaning_actions: list[PreparationAction] = Field(default_factory=list)
     feature_actions: list[PreparationAction] = Field(default_factory=list)
     handoff_notes: list[str] = Field(default_factory=list)
+    revision_rationale: str = ""
 
 
 class PreparationActionFeedback(BaseModel):
@@ -67,13 +73,26 @@ class PreparationActionFeedback(BaseModel):
     suggested_adjustment: str | None = None
 
 
-class PreparationFeedbackOutput(BaseModel):
-    """Data engineer feasibility feedback on a proposed prep plan."""
+class PreparationExecutionPlan(BaseModel):
+    """Data engineer's executable preparation plan.
+
+    Produced during the consensus loop; this is the artifact that
+    ``run_preparation_workflow`` runs when the loop exits (whether via analyst
+    acceptance, engineer readiness, or iteration cap). Includes concrete
+    ``cleaning_actions`` / ``feature_actions`` alongside feasibility feedback.
+    """
 
     summary: str
     ready_for_execution: bool
+    cleaning_actions: list[PreparationAction] = Field(default_factory=list)
+    feature_actions: list[PreparationAction] = Field(default_factory=list)
     action_feedback: list[PreparationActionFeedback] = Field(default_factory=list)
     execution_notes: list[str] = Field(default_factory=list)
+
+
+# Back-compat alias for one-release deprecation window. Prefer
+# PreparationExecutionPlan in new code.
+PreparationFeedbackOutput = PreparationExecutionPlan
 
 
 class ProcessedApprovalOutput(BaseModel):

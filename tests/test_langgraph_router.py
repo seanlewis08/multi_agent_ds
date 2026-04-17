@@ -26,13 +26,73 @@ def test_raw_review_stage_fans_out_to_all_three_reviewers() -> None:
     )
 
 
-def test_prep_plan_routes_to_feedback_or_execution() -> None:
-    assert route_after_prep_plan({"prep_approved": False}) == "data_engineer_feedback"
-    assert route_after_prep_plan({"prep_approved": True}) == "data_engineer_execute"
+def test_route_after_prep_plan_goes_to_feedback_when_analyst_does_not_accept() -> None:
+    state = {
+        "prep_plan": {"accepts_engineer_plan": False},
+        "prep_feedback": {
+            "cleaning_actions": [{"action": "x"}],
+            "feature_actions": [],
+        },
+    }
+    assert route_after_prep_plan(state) == "data_engineer_feedback"
 
 
-def test_data_engineer_routes_return_to_prep_or_processed_eda() -> None:
-    assert route_after_data_engineer_feedback({}) == "eda_prep_plan"
+def test_route_after_prep_plan_executes_when_analyst_accepts_and_engineer_plan_exists() -> None:
+    state = {
+        "prep_plan": {"accepts_engineer_plan": True},
+        "prep_feedback": {
+            "summary": "engineer plan",
+            "cleaning_actions": [{"action": "x"}],
+            "feature_actions": [],
+        },
+    }
+    assert route_after_prep_plan(state) == "data_engineer_execute"
+
+
+def test_route_after_prep_plan_feedback_when_accept_with_no_engineer_plan_yet() -> None:
+    # Iteration-1 edge case: analyst can't meaningfully accept before the
+    # engineer has produced anything. Defensive: route to feedback.
+    state = {"prep_plan": {"accepts_engineer_plan": True}}
+    assert route_after_prep_plan(state) == "data_engineer_feedback"
+
+
+def test_route_after_data_engineer_feedback_executes_when_ready() -> None:
+    state = {
+        "prep_feedback": {
+            "ready_for_execution": True,
+            "cleaning_actions": [{"action": "x"}],
+            "feature_actions": [],
+        },
+        "prep_iteration": 1,
+    }
+    assert route_after_data_engineer_feedback(state) == "data_engineer_execute"
+
+
+def test_route_after_data_engineer_feedback_loops_when_not_ready() -> None:
+    state = {
+        "prep_feedback": {
+            "ready_for_execution": False,
+            "cleaning_actions": [],
+            "feature_actions": [],
+        },
+        "prep_iteration": 1,
+    }
+    assert route_after_data_engineer_feedback(state) == "eda_prep_plan"
+
+
+def test_route_after_data_engineer_feedback_force_executes_at_cap() -> None:
+    state = {
+        "prep_feedback": {
+            "ready_for_execution": False,
+            "cleaning_actions": [{"action": "x"}],
+            "feature_actions": [],
+        },
+        "prep_iteration": 3,
+    }
+    assert route_after_data_engineer_feedback(state) == "data_engineer_execute"
+
+
+def test_data_engineer_execute_router_returns_to_processed_eda() -> None:
     assert route_after_data_engineer_execute({}) == "eda_processed"
 
 

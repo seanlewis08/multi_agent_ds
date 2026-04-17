@@ -164,7 +164,10 @@ def build_graph(entry_node: str = "eda_raw") -> StateGraph:
     graph.add_conditional_edges(
         "data_engineer_feedback",
         route_after_data_engineer_feedback,
-        {"eda_prep_plan": "eda_prep_plan"},
+        {
+            "data_engineer_execute": "data_engineer_execute",
+            "eda_prep_plan": "eda_prep_plan",
+        },
     )
     graph.add_conditional_edges(
         "data_engineer_execute",

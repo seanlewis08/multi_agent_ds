@@ -30,7 +30,7 @@ class FakeAdapter:
             return {
                 "parsed": {
                     "summary": "Impute the gaps and clip one outlier feature.",
-                    "approved": False,
+                    "accepts_engineer_plan": False,
                     "cleaning_actions": [
                         {
                             "area": "cleaning",
@@ -41,6 +41,7 @@ class FakeAdapter:
                     ],
                     "feature_actions": [],
                     "handoff_notes": ["Preserve the target column."],
+                    "revision_rationale": "Engineer plan not yet available; proposing initial actions.",
                 }
             }
 
@@ -117,7 +118,10 @@ def _prompts() -> dict[str, Any]:
             "raw_review": "rows={n_rows}; features={n_features}; target_rate={target_rate}; {profile_json}",
             "prep_plan": (
                 "raw={raw_eda_json}; modeler={ml_modeler_review_json}; "
-                "review={ml_review_json}; business={business_review_json}; feedback={prep_feedback_json}"
+                "review={ml_review_json}; business={business_review_json}; "
+                "feedback={prep_feedback_json}; engineer_plan={engineer_plan_json}; "
+                "processed_concerns={processed_approval_concerns_json}; "
+                "processed_recs={processed_approval_recommendations_json}"
             ),
             "processed_approval": (
                 "processed={processed_eda_json}; modeler={ml_modeler_review_json}; "
@@ -166,8 +170,56 @@ def test_eda_analyst_node_builds_prep_plan(monkeypatch) -> None:
     )
 
     assert result["prep_plan"]["cleaning_actions"][0]["action"] == "clip_outliers_iqr"
-    assert result["prep_approved"] is False
+    # ``prep_approved`` was replaced by analyst-plan field ``accepts_engineer_plan``.
+    assert "prep_approved" not in result
+    assert result["prep_plan"]["accepts_engineer_plan"] is False
+    assert "revision_rationale" in result["prep_plan"]
     assert result["prep_iteration"] == 1
+
+
+def test_prep_plan_receives_engineer_plan_and_rejection_context_on_retry(monkeypatch) -> None:
+    """On retry the analyst prompt must surface the engineer's plan AND outer-loop concerns."""
+    captured: dict[str, Any] = {}
+
+    class CapturingAdapter(FakeAdapter):
+        def structured_output(self, messages, schema):
+            captured["user_prompt"] = messages[1]["content"]
+            return super().structured_output(messages, schema)
+
+    def _fake_build(settings, *, agent, task):
+        return CapturingAdapter(settings)
+
+    monkeypatch.setattr("multi_agent_ds.agents.eda_analyst.build_adapter", _fake_build)
+    monkeypatch.setattr("multi_agent_ds.agents.eda_analyst.load_prompts_config", _prompts)
+    monkeypatch.setattr(
+        "multi_agent_ds.agents.eda_analyst.load_workflows_config",
+        lambda: {"workflows": {"eda_preparation": {"max_iterations": 3}}},
+    )
+
+    eda_analyst_node(
+        {
+            "settings": _settings(),
+            "raw_eda_insights": {"needs_cleaning": True, "recommendations": []},
+            "raw_eda_ml_modeler_review": {"summary": "m"},
+            "raw_eda_ml_review": {"summary": "r"},
+            "raw_eda_business_review": {"summary": "b"},
+            # Engineer's latest plan from the prior iteration.
+            "prep_feedback": {"summary": "X", "cleaning_actions": [], "feature_actions": []},
+            # Outer-loop processed_approval rejection context.
+            "processed_approval_concerns": ["column_X_dropped"],
+            "processed_approval_recommendations": ["restore column X"],
+            "agent_decisions": [],
+        },
+        mode="prep_plan",
+    )
+
+    prompt = captured["user_prompt"]
+    # Engineer plan summary must reach the analyst.
+    assert "\"summary\": \"X\"" in prompt or '"X"' in prompt
+    # Outer-loop rejection concern must reach the analyst.
+    assert "column_X_dropped" in prompt
+    # Outer-loop rejection recommendation must reach the analyst.
+    assert "restore column X" in prompt
 
 
 def test_eda_analyst_node_approves_processed_data(monkeypatch) -> None:

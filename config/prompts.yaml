@@ -11,16 +11,42 @@ eda_analyst:
     n_rows, n_features, target_rate, needs_cleaning, feature_summaries,
     correlation_flags, recommendations.
   prep_plan: |
-    You have already profiled the raw data and now need to turn multi-agent review
-    feedback into a preparation plan for the data engineer.
+    You are deliberating with the data engineer to converge on a concrete
+    preparation plan for this dataset. Each iteration one side proposes and
+    the other refines; consensus ends the loop.
+
+    Your role on this turn:
+    - Review the data engineer's latest executable plan (below). If it
+      faithfully addresses the reviewer feedback AND the raw EDA signal
+      AND the outer-loop rejection context (if any), accept it by setting
+      ``accepts_engineer_plan=true`` and briefly explain why in
+      ``revision_rationale``. When you accept, your ``cleaning_actions`` /
+      ``feature_actions`` are advisory and need not differ from the
+      engineer's plan.
+    - Otherwise, set ``accepts_engineer_plan=false`` and propose concrete
+      revisions in ``cleaning_actions`` / ``feature_actions``. Use
+      ``revision_rationale`` to explain the delta vs. the engineer's plan.
+    - On iteration 1 the engineer's plan will be empty — treat this as a
+      fresh proposal. ``accepts_engineer_plan`` must be false on turn 1
+      (nothing to accept).
+    - If this is an outer-loop retry (processed_approval rejected the
+      processed data), the ``processed_approval_concerns`` and
+      ``processed_approval_recommendations`` capture what broke. Address
+      them explicitly.
+
     Raw EDA: {raw_eda_json}
     ML modeler review: {ml_modeler_review_json}
     ML reviewer review: {ml_review_json}
     Business stakeholder review: {business_review_json}
-    Latest data engineer feedback: {prep_feedback_json}
+    Latest data engineer executable plan: {engineer_plan_json}
+    (alias, same payload) Latest data engineer feedback: {prep_feedback_json}
+    Processed-approval concerns from prior outer loop: {processed_approval_concerns_json}
+    Processed-approval recommendations from prior outer loop: {processed_approval_recommendations_json}
     Current iteration: {prep_iteration} of {prep_iteration_limit}
+
     Return structured JSON with keys:
-    summary, approved, cleaning_actions, feature_actions, handoff_notes.
+    summary, accepts_engineer_plan, cleaning_actions, feature_actions,
+    handoff_notes, revision_rationale.
   processed_approval: |
     Review the processed-data EDA and the reviewer feedback to decide whether the
     dataset is ready for modeling.
@@ -37,11 +63,30 @@ data_engineer:
     You are the data engineer in a collaborative preparation loop.
     Focus on what is feasible to execute cleanly and reproducibly from the proposed plan.
   plan_feedback: |
-    Review this preparation plan for feasibility and reproducibility.
-    Proposed plan: {prep_plan_json}
+    You are deliberating with the EDA analyst to produce the concrete,
+    executable preparation plan that will run on this dataset. The analyst
+    has proposed (or revised) a plan below; your job is to refine it into
+    the executable form that ``run_preparation_workflow`` can consume.
+
+    - If the analyst's proposal is actionable as-is (or with minor
+      cleanup), refine it into executable form under your own
+      ``cleaning_actions`` / ``feature_actions`` and set
+      ``ready_for_execution=true``.
+    - If critical ambiguity or infeasibility remains, still refine what
+      you can into ``cleaning_actions`` / ``feature_actions``, set
+      ``ready_for_execution=false``, and spell out the blockers in
+      ``action_feedback`` + ``execution_notes`` so the analyst can
+      revise on the next turn.
+    - Your ``cleaning_actions`` / ``feature_actions`` are what actually
+      runs when the loop ends — they must be self-contained and not rely
+      on the analyst's proposal surviving.
+
+    Proposed analyst plan: {prep_plan_json}
     Supporting raw EDA: {raw_eda_json}
+
     Return structured JSON with keys:
-    summary, ready_for_execution, action_feedback, execution_notes.
+    summary, ready_for_execution, cleaning_actions, feature_actions,
+    action_feedback, execution_notes.
   execution_summary: |
     Summarize the executed preparation plan and note what changed in the processed dataset.
 
