@@ -338,6 +338,17 @@ async def record_run(
     start_ts = datetime.now(timezone.utc)
 
     async for lg_event in graph.astream_events(input=initial_state, version="v2"):
+        # Accumulate state from all graph nodes (including filtered ones).
+        # prep_plan_stage's output is NOT in the event log but IS merged here
+        # so artifacts.prep_plan remains populated.
+        if should_accumulate(lg_event):
+            output = lg_event.get("data", {}).get("output")
+            if isinstance(output, dict):
+                safe_output = sanitize_payload(output)
+                if isinstance(safe_output, dict):
+                    final_state.update(safe_output)
+
+        # Record only the events the viewer will replay.
         if not should_record(lg_event):
             continue
         elapsed_ms = int((time.monotonic() - start_monotonic) * 1000)
@@ -345,9 +356,8 @@ async def record_run(
         safe_data = sanitize_payload(lg_event.get("data", {}))
         normalized = normalize_event({**lg_event, "data": safe_data}, ts=ts, elapsed_ms=elapsed_ms)
         events.append(normalized.to_dict())
-        # Keep a running copy of the final state by merging end-event outputs.
-        if normalized.kind == NODE_END and isinstance(safe_data.get("output"), dict):
-            final_state.update(safe_data["output"])
+        # State accumulation for recorded nodes is already handled above;
+        # no need to duplicate the merge here.
 
     # Read processed parquet and populate processed_df_head / processed_df_stats
     processed_path = final_state.get("processed_data_path")
