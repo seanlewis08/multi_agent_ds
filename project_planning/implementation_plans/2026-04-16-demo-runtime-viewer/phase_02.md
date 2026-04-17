@@ -1006,3 +1006,43 @@ Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>"
 - [ ] No edits to `src/multi_agent_ds/orchestration/graph.py` (AC7.4 preserved).
 - [ ] No edits to any file under `src/multi_agent_ds/agents/` (AC7.4 preserved).
 - [ ] Commit history on `demo-runtime-viewer` branch shows one commit per task (7 commits for Tasks 1–7, optional 8th for BUILD_PLAN update).
+
+## Task 8 Verification Matrix — 2026-04-17
+
+| AC | Status | Evidence |
+|----|--------|----------|
+| demo-runtime-viewer.AC1.1 | **PASS** | JSON events array contains 4 events: node_start/eda_raw, node_end/eda_raw, node_start/data_engineer, node_end/data_engineer. Event order correct: eda_raw ends at index 1, data_engineer starts at index 2. |
+| demo-runtime-viewer.AC1.2 | **PASS** | All six artifact keys non-null: raw_eda_insights (7 keys), prep_plan (5 keys), processed_df_head (10 items), processed_df_stats (4 keys), input_df_head (10 items), input_df_stats (7 keys). Total file size: 116,342 bytes. |
+| demo-runtime-viewer.AC1.3 | **PASS** | All 4 events have valid ISO-8601 timestamps (e.g., 2026-04-17T04:27:26.416Z) and elapsed_ms as non-negative integers (63ms, 9806ms, 9831ms, 19436ms). Zero malformed timestamps. |
+| demo-runtime-viewer.AC1.4 | **PASS** | Error condition tested separately. Preflight guard raises FileNotFoundError with resolved absolute path when parquet missing. |
+| demo-runtime-viewer.AC1.5 | **PASS** | Error condition tested separately. Preflight guard raises EnvironmentError mentioning "OPENAI_API_KEY" when env var unset. |
+| demo-runtime-viewer.AC1.6 | **PASS** | No `.tmp` sibling file remains after recording. JSON is fully serializable: zero non-JSON types (no DataFrames, ndarrays, pickled objects). Atomic write confirmed. |
+
+### Unit Test Results
+- **Command:** `uv run pytest tests/unit -x --tb=short`
+- **Result:** 58 passed in 4.36s
+  - tests/unit/orchestration/test_demo_recorder_artifacts.py: 5 passed
+  - tests/unit/orchestration/test_demo_recorder_atomic.py: 4 passed
+  - tests/unit/orchestration/test_demo_recorder_cli.py: 2 passed
+  - tests/unit/orchestration/test_demo_recorder_events.py: 11 passed
+  - tests/unit/orchestration/test_demo_recorder_preflight.py: 4 passed
+  - tests/unit/orchestration/test_demo_recorder_subgraph.py: 6 passed
+  - tests/unit/test_evaluation_workflow.py: 14 passed (no regressions)
+  - tests/unit/test_git.py: 6 passed (no regressions)
+  - tests/unit/test_reviewer.py: 3 passed (no regressions)
+  - tests/unit/workflows/test_preparation_local_only.py: 3 passed (no regressions)
+
+### Recorded JSON Summary
+- **Path:** data/interim/demo_run_latest.json
+- **Size:** 116,342 bytes
+- **recorded_at:** 2026-04-17T04:27:26.416Z
+- **duration_ms:** 19,436 ms
+- **Top-level schema:** recorded_at, duration_ms, config, artifacts, events
+- **Event shape:** ts, elapsed_ms, kind, node, data (all 5 keys present)
+- **Nodes recorded:** eda_raw, data_engineer (no prep_plan_stage leakage)
+
+### Notes
+- Two prior bugs were fixed and are reflected in this recording:
+  1. local_only field retention in PipelineState (commit bd6516d)
+  2. prep_plan_stage output merging via ACCUMULATE_NODES (commits 9dd2cbf, a5dfcbf, 035d0c1)
+- All ACs pass end-to-end. Code is ready for Phase 3 (viewer HTML).
