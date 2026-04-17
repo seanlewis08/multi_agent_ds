@@ -1,4 +1,4 @@
-"""Routing helpers for the expanded pre-modeling EDA workflow."""
+"""Routing helpers for the runtime pipeline graph."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ _MODELING_REVIEW_NEXT_NODE = {
     "tune": "ml_modeler_train_tuned",
     "adjust_lr": "ml_modeler_importance_review",
     "feature_selection": "ml_modeler_final_recommendation",
-    "final_recommendation": "end",
+    "final_recommendation": "evaluation",
 }
 
 
@@ -96,6 +96,30 @@ def route_after_modeling_review(state: PipelineState) -> str:
     if revise and iteration < _modeling_iteration_limit():
         return f"ml_modeler_{current}"
     return _MODELING_REVIEW_NEXT_NODE[current]
+
+
+def route_after_evaluation(state: PipelineState) -> str:
+    """Route after the evaluation node.
+
+    When evaluation determines the pipeline should retry modeling, it must set:
+    - `should_loop=True`
+    - `loop_from` to the re-entry modeler node
+
+    Otherwise the runtime continues to the reviewer stage.
+    """
+    if state.get("should_loop") and state.get("loop_from"):
+        return str(state["loop_from"])
+    return "reviewer"
+
+
+def route_after_reviewer(_state: PipelineState) -> str:
+    """Advance from reviewer completion into report generation."""
+    return "report_writer"
+
+
+def route_after_report_generation(_state: PipelineState) -> str:
+    """Advance from report generation into business stakeholder report review."""
+    return "business_stakeholder_report_review"
 
 
 def route_after_business_review(state: PipelineState) -> str:

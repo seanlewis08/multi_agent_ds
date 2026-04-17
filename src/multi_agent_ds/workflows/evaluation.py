@@ -20,6 +20,10 @@ from typing import Any
 
 import numpy as np
 
+from multi_agent_ds.core import load_settings
+from multi_agent_ds.orchestration.state import PipelineState
+from multi_agent_ds.skills.modeling import prepare_data
+from multi_agent_ds.workflows.discovery import load_dataframe
 
 _DESCENDING_METRICS = {
     "gini",
@@ -33,6 +37,12 @@ _ASCENDING_METRICS = {
     "ase",
     "mse_vs_ground_truth",
 }
+_LATEST_PHASE_PREFERENCE = (
+    "feature_selection",
+    "adjust_lr",
+    "train_tuned",
+    "baseline",
+)
 
 
 def _metric_direction(metric_name: str) -> str:
@@ -814,4 +824,122 @@ def run_evaluation_workflow(
         "shap_results": shap_results,
         "shap_artifacts": shap_artifacts,
         "mlflow_payload": mlflow_payload,
+    }
+
+
+def _resolve_target_column(settings: dict[str, Any]) -> str:
+    """Resolve the configured target column for evaluation data loading."""
+    data_cfg = settings.get("data", {})
+    if data_cfg.get("source") == "existing":
+        target_col = data_cfg.get("existing", {}).get("target_column")
+        if not target_col:
+            raise ValueError(
+                "Existing-data evaluation requires data.existing.target_column to be set in settings."
+            )
+        return target_col
+
+    return data_cfg.get("synthetic", {}).get("target", {}).get("column_name", "target")
+
+
+def _resolve_evaluation_data_path(
+    state: PipelineState,
+    settings: dict[str, Any],
+) -> str | None:
+    """Choose the best available dataset path for evaluation reconstruction."""
+    if state.get("processed_data_path"):
+        return state["processed_data_path"]
+
+    modeling_context = state.get("modeling_context") or {}
+    if isinstance(modeling_context, dict) and modeling_context.get("processed_data_path"):
+        return str(modeling_context["processed_data_path"])
+
+    if state.get("data_path"):
+        return state["data_path"]
+
+    data_cfg = settings.get("data", {})
+    if data_cfg.get("source") == "existing":
+        return data_cfg.get("existing", {}).get("uri")
+
+    return None
+
+
+def _extract_latest_fitted_results(
+    modeling_results: dict[str, Any],
+    modeling_verdict: dict[str, Any] | None = None,
+) -> dict[str, dict[str, Any]]:
+    """Flatten nested modeling phase buckets into the latest per-algorithm results."""
+    candidate_algorithms: list[str] = []
+    if modeling_verdict:
+        ranked = modeling_verdict.get("ranked_algorithms")
+        if isinstance(ranked, list):
+            candidate_algorithms.extend(str(name) for name in ranked if isinstance(name, str))
+        best = modeling_verdict.get("best_algorithm")
+        if isinstance(best, str) and best not in candidate_algorithms:
+            candidate_algorithms.append(best)
+
+    final_candidates = modeling_results.get("final_candidates", {})
+    if isinstance(final_candidates, dict):
+        for name in final_candidates:
+            if isinstance(name, str) and name not in candidate_algorithms:
+                candidate_algorithms.append(name)
+
+    for phase_name in _LATEST_PHASE_PREFERENCE:
+        phase_bucket = modeling_results.get(phase_name, {})
+        if isinstance(phase_bucket, dict):
+            for name in phase_bucket:
+                if isinstance(name, str) and name not in candidate_algorithms:
+                    candidate_algorithms.append(name)
+
+    flattened: dict[str, dict[str, Any]] = {}
+    for algorithm in candidate_algorithms:
+        for phase_name in _LATEST_PHASE_PREFERENCE:
+            phase_bucket = modeling_results.get(phase_name, {})
+            if isinstance(phase_bucket, dict) and algorithm in phase_bucket:
+                flattened[algorithm] = phase_bucket[algorithm]
+                break
+
+    if not flattened:
+        raise ValueError(
+            "Could not extract any fitted algorithm results from state['modeling_results'] for evaluation."
+        )
+
+    return flattened
+
+
+def run_evaluation_from_state(state: PipelineState) -> dict[str, Any]:
+    """Graph-facing evaluation wrapper that reconstructs workflow inputs from state."""
+    settings = state.get("settings") or load_settings()
+    modeling_results = state.get("modeling_results")
+    if not isinstance(modeling_results, dict):
+        raise ValueError("Evaluation graph node requires state['modeling_results'].")
+
+    data_path = _resolve_evaluation_data_path(state, settings)
+    df, _source_path = load_dataframe(data_path, settings)
+    model_settings = settings.get("model", {})
+    data = prepare_data(
+        df,
+        target_col=_resolve_target_column(settings),
+        test_size=model_settings.get("test_size", 0.2),
+        validation_size=model_settings.get("validation_size"),
+        random_state=model_settings.get("random_state", 42),
+    )
+    results = _extract_latest_fitted_results(
+        modeling_results,
+        modeling_verdict=state.get("modeling_verdict"),
+    )
+    output = run_evaluation_workflow(results, data, settings)
+    return {
+        **output,
+        "agent_decisions": state.get("agent_decisions", [])
+        + [
+            {
+                "agent": "evaluation_workflow",
+                "phase": "evaluation",
+                "winner": output["evaluation_result"]["winner"],
+                "primary_metric": output["evaluation_result"]["primary_metric"],
+            }
+        ],
+        "current_phase": "evaluation",
+        "should_loop": False,
+        "loop_from": None,
     }

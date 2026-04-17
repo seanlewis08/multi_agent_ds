@@ -5,12 +5,16 @@ import pytest
 from multi_agent_ds.orchestration.router import (
     route_after_data_engineer_execute,
     route_after_data_engineer_feedback,
+    route_after_evaluation,
     route_after_modeling_handoff,
     route_after_modeling_review,
     route_after_prep_plan,
     route_after_processed_approval,
     route_after_processed_eda,
+    route_after_report_generation,
+    route_after_reviewer,
     route_after_raw_eda,
+    route_after_business_review,
 )
 
 
@@ -60,7 +64,7 @@ def test_modeling_handoff_routes_into_modeling_loop() -> None:
         ("tune", "ml_modeler_train_tuned"),
         ("adjust_lr", "ml_modeler_importance_review"),
         ("feature_selection", "ml_modeler_final_recommendation"),
-        ("final_recommendation", "end"),
+        ("final_recommendation", "evaluation"),
     ],
 )
 def test_modeling_review_advances_on_accept(current_phase: str, expected_next: str) -> None:
@@ -115,3 +119,45 @@ def test_modeling_iteration_resets_across_phases() -> None:
     assert route_after_modeling_review(
         {"current_phase": "tune", "should_revise_modeling": True, "modeling_iteration": 1}
     ) == "ml_modeler_tune"
+
+
+def test_evaluation_routes_to_reviewer_by_default() -> None:
+    assert route_after_evaluation({}) == "reviewer"
+
+
+def test_evaluation_loops_back_to_modeling_when_requested() -> None:
+    state = {
+        "should_loop": True,
+        "loop_from": "ml_modeler_baseline",
+    }
+    assert route_after_evaluation(state) == "ml_modeler_baseline"
+
+
+def test_reviewer_advances_to_report_generation() -> None:
+    assert route_after_reviewer({}) == "report_writer"
+
+
+def test_report_generation_advances_to_business_review() -> None:
+    assert route_after_report_generation({}) == "business_stakeholder_report_review"
+
+
+def test_business_review_accepts_or_loops_with_caps() -> None:
+    assert route_after_business_review({"business_review": {"next_action": "accept"}}) == "end"
+    assert (
+        route_after_business_review(
+            {
+                "business_review": {"next_action": "revise_report"},
+                "report_iteration": 1,
+            }
+        )
+        == "report_writer"
+    )
+    assert (
+        route_after_business_review(
+            {
+                "business_review": {"next_action": "revise_modeling"},
+                "modeling_iteration": 1,
+            }
+        )
+        == "ml_modeler_baseline"
+    )
