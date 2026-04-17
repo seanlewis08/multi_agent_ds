@@ -205,15 +205,12 @@ Page 1 layout is the four-card grid from mockup lines 460–514. In the mockup, 
   "timeout": 36000,
   "algorithms": ["lightgbm", "logistic_regression"],
   "primary_metric": "ase",
-  "tiebreaker": null,
-  "ml_reviewer": "enabled",
-  "business_stakeholder": "enabled",
-  "report_writer": "enabled",
-  "tracing": "disabled",
-  "review_enabled": null,
-  "review_threshold": null
+  "cost_override": null,
+  "tracing": "disabled"
 }
 ```
+
+**Note on config shape evolution:** The `config` object only includes keys that exist in `config/settings.yaml` at runtime. Fields like `tiebreaker`, `ml_reviewer`, `business_stakeholder`, `report_writer`, `review_enabled`, and `review_threshold` were removed when the Phase 2 recorder was simplified to drop non-existent config keys. The renderer uses the `?? '—'` operator for missing fields, so future config shapes can gain or lose keys without breaking the viewer.
 
 If any field is missing from the runtime log, render the literal string `—` (em-dash) as the value. Do not silently default to a plausible value — the demo is about honesty.
 
@@ -266,13 +263,8 @@ function renderConfig() {
   setText('[data-cfg="cv_folds"]',          cfg.cv_folds          ?? '—');
   setText('[data-cfg="timeout"]',           cfg.timeout           ?? '—');
   setText('[data-cfg="primary_metric"]',    cfg.primary_metric    ?? '—');
-  setText('[data-cfg="tiebreaker"]',        cfg.tiebreaker        ?? '—');
-  setText('[data-cfg="ml_reviewer"]',       cfg.ml_reviewer       ?? '—');
-  setText('[data-cfg="business_stakeholder"]', cfg.business_stakeholder ?? '—');
-  setText('[data-cfg="report_writer"]',     cfg.report_writer     ?? '—');
+  setText('[data-cfg="cost_override"]',     cfg.cost_override     ?? '—');
   setText('[data-cfg="tracing"]',           cfg.tracing           ?? '—');
-  setText('[data-cfg="review_enabled"]',    cfg.review_enabled    ?? '—');
-  setText('[data-cfg="review_threshold"]',  cfg.review_threshold  ?? '—');
 
   const chipBox = document.querySelector('[data-cfg-chips="algorithms"]');
   if (chipBox) {
@@ -307,13 +299,13 @@ cat > /tmp/demo_viewer_test.html <<'EOF'
 window.DEMO_LOG = {
   config: {
     source: "data/raw/synthetic_dataset.parquet",
+    source_mode: "synthetic",
     target: "binary_target",
-    rows: 500000, cols: 17, positive_rate: 0.268,
-    scale: "small", max_trials: 5, cv_folds: 2, timeout_s: 60,
-    algorithms: ["lightgbm", "xgboost", "random_forest", "logreg"],
-    primary_metric: "roc_auc", tiebreaker: "pr_auc",
-    ml_reviewer: "enabled", business_stakeholder: "enabled",
-    report_writer: "markdown", tracing: "off (local)"
+    scale: "large",
+    max_trials: 50, cv_folds: 5, timeout: 36000,
+    algorithms: ["lightgbm", "logistic_regression"],
+    primary_metric: "ase",
+    tracing: "disabled"
   },
   artifacts: {}, events: []
 };
@@ -590,7 +582,7 @@ print('events count:', len(log['events']))
 "
 ```
 
-Expected: file exists (output of Phase 2 AC verification). Top-level keys include `config`, `artifacts`, `events`. `config` has at minimum `source`, `target`, `rows`, `cols`, `positive_rate`, `scale`, `max_trials`, `cv_folds`, `timeout_s`, `algorithms`, `primary_metric`, `tiebreaker`, `ml_reviewer`, `business_stakeholder`, `report_writer`, `tracing`. `artifacts` has `input_df_head`, `input_df_stats`. `input_df_head` length is between 1 and 10.
+Expected: file exists (output of Phase 2 AC verification). Top-level keys include `config`, `artifacts`, `events`. `config` has at minimum `source`, `source_mode`, `target`, `scale`, `max_trials`, `cv_folds`, `timeout`, `algorithms`, `primary_metric`, `tracing`. Optional config keys include `cost_override`. `artifacts` has `input_df_head`, `input_df_stats`. `input_df_head` length is between 1 and 10.
 
 If any required config key is missing, return to Phase 2 Task 7 and fix `_config_snapshot()` before continuing — this is the interface Phase 3 codes to.
 
