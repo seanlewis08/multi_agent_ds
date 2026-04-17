@@ -1,0 +1,8 @@
+# User-specific permission overlay (tool allowlist, env vars, etc.)
+settings.local.json
+
+# Ephemeral worktrees created by Claude Code agents
+worktrees/
+
+# User-installed Claude Code skills (not part of the repo protocol)
+skills/

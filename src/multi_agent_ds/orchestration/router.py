@@ -5,10 +5,28 @@ from __future__ import annotations
 from multi_agent_ds.core import load_workflows_config
 from multi_agent_ds.orchestration.state import PipelineState
 
+_MODELING_REVIEW_NEXT_NODE = {
+    "baseline": "ml_modeler_n_estimator_search",
+    "tune": "ml_modeler_train_tuned",
+    "adjust_lr": "ml_modeler_importance_review",
+    "feature_selection": "ml_modeler_final_recommendation",
+    "final_recommendation": "end",
+}
+
 
 def _prep_iteration_limit() -> int:
     workflow_cfg = load_workflows_config()
     return int(workflow_cfg.get("workflows", {}).get("eda_preparation", {}).get("max_iterations", 3))
+
+
+def _modeling_iteration_limit() -> int:
+    workflow_cfg = load_workflows_config()
+    return int(workflow_cfg.get("workflows", {}).get("modeling", {}).get("max_iterations", 3))
+
+
+def _report_iteration_limit() -> int:
+    workflow_cfg = load_workflows_config()
+    return int(workflow_cfg.get("workflows", {}).get("report", {}).get("max_iterations", 3))
 
 
 def route_after_raw_eda(_state: PipelineState) -> tuple[str, str, str]:
@@ -56,5 +74,55 @@ def route_after_processed_approval(state: PipelineState) -> str:
 
 
 def route_after_modeling_handoff(_state: PipelineState) -> str:
-    """Stop after the final modeling handoff package is assembled."""
+    """Advance from handoff into the first reviewed modeling phase."""
+    return "ml_modeler_baseline"
+
+
+def route_after_modeling_review(state: PipelineState) -> str:
+    """Route after a reviewer verdict on a modeling phase.
+
+    Loops back to the reviewed modeler mode when the reviewer flagged
+    `should_revise_modeling` AND the modeling-loop iteration counter is still
+    under the configured cap. Otherwise advances to the next modeling phase.
+    `current_phase` is set by the modeler to the phase name (e.g. "baseline",
+    "tune") and stays set through the reviewer run.
+    """
+    current = state.get("current_phase")
+    if current not in _MODELING_REVIEW_NEXT_NODE:
+        raise ValueError(f"Unknown modeling review phase: {current!r}")
+
+    revise = state.get("should_revise_modeling", False)
+    iteration = state.get("modeling_iteration", 0)
+    if revise and iteration < _modeling_iteration_limit():
+        return f"ml_modeler_{current}"
+    return _MODELING_REVIEW_NEXT_NODE[current]
+
+
+def route_after_business_review(state: PipelineState) -> str:
+    """Route after the business stakeholder verdict on the experiment report.
+
+    Reads `business_review.next_action` and routes to one of three sinks:
+
+    - "accept" → "end" (terminal).
+    - "revise_report" → "report_writer" (rewrite the narrative), capped by
+      `report_iteration` against the configured report-loop limit.
+    - "revise_modeling" → "ml_modeler_baseline" (reopen the modeling loop),
+      bounded by the existing modeling-loop iteration cap.
+
+    When either cap is exceeded, the router force-accepts (returns "end") so
+    the pipeline cannot loop forever on a stuck verdict.
+    """
+    review = state.get("business_review") or {}
+    next_action = review.get("next_action", "accept")
+
+    if next_action == "revise_report":
+        if state.get("report_iteration", 0) < _report_iteration_limit():
+            return "report_writer"
+        return "end"
+
+    if next_action == "revise_modeling":
+        if state.get("modeling_iteration", 0) < _modeling_iteration_limit():
+            return "ml_modeler_baseline"
+        return "end"
+
     return "end"

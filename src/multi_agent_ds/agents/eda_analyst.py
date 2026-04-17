@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from multi_agent_ds.adapters.llm import OpenAIAdapter
+from multi_agent_ds.adapters.llm import build_adapter
 from multi_agent_ds.core import load_prompts_config, load_settings, load_workflows_config
 from multi_agent_ds.core.contracts import EDAOutput, PreparationPlanOutput, ProcessedApprovalOutput
 from multi_agent_ds.orchestration.state import PipelineState
@@ -94,11 +94,25 @@ def _append_decision(state: PipelineState, phase: str, **payload: Any) -> list[d
     return state.get("agent_decisions", []) + [{"agent": "eda_analyst", "phase": phase, **payload}]
 
 
+# Map the agent-local mode string to the routing-table task name. Modes with
+# no entry in routes['eda_analyst'] fall back to the agent-level shorthand.
+_ROUTING_TASK_BY_MODE: dict[str, str] = {
+    "raw": "eda_review",
+    "processed": "eda_review",
+    "prep_plan": "prep_plan",
+    "processed_approval": "processed_approval",
+}
+
+
 def eda_analyst_node(state: PipelineState, mode: str = "raw") -> dict[str, Any]:
     """Run the requested EDA analyst stage."""
     settings = state.get("settings") or load_settings()
     prompts = load_prompts_config()["eda_analyst"]
-    adapter = OpenAIAdapter(settings)
+    adapter = build_adapter(
+        settings,
+        agent="eda_analyst",
+        task=_ROUTING_TASK_BY_MODE.get(mode, mode),
+    )
 
     if mode == "raw":
         data_payload = state.get("data") or {}

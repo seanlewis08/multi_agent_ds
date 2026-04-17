@@ -140,7 +140,15 @@ Routing logic that decides which agent node executes next.
 ## adapters/ — Provider Abstraction
 
 ### adapters/llm/openai.py
-OpenAI API adapter for LLM calls.
+OpenAI API adapter for LLM calls. After Step 7 (LLM Model Routing) the constructor takes a fully-resolved `ModelConfig` rather than the raw settings dict — `OpenAIAdapter(config: ModelConfig)`. Reasoning-model quirks (`max_completion_tokens` field name, omitted `temperature`) are handled inside the adapter based on `config.capability`.
+
+### adapters/llm/routing.py
+Pure-function model routing layer (Step 7). Owns:
+- `ModelConfig` — frozen dataclass carrying `provider`, `model`, `temperature`, `max_tokens`, `capability`, `cost_tier`, `profile_label`
+- `resolve_model_config(settings, *, agent, task, cost_override)` — pure resolver. Walks `settings["llm"]["routes"]` (per-task → per-agent default → global default), looks up `model_matrix[capability][cost]` for the model name and `capability_settings[capability]` for non-model fields, and returns a `ModelConfig`. Raises `ValueError` with actionable messages on unknown route, malformed entry, or unknown override.
+- `build_adapter(settings, *, agent, task)` — imperative-shell factory. Reads `settings["llm"]["cost_override"]`, calls the resolver, returns an `OpenAIAdapter(config)`. This is the symbol every agent imports.
+
+Re-exported from `adapters/llm/__init__.py` so agents do `from multi_agent_ds.adapters.llm import build_adapter`.
 
 ### adapters/llm/local.py
 Local model adapter (future use).
@@ -204,5 +212,6 @@ Workflow definitions: step sequences, agent assignments, conditions.
 | LLM decision-making logic | `agents/` |
 | Graph node/edge definitions | `orchestration/` |
 | LLM or framework abstraction | `adapters/` |
+| LLM model selection / per-agent routing | `adapters/llm/routing.py` |
 | Config loading helpers | `core/config.py` |
 | Shared state/contracts | `core/` |

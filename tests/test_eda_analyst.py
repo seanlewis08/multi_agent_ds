@@ -55,6 +55,34 @@ class FakeAdapter:
         }
 
 
+def _settings() -> dict[str, Any]:
+    """Minimal routing-shaped settings dict.
+
+    ``build_adapter`` is monkeypatched in every test so this block is not
+    normally exercised; keeping it well-formed means the harness fails
+    informatively if the patch ever regresses.
+    """
+    return {
+        "llm": {
+            "default_provider": "openai",
+            "model_matrix": {
+                "balanced": {"cheap": "gpt-4.1-mini", "moderate": "gpt-4.1", "expensive": "gpt-4.1"},
+            },
+            "capability_settings": {
+                "balanced": {"temperature": 0.2, "max_tokens": 1000},
+            },
+            "routes": {
+                "default": {"capability": "balanced", "cost": "cheap"},
+                "eda_analyst": {"capability": "balanced", "cost": "cheap"},
+            },
+        }
+    }
+
+
+def _fake_build_adapter(settings: dict[str, Any], *, agent: str, task: str | None) -> Any:
+    return FakeAdapter(settings)
+
+
 def _profile_result() -> dict[str, Any]:
     return {
         "data_path": "data/raw/sample.parquet",
@@ -100,12 +128,12 @@ def _prompts() -> dict[str, Any]:
 
 
 def test_eda_analyst_node_profiles_raw_data(monkeypatch) -> None:
-    monkeypatch.setattr("multi_agent_ds.agents.eda_analyst.OpenAIAdapter", FakeAdapter)
+    monkeypatch.setattr("multi_agent_ds.agents.eda_analyst.build_adapter", _fake_build_adapter)
     monkeypatch.setattr("multi_agent_ds.agents.eda_analyst.load_prompts_config", _prompts)
 
     result = eda_analyst_node(
         {
-            "settings": {"llm": {"providers": {"openai": {"model": "gpt-4o", "temperature": 0.2, "max_tokens": 1000}}}},
+            "settings": _settings(),
             "data": _profile_result(),
             "agent_decisions": [],
         },
@@ -118,7 +146,7 @@ def test_eda_analyst_node_profiles_raw_data(monkeypatch) -> None:
 
 
 def test_eda_analyst_node_builds_prep_plan(monkeypatch) -> None:
-    monkeypatch.setattr("multi_agent_ds.agents.eda_analyst.OpenAIAdapter", FakeAdapter)
+    monkeypatch.setattr("multi_agent_ds.agents.eda_analyst.build_adapter", _fake_build_adapter)
     monkeypatch.setattr("multi_agent_ds.agents.eda_analyst.load_prompts_config", _prompts)
     monkeypatch.setattr(
         "multi_agent_ds.agents.eda_analyst.load_workflows_config",
@@ -127,7 +155,7 @@ def test_eda_analyst_node_builds_prep_plan(monkeypatch) -> None:
 
     result = eda_analyst_node(
         {
-            "settings": {"llm": {"providers": {"openai": {"model": "gpt-4o", "temperature": 0.2, "max_tokens": 1000}}}},
+            "settings": _settings(),
             "raw_eda_insights": {"needs_cleaning": True, "recommendations": ["clip claim_amount_avg"]},
             "raw_eda_ml_modeler_review": {"summary": "Modeling caution."},
             "raw_eda_ml_review": {"summary": "Scientific caution."},
@@ -143,7 +171,7 @@ def test_eda_analyst_node_builds_prep_plan(monkeypatch) -> None:
 
 
 def test_eda_analyst_node_approves_processed_data(monkeypatch) -> None:
-    monkeypatch.setattr("multi_agent_ds.agents.eda_analyst.OpenAIAdapter", FakeAdapter)
+    monkeypatch.setattr("multi_agent_ds.agents.eda_analyst.build_adapter", _fake_build_adapter)
     monkeypatch.setattr("multi_agent_ds.agents.eda_analyst.load_prompts_config", _prompts)
     monkeypatch.setattr(
         "multi_agent_ds.agents.eda_analyst.load_workflows_config",
@@ -152,7 +180,7 @@ def test_eda_analyst_node_approves_processed_data(monkeypatch) -> None:
 
     result = eda_analyst_node(
         {
-            "settings": {"llm": {"providers": {"openai": {"model": "gpt-4o", "temperature": 0.2, "max_tokens": 1000}}}},
+            "settings": _settings(),
             "processed_eda_insights": {"needs_cleaning": False, "recommendations": []},
             "processed_eda_ml_modeler_review": {"summary": "Looks ready."},
             "processed_eda_ml_review": {"summary": "Looks ready."},

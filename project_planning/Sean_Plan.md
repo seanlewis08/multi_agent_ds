@@ -27,8 +27,9 @@ Use this section as the high-level status board for Sean-owned step work. Detail
 | Step 2: LangGraph Orchestration Skeleton | Complete | `sean_step_artifacts/LangGraph_Skeleton_Implementation_Plan.md`, `sean_step_artifacts/LangGraph_Skeleton_Checklist.md` |
 | Step 3: EDA Skills + Agent | Complete | `sean_step_artifacts/EDA_Analyst_Implementation_Plan.md`, `sean_step_artifacts/EDA_Analyst_Checklist.md` |
 | Step 4: Data Engineering Skills + Agent | Complete | `sean_step_artifacts/Data_Engineer_Implementation_Plan.md`, `sean_step_artifacts/Data_Engineer_Checklist.md` |
-| Step 5: ML Modeler + ML Reviewer | Not started | None yet |
-| Step 6: Report + Business Stakeholder Review | Not started | None yet |
+| Step 5: ML Modeler + ML Reviewer | Complete (pushed, awaiting PR) | `sean_step_artifacts/ML_Modeler_Reviewer_Implementation_Plan.md`, `sean_step_artifacts/ML_Modeler_Reviewer_Checklist.md` |
+| Step 6: Report + Business Stakeholder Review | Complete (pushed in 559f105) | `sean_step_artifacts/Report_Business_Review_Implementation_Plan.md`, `sean_step_artifacts/Report_Business_Review_Checklist.md` |
+| Step 7: LLM Model Routing | Complete (Phases a–d shipped; Phase e LangSmith deferred) | `LLM_MODEL_ROUTING.md` |
 
 ---
 
@@ -526,6 +527,45 @@ def report_node(state: PipelineState) -> dict:
 
 ---
 
+## Step 7: LLM Model Routing
+
+**Status:** Complete — Phases (a)–(d) shipped in commits `559f105` (Step 6 ride-along: `business_stakeholder`, `report_writer` migrations) and `b424231` (routing module, remaining agent migrations, settings schema, app env wiring, tests, review notebook). Phase (e) LangSmith metadata deferred (see `TODO(phase-e)` in `adapters/llm/routing.py`).
+**Design doc:** `project_planning/LLM_MODEL_ROUTING.md`
+**BUILD_PLAN reference:** Cross-cutting refactor of Step 6 (LLM Adapter)
+**Files added:** `src/multi_agent_ds/adapters/llm/routing.py`, `tests/test_routing.py`, `notebooks/LLM_Model_Routing_Review.ipynb`
+**Files modified:** `adapters/llm/openai.py`, `adapters/llm/__init__.py`, `agents/{eda_analyst,data_engineer,ml_reviewer,ml_modeler,business_stakeholder,report_writer}.py`, `src/multi_agent_ds/app.py`, `config/settings.yaml`, `tests/{test_openai_adapter,test_eda_analyst,test_pre_modeling_review_agents}.py`, `tests/integration/test_openai_adapter_live.py`
+
+### What to Build
+
+A two-axis `(capability, cost)` routing layer so every `(agent, task)` pair can resolve to its own `ModelConfig` (e.g. `o3` for `ml_modeler.tuning_decision`, `gpt-4.1-mini` for `ml_reviewer`). Resolution is a pure function (`resolve_model_config`); the adapter becomes provider-dumb (`OpenAIAdapter(config)`); `LLM_COST_OVERRIDE` env var lets us force every route to a single cost tier for smoke tests.
+
+### Sequencing Constraints
+
+- **Depends on Step 5 finishing first.** Six of the ten LLM call sites that need to migrate live in `ml_modeler.py`, which is still being planned. Easiest path: finish and merge Step 5 against today's `OpenAIAdapter(settings)` API, then land Step 7 as a clean refactor on a new branch.
+- **Breaking change for Jonathan's branch.** The constructor swap from `OpenAIAdapter(settings)` to `OpenAIAdapter(config: ModelConfig)` affects every call site, including any in `agents/orchestrator.py` or downstream nodes Jonathan owns. Coordinate before opening the routing branch.
+
+### Phasing (per LLM_MODEL_ROUTING.md §Open Items)
+
+1. Phase (a) — Add `adapters/llm/routing.py` (`ModelConfig` + `resolve_model_config` + `build_adapter` factory) plus pure-function unit tests. Dormant until imported.
+2. Phase (b) — Refactor `adapters/llm/openai.py` constructor to take `ModelConfig`. Update existing OpenAI adapter tests.
+3. Phase (c) — Migrate the four shipped agents' call sites (`eda_analyst`, `data_engineer`, `ml_reviewer`, `business_stakeholder`) plus the six `ml_modeler` modes (once Step 5 has shipped them).
+4. Phase (d) — Wire `LLM_COST_OVERRIDE` env var in `src/multi_agent_ds/app.py`.
+5. Phase (e) — LangSmith metadata pass: tag spans with `capability` and `cost_tier` from each `ModelConfig`.
+
+### What Can Land Before Step 5 Finishes
+
+Phase (a) and a settings.yaml additive (new `model_matrix`, `capability_settings`, `routes` keys alongside the existing `providers.openai.model`) are fully decoupled from Step 5 and can land first as standalone slices. This also unblocks Step 5's `ml_modeler` to be written against `build_adapter(settings, agent="ml_modeler", task=mode)` from day one.
+
+### Done When
+
+- Every `OpenAIAdapter` instance is constructed via `build_adapter(settings, agent=..., task=...)`
+- LangSmith trace shows `gpt-4.1-mini` for reviewers and `o3` for `tuning_decision` / `modeling_verdict`
+- `LLM_COST_OVERRIDE=cheap` forces every span onto its capability's cheap-tier model
+- Resolver fails fast with an actionable `ValueError` on a malformed route
+- Unit tests cover resolver fallbacks, cost override, malformed config, and reasoning-model adapter quirks
+
+---
+
 ## Coordination with Jonathan
 
 | Concern | Owner | Coordination Needed |
@@ -536,6 +576,7 @@ def report_node(state: PipelineState) -> dict:
 | `config/prompts.yaml` | Both edit | Sean prefixes with `eda_`, `data_engineer_`, `sean_ml_modeler_` |
 | `tools/git.py` | Jonathan builds | Sean's agents may use it for experiment PRs |
 | `agents/reviewer.py` | Jonathan builds | Sean's report node runs before reviewer |
+| `OpenAIAdapter` constructor (Step 7) | Sean | **Landed 2026-04-16** in `b424231`. Breaking change: `OpenAIAdapter(settings)` → `OpenAIAdapter(config: ModelConfig)`. Jonathan must migrate any call sites he owns when pulling main. |
 
 ### Sequencing
 
@@ -565,3 +606,10 @@ def report_node(state: PipelineState) -> dict:
 | `agents/ml_modeler.py` | Implement — Sean's version (currently placeholder) | 5 |
 | `config/prompts.yaml` | Populate with prompt templates | 3, 4, 5, 6 |
 | `tools/reporting.py` | Extend with report generation helpers | 6 |
+| `adapters/llm/routing.py` | Create — `ModelConfig`, `resolve_model_config`, `build_adapter` | 7 |
+| `adapters/llm/openai.py` | Refactor constructor to take `ModelConfig` (breaking change) | 7 |
+| `adapters/llm/__init__.py` | Re-export `ModelConfig`, `resolve_model_config`, `build_adapter` | 7 |
+| `agents/eda_analyst.py`, `data_engineer.py`, `ml_modeler.py`, `ml_reviewer.py`, `business_stakeholder.py` | Migrate every `OpenAIAdapter(settings)` call site to `build_adapter(settings, agent=..., task=...)` | 7 |
+| `src/multi_agent_ds/app.py` | Read `LLM_COST_OVERRIDE` env var, stash in `settings["llm"]["cost_override"]` | 7 |
+| `config/settings.yaml` | Add `model_matrix`, `capability_settings`, `routes`, `cost_override` (additive in early slice; remove old `providers.openai.model` once Phase b ships) | 7 |
+| `tests/unit/adapters/llm/test_routing.py` | Create — pure-function tests for `resolve_model_config` | 7 |

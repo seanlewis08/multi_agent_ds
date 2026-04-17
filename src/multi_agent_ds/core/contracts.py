@@ -114,6 +114,56 @@ class MLReviewOutput(BaseModel):
     approved: bool
     next_action: Literal["accept", "revise_modeling"] = "accept"
     decisions: list[ModelingDecisionReview] = Field(default_factory=list)
+    phase: str | None = None
+
+
+class BaselineDecision(BaseModel):
+    """Modeler's decision after reviewing baseline results."""
+
+    summary: str
+    algorithms_to_tune: list[str] = Field(default_factory=list)
+    algorithms_to_drop: list[str] = Field(default_factory=list)
+    reasoning: str
+
+
+class TuningDecision(BaseModel):
+    """Modeler's decision after reviewing Optuna tuning results."""
+
+    algorithm: str
+    accept_tuned_params: bool
+    chosen_params: dict[str, Any] = Field(default_factory=dict)
+    reasoning: str
+
+
+class LearningRateDecision(BaseModel):
+    """Modeler's decision after adjusting learning rate."""
+
+    algorithm: str
+    keep_adjustment: bool
+    chosen_learning_rate: float
+    chosen_n_estimators: int
+    reasoning: str
+
+
+class FeatureSelectionDecision(BaseModel):
+    """Modeler's decision after reviewing permutation importance."""
+
+    algorithm: str
+    accept_subset: bool
+    kept_features: list[str] = Field(default_factory=list)
+    dropped_features: list[str] = Field(default_factory=list)
+    reasoning: str
+
+
+class ModelingVerdict(BaseModel):
+    """Final cross-algorithm recommendation from the ml_modeler."""
+
+    summary: str
+    best_algorithm: str
+    ranked_algorithms: list[str] = Field(default_factory=list)
+    final_metrics: dict[str, dict[str, float]] = Field(default_factory=dict)
+    justification: str
+    next_action: Literal["proceed_to_evaluation", "revise_modeling"] = "proceed_to_evaluation"
 
 
 class BusinessConcern(BaseModel):
