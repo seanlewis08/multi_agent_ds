@@ -392,6 +392,21 @@ mlflow:
 
 ---
 
+### Step 5d: Demo runtime viewer
+
+**Status:** In progress (Phase 1 of 7 from `project_planning/design_plans/2026-04-16-demo-runtime-viewer.md`)
+
+**What:** A record-once-replay-many demo viewer. A new `demo_recorder.py` builds a two-node `StateGraph` (`eda_raw → data_engineer → END`), streams `astream_events(version="v2")`, and writes `data/interim/demo_run_latest.json`. A new `demo_viewer.html` replays the recording as four screens (Config → Input → Runtime → Output+Summary) inside the existing `app.py` via `st.components.v1.html`.
+
+**Scope excluded:** `ml_modeler`, `ml_reviewer`, `business_stakeholder`, `report_writer` are NOT executed live in this demo. Their drawer panes show clearly-labeled `SCRIPTED` canned content.
+
+**Files introduced:**
+- `src/multi_agent_ds/orchestration/demo_recorder.py`
+- `src/multi_agent_ds/demo_viewer.html`
+- `data/interim/demo_run_latest.json` (runtime output, not checked in)
+
+---
+
 ### Step 6: LLM Adapter ⬜ NOT YET BUILT
 
 **What to build:**
